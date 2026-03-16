@@ -1,14 +1,28 @@
 local IGNITION_STATE_BAG_KEY = 'lsrpIgnitionOn'
 local OWNED_VEHICLE_OWNER_STATE_BAG_KEY = 'lsrpVehicleOwner'
+local KEY_ACCESS_MODE_DOOR = 'door'
+local KEY_ACCESS_MODE_START = 'start'
 local KEY_REQUEST_TIMEOUT_MS = 2000
 local NO_KEY_NOTIFY_COOLDOWN_MS = 3000
+local LOCKED_ENTRY_NOTIFY_COOLDOWN_MS = 2000
 local keyRequestCounter = 0
 local pendingKeyRequests = {}
 local startAuthorizationRequestCounter = 0
 local pendingStartAuthorizationRequests = {}
-local keyCacheByPlate = {}
-local inFlightKeyRequests = {}
+local keyCacheByAccessMode = {
+	[KEY_ACCESS_MODE_DOOR] = {},
+	[KEY_ACCESS_MODE_START] = {}
+}
+local inFlightKeyRequestsByAccessMode = {
+	[KEY_ACCESS_MODE_DOOR] = {},
+	[KEY_ACCESS_MODE_START] = {}
+}
 local noKeyNotifyByPlate = {}
+local lockedEntryNotifyByPlate = {}
+local lockedEntryAttemptVehicle = 0
+local lockedEntryAttemptSeat = nil
+local lockedEntryAttemptStartedAt = 0
+local lockedEntryAttemptBlockedUntil = 0
 local playerLicenseIdentifier = nil
 
 local function getVehicleBehaviourConfig()
@@ -29,6 +43,36 @@ local function notify(message)
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, true)
+end
+
+local function normalizeKeyAccessMode(accessMode)
+	if tostring(accessMode or '') == KEY_ACCESS_MODE_START then
+		return KEY_ACCESS_MODE_START
+	end
+
+	return KEY_ACCESS_MODE_DOOR
+end
+
+local function getKeyCacheForAccessMode(accessMode)
+	local normalizedAccessMode = normalizeKeyAccessMode(accessMode)
+	local keyCache = keyCacheByAccessMode[normalizedAccessMode]
+	if keyCache == nil then
+		keyCache = {}
+		keyCacheByAccessMode[normalizedAccessMode] = keyCache
+	end
+
+	return keyCache
+end
+
+local function getInFlightKeyRequestsForAccessMode(accessMode)
+	local normalizedAccessMode = normalizeKeyAccessMode(accessMode)
+	local inFlightKeyRequests = inFlightKeyRequestsByAccessMode[normalizedAccessMode]
+	if inFlightKeyRequests == nil then
+		inFlightKeyRequests = {}
+		inFlightKeyRequestsByAccessMode[normalizedAccessMode] = inFlightKeyRequests
+	end
+
+	return inFlightKeyRequests
 end
 
 local function normalizePlate(value)
@@ -151,25 +195,27 @@ local function isKeyCacheValid(cacheEntry)
 	return (GetGameTimer() - checkedAt) <= getKeyCacheDurationMs()
 end
 
-local function setPlateKeyCache(plate, hasKey, reason)
+local function setPlateKeyCache(accessMode, plate, hasKey, reason)
 	if not plate then
 		return
 	end
 
-	keyCacheByPlate[plate] = {
+	local keyCache = getKeyCacheForAccessMode(accessMode)
+	keyCache[plate] = {
 		hasKey = hasKey == true,
 		reason = tostring(reason or ''),
 		checkedAt = GetGameTimer()
 	}
 end
 
-local function getCachedVehicleKeyAccess(vehicle)
+local function getCachedVehicleKeyAccess(vehicle, accessMode)
 	local plate = getVehiclePlate(vehicle)
 	if not plate then
 		return nil, 'invalid_plate', nil
 	end
 
-	local cacheEntry = keyCacheByPlate[plate]
+	local keyCache = getKeyCacheForAccessMode(accessMode)
+	local cacheEntry = keyCache[plate]
 	if isKeyCacheValid(cacheEntry) then
 		return cacheEntry.hasKey == true, cacheEntry.reason, plate
 	end
@@ -177,14 +223,18 @@ local function getCachedVehicleKeyAccess(vehicle)
 	return nil, 'cache_miss', plate
 end
 
-local function requestVehicleKeyAccessByPlate(plate, forceRefresh)
+local function requestVehicleKeyAccessByPlate(plate, forceRefresh, accessMode)
 	local normalizedPlate = normalizePlate(plate)
+	local normalizedAccessMode = normalizeKeyAccessMode(accessMode)
 	if not normalizedPlate then
 		return false, 'invalid_plate'
 	end
 
+	local keyCache = getKeyCacheForAccessMode(normalizedAccessMode)
+	local inFlightKeyRequests = getInFlightKeyRequestsForAccessMode(normalizedAccessMode)
+
 	if forceRefresh ~= true then
-		local cacheEntry = keyCacheByPlate[normalizedPlate]
+		local cacheEntry = keyCache[normalizedPlate]
 		if isKeyCacheValid(cacheEntry) then
 			return cacheEntry.hasKey == true, cacheEntry.reason
 		end
@@ -196,7 +246,7 @@ local function requestVehicleKeyAccessByPlate(plate, forceRefresh)
 			Wait(0)
 		end
 
-		local cacheEntry = keyCacheByPlate[normalizedPlate]
+		local cacheEntry = keyCache[normalizedPlate]
 		if isKeyCacheValid(cacheEntry) then
 			return cacheEntry.hasKey == true, cacheEntry.reason
 		end
@@ -210,7 +260,7 @@ local function requestVehicleKeyAccessByPlate(plate, forceRefresh)
 	pendingKeyRequests[requestId] = resultPromise
 	inFlightKeyRequests[normalizedPlate] = true
 
-	TriggerServerEvent('lsrp_vehiclebehaviour:server:requestKeyAccess', requestId, normalizedPlate)
+	TriggerServerEvent('lsrp_vehiclebehaviour:server:requestKeyAccess', requestId, normalizedPlate, normalizedAccessMode)
 
 	CreateThread(function()
 		Wait(KEY_REQUEST_TIMEOUT_MS)
@@ -219,6 +269,7 @@ local function requestVehicleKeyAccessByPlate(plate, forceRefresh)
 			pendingKeyRequests[requestId] = nil
 			pendingRequest:resolve({
 				plate = normalizedPlate,
+				accessMode = normalizedAccessMode,
 				hasKey = false,
 				reason = 'request_timeout'
 			})
@@ -231,29 +282,20 @@ local function requestVehicleKeyAccessByPlate(plate, forceRefresh)
 	local hasKey = result and result.hasKey == true
 	local reason = result and result.reason or 'unknown'
 	local resultPlate = normalizePlate(result and result.plate) or normalizedPlate
+	local resultAccessMode = normalizeKeyAccessMode(result and result.accessMode or normalizedAccessMode)
 
-	setPlateKeyCache(resultPlate, hasKey, reason)
+	setPlateKeyCache(resultAccessMode, resultPlate, hasKey, reason)
 	return hasKey, reason
 end
 
-local function requestVehicleKeyAccess(vehicle, forceRefresh)
+local function requestVehicleKeyAccess(vehicle, forceRefresh, accessMode)
 	local plate = getVehiclePlate(vehicle)
+	local normalizedAccessMode = normalizeKeyAccessMode(accessMode)
 	if not plate then
 		return false, 'invalid_plate'
 	end
 
-	if isVehicleOwnedByLocalPlayer(vehicle) then
-		setPlateKeyCache(plate, true, 'owner_state')
-		return true, 'owner_state'
-	end
-
-	local hasKey, reason = requestVehicleKeyAccessByPlate(plate, forceRefresh)
-	if hasKey ~= true and isVehicleOwnedByLocalPlayer(vehicle) then
-		setPlateKeyCache(plate, true, 'owner_state')
-		return true, 'owner_state'
-	end
-
-	return hasKey, reason
+	return requestVehicleKeyAccessByPlate(plate, forceRefresh, normalizedAccessMode)
 end
 
 local function requestVehicleStartAuthorization(vehicle)
@@ -291,14 +333,14 @@ local function requestVehicleStartAuthorization(vehicle)
 	local reason = result and result.reason or 'unknown'
 
 	if allowed then
-		setPlateKeyCache(plate, true, reason)
+		setPlateKeyCache(KEY_ACCESS_MODE_START, plate, true, reason)
 	end
 
 	return allowed, reason
 end
 
 local function canStartVehicle(vehicle)
-	local hasLocalKey, localReason = requestVehicleKeyAccess(vehicle, true)
+	local hasLocalKey, localReason = requestVehicleKeyAccess(vehicle, true, KEY_ACCESS_MODE_START)
 	if hasLocalKey == true then
 		return true, localReason
 	end
@@ -319,14 +361,15 @@ local function canStartVehicle(vehicle)
 	return false, occupantReason or localReason
 end
 
-local function refreshVehicleKeyAccessAsync(vehicle)
+local function refreshVehicleKeyAccessAsync(vehicle, accessMode)
 	local plate = getVehiclePlate(vehicle)
+	local inFlightKeyRequests = getInFlightKeyRequestsForAccessMode(accessMode)
 	if not plate or inFlightKeyRequests[plate] then
 		return
 	end
 
 	CreateThread(function()
-		requestVehicleKeyAccessByPlate(plate, true)
+		requestVehicleKeyAccessByPlate(plate, true, accessMode)
 	end)
 end
 
@@ -344,6 +387,64 @@ local function notifyMissingVehicleKey(plate)
 
 	noKeyNotifyByPlate[plate] = now
 	notify('You do not have the keys for this vehicle')
+end
+
+local function notifyLockedVehicleEntry(plate)
+	local keysConfig = getKeysConfig()
+	if not keysConfig or keysConfig.notify == false then
+		return
+	end
+
+	if not plate then
+		notify('Vehicle is locked. Unlock it before entering')
+		return
+	end
+
+	local now = GetGameTimer()
+	local lastNotifyAt = lockedEntryNotifyByPlate[plate] or 0
+	if (now - lastNotifyAt) < LOCKED_ENTRY_NOTIFY_COOLDOWN_MS then
+		return
+	end
+
+	lockedEntryNotifyByPlate[plate] = now
+	notify('Vehicle is locked. Unlock it before entering')
+end
+
+local function getLockedEntryHandleTryDurationMs()
+	local keysConfig = getKeysConfig()
+	local durationMs = tonumber(keysConfig and keysConfig.forcedEntryHandleTryMs)
+	if not durationMs or durationMs < 100 then
+		return 750
+	end
+
+	return math.floor(durationMs)
+end
+
+local function getLockedEntryRetryDelayMs()
+	local keysConfig = getKeysConfig()
+	local delayMs = tonumber(keysConfig and keysConfig.forcedEntryRetryDelayMs)
+	if not delayMs or delayMs < 0 then
+		return 150
+	end
+
+	return math.floor(delayMs)
+end
+
+local function getLockedEntryDoorRangePadding()
+	local keysConfig = getKeysConfig()
+	local padding = tonumber(keysConfig and keysConfig.forcedEntryDoorRangePadding)
+	if not padding or padding < 0.1 then
+		return 0.85
+	end
+
+	return padding + 0.0
+end
+
+local function resetLockedVehicleEntryAttempt()
+	lockedEntryAttemptVehicle = 0
+	lockedEntryAttemptSeat = nil
+	lockedEntryAttemptStartedAt = 0
+	lockedEntryAttemptBlockedUntil = 0
 end
 
 local function getVehicleForLockToggle(ped, maxDistance)
@@ -367,6 +468,50 @@ local function isVehicleLocked(vehicle)
 
 	local lockStatus = GetVehicleDoorLockStatus(vehicle)
 	return lockStatus == 2 or lockStatus == 4 or lockStatus == 7 or lockStatus == 10
+end
+
+local function getLockedVehicleEntryGuardState(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) or not isVehicleLocked(vehicle) then
+		return false, nil, false
+	end
+
+	local plate = getVehiclePlate(vehicle)
+	if isVehicleOwnedByLocalPlayer(vehicle) then
+		return true, plate, false
+	end
+
+	local cachedHasKey, cachedReason, cachedPlate = getCachedVehicleKeyAccess(vehicle, KEY_ACCESS_MODE_DOOR)
+	plate = cachedPlate or plate
+
+	if cachedHasKey == true then
+		return true, plate, false
+	end
+
+	if cachedReason == 'cache_miss' then
+		refreshVehicleKeyAccessAsync(vehicle, KEY_ACCESS_MODE_DOOR)
+		local inFlightKeyRequests = getInFlightKeyRequestsForAccessMode(KEY_ACCESS_MODE_DOOR)
+		if plate and inFlightKeyRequests[plate] then
+			return true, plate, true
+		end
+	end
+
+	return false, plate, false
+end
+
+local function isPedNearLockedVehicleDoor(ped, vehicle)
+	if ped == 0 or vehicle == 0 or not DoesEntityExist(ped) or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	local pedCoords = GetEntityCoords(ped)
+	local vehicleCoords = GetEntityCoords(vehicle)
+	local dx = pedCoords.x - vehicleCoords.x
+	local dy = pedCoords.y - vehicleCoords.y
+	local minDimensions, maxDimensions = GetModelDimensions(GetEntityModel(vehicle))
+	local halfWidth = math.max(math.abs(minDimensions.x), math.abs(maxDimensions.x))
+	local interactionDistance = halfWidth + getLockedEntryDoorRangePadding()
+
+	return (dx * dx + dy * dy) <= (interactionDistance * interactionDistance)
 end
 
 local function playVehicleLockSound(vehicle, shouldLock)
@@ -427,7 +572,7 @@ local function toggleVehicleLocks()
 		return
 	end
 
-	local hasKey, reason = requestVehicleKeyAccess(vehicle, true)
+	local hasKey, reason = requestVehicleKeyAccess(vehicle, true, KEY_ACCESS_MODE_DOOR)
 	if hasKey ~= true then
 		if keysConfig.notify ~= false then
 			notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
@@ -478,15 +623,16 @@ local function giveVehicleKeyToPlayer(targetServerId)
 	TriggerServerEvent('lsrp_vehiclebehaviour:server:giveKey', targetId, plate)
 end
 
-RegisterNetEvent('lsrp_vehiclebehaviour:client:keyAccessResponse', function(requestId, plate, hasKey, reason)
+RegisterNetEvent('lsrp_vehiclebehaviour:client:keyAccessResponse', function(requestId, plate, accessMode, hasKey, reason)
 	local normalizedRequestId = tonumber(requestId)
 	if not normalizedRequestId then
 		return
 	end
 
 	local normalizedPlate = normalizePlate(plate)
+	local normalizedAccessMode = normalizeKeyAccessMode(accessMode)
 	if normalizedPlate then
-		setPlateKeyCache(normalizedPlate, hasKey == true, reason)
+		setPlateKeyCache(normalizedAccessMode, normalizedPlate, hasKey == true, reason)
 	end
 
 	local pendingRequest = pendingKeyRequests[normalizedRequestId]
@@ -494,6 +640,7 @@ RegisterNetEvent('lsrp_vehiclebehaviour:client:keyAccessResponse', function(requ
 		pendingKeyRequests[normalizedRequestId] = nil
 		pendingRequest:resolve({
 			plate = normalizedPlate,
+			accessMode = normalizedAccessMode,
 			hasKey = hasKey == true,
 			reason = tostring(reason or '')
 		})
@@ -623,14 +770,26 @@ local function toggleIgnition()
 	local currentIgnitionState = ensureVehicleIgnitionState(vehicle)
 	local newIgnitionState = not currentIgnitionState
 
-	if newIgnitionState == true and keysConfig and keysConfig.enabled ~= false then
-		local hasKey, reason = canStartVehicle(vehicle)
-		if hasKey ~= true then
-			if ignitionConfig.notify ~= false then
-				notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
+	if keysConfig and keysConfig.enabled ~= false then
+		if newIgnitionState == true then
+			-- Turning ON: the local player or any occupant must have the key
+			local hasKey, reason = canStartVehicle(vehicle)
+			if hasKey ~= true then
+				if ignitionConfig.notify ~= false then
+					notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
+				end
+				setVehicleIgnitionState(vehicle, false)
+				return
 			end
-			setVehicleIgnitionState(vehicle, false)
-			return
+		else
+			-- Turning OFF: the player pressing ignition must have the key (unowned/public vehicles are freely accessible)
+			local hasKey, reason = requestVehicleKeyAccess(vehicle, true, KEY_ACCESS_MODE_DOOR)
+			if hasKey ~= true and reason ~= 'unowned_vehicle' then
+				if ignitionConfig.notify ~= false then
+					notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
+				end
+				return
+			end
 		end
 	end
 
@@ -755,6 +914,85 @@ CreateThread(function()
 				end
 			else
 				Wait(250)
+			end
+		end
+	end
+end)
+
+CreateThread(function()
+	while not NetworkIsSessionStarted() do
+		Wait(250)
+	end
+
+	while true do
+		local vehicleBehaviour = getVehicleBehaviourConfig()
+		local keysConfig = getKeysConfig()
+		local guardEnabled = vehicleBehaviour and vehicleBehaviour.enabled ~= false
+			and keysConfig and keysConfig.enabled ~= false
+			and keysConfig.preventForcedEntryWithKey ~= false
+
+		if not guardEnabled then
+			Wait(1000)
+		else
+			local ped = PlayerPedId()
+
+			if ped == 0 or IsPedFatallyInjured(ped) or IsPedInAnyVehicle(ped, false) then
+				resetLockedVehicleEntryAttempt()
+				Wait(250)
+			else
+				local vehicle = GetVehiclePedIsTryingToEnter(ped)
+
+				if vehicle ~= 0 and DoesEntityExist(vehicle) then
+					local shouldBlockEntry, plate, isPendingKeyCheck = getLockedVehicleEntryGuardState(vehicle)
+					local seat = GetSeatPedIsTryingToEnter(ped)
+
+					if lockedEntryAttemptVehicle ~= vehicle or lockedEntryAttemptSeat ~= seat then
+						lockedEntryAttemptVehicle = vehicle
+						lockedEntryAttemptSeat = seat
+						lockedEntryAttemptStartedAt = 0
+						lockedEntryAttemptBlockedUntil = 0
+					end
+
+					if shouldBlockEntry then
+						if isPendingKeyCheck then
+							DisableControlAction(0, 23, true)
+							ClearPedTasks(ped)
+							lockedEntryAttemptStartedAt = 0
+							lockedEntryAttemptBlockedUntil = 0
+							Wait(0)
+						elseif not isPedNearLockedVehicleDoor(ped, vehicle) then
+							lockedEntryAttemptStartedAt = 0
+							lockedEntryAttemptBlockedUntil = 0
+							Wait(0)
+						else
+							local now = GetGameTimer()
+
+							if lockedEntryAttemptBlockedUntil > now then
+								DisableControlAction(0, 23, true)
+								ClearPedTasks(ped)
+								Wait(0)
+							else
+								if lockedEntryAttemptStartedAt == 0 then
+									lockedEntryAttemptStartedAt = now
+								elseif (now - lockedEntryAttemptStartedAt) >= getLockedEntryHandleTryDurationMs() then
+									DisableControlAction(0, 23, true)
+									ClearPedTasks(ped)
+									lockedEntryAttemptStartedAt = 0
+									lockedEntryAttemptBlockedUntil = now + getLockedEntryRetryDelayMs()
+									notifyLockedVehicleEntry(plate)
+								end
+
+								Wait(0)
+							end
+						end
+					else
+						resetLockedVehicleEntryAttempt()
+						Wait(0)
+					end
+				else
+					resetLockedVehicleEntryAttempt()
+					Wait(100)
+				end
 			end
 		end
 	end
