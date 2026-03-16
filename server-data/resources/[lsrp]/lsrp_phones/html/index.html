@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phone</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="phone-container" class="phone">
+        <div class="phone-header">
+            <span class="phone-time" id="phone-time">10:30</span>
+            <span class="phone-signal">●●●●●</span>
+        </div>
+        <div class="phone-content" id="phone-content">
+            <div id="home-screen">
+                <h2>Apps</h2>
+                <div class="app-grid">
+                    <div class="app-icon" onclick="openApp('balance')">
+                        <div class="icon">💵</div>
+                        <span>Balance</span>
+                    </div>
+                    <div class="app-icon" onclick="openApp('parking')">
+                        <div class="icon">🚗</div>
+                        <span>Parking</span>
+                    </div>
+                    <div class="app-icon" onclick="openApp('calls')">
+                        <div class="icon">📞</div>
+                        <span>Calls</span>
+                    </div>
+                    <div class="app-icon" onclick="openApp('phonebook')">
+                        <div class="icon">📇</div>
+                        <span>Phonebook</span>
+                    </div>
+                </div>
+            </div>
+            <div id="balance-app" class="app-screen" style="display: none;">
+                <div class="app-header">
+                    <button class="back-btn" onclick="closeApp()">← Back</button>
+                    <h3>Balance</h3>
+                </div>
+                <div class="balance-app-content">
+                    <div class="balance-card">
+                        <p class="balance-label">Available LS$</p>
+                        <h2 id="balance-value" class="balance-value">LS$0</h2>
+                        <p id="balance-status" class="balance-status">Checking your account...</p>
+                    </div>
+                    <div class="balance-actions">
+                        <button class="btn" onclick="loadBalance()">Refresh</button>
+                    </div>
+                    <p id="balance-meta" class="balance-meta">Not synced yet.</p>
+                </div>
+            </div>
+            <div id="parking-app" class="app-screen" style="display: none;">
+                <div class="app-header">
+                    <button class="back-btn" onclick="closeApp()">← Back</button>
+                    <h3>My Vehicles</h3>
+                </div>
+                <p id="parking-status" class="parking-status">Tap a parked vehicle to set GPS.</p>
+                <div id="vehicle-list" class="vehicle-list">
+                    <p class="loading">Loading vehicles...</p>
+                </div>
+            </div>
+            <div id="phonebook-app" class="app-screen" style="display: none;">
+                <div class="app-header">
+                    <button class="back-btn" onclick="closeApp()">← Back</button>
+                    <h3>Phonebook</h3>
+                </div>
+                <div class="phonebook-section phonebook-app-content">
+                    <div class="phonebook-header">
+                        <h4>Contacts</h4>
+                        <button class="phonebook-refresh" onclick="loadPhonebook()">Refresh</button>
+                    </div>
+                    <div id="phonebook-list" class="phonebook-list">
+                        <p class="loading">Loading contacts...</p>
+                    </div>
+                </div>
+            </div>
+            <div id="calls-app" class="app-screen" style="display: none;">
+                <div class="app-header">
+                    <button class="back-btn" onclick="closeApp()">← Back</button>
+                    <h3>Calls</h3>
+                </div>
+                <div class="calls-content">
+                    <label class="field-label" for="call-target-id">Phone Number</label>
+                    <input id="call-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
+                    <p id="my-phone-number" class="call-meta">Your number: Assigning...</p>
+
+                    <div class="dial-pad" aria-label="Phone dial pad">
+                        <button class="dial-key" onclick="dialPadPress('1')">1</button>
+                        <button class="dial-key" onclick="dialPadPress('2')">2</button>
+                        <button class="dial-key" onclick="dialPadPress('3')">3</button>
+                        <button class="dial-key" onclick="dialPadPress('4')">4</button>
+                        <button class="dial-key" onclick="dialPadPress('5')">5</button>
+                        <button class="dial-key" onclick="dialPadPress('6')">6</button>
+                        <button class="dial-key" onclick="dialPadPress('7')">7</button>
+                        <button class="dial-key" onclick="dialPadPress('8')">8</button>
+                        <button class="dial-key" onclick="dialPadPress('9')">9</button>
+                        <button class="dial-key dial-key-control" onclick="dialPadClear()">C</button>
+                        <button class="dial-key" onclick="dialPadPress('0')">0</button>
+                        <button class="dial-key dial-key-control" onclick="dialPadBackspace()">⌫</button>
+                    </div>
+
+                    <div class="call-actions">
+                        <button id="start-call-btn" class="btn" onclick="startCall()">Call</button>
+                        <button id="end-call-btn" class="btn btn-danger" onclick="endCall()" style="display: none;">Hang Up</button>
+                    </div>
+
+                    <div id="incoming-call" class="incoming-call" style="display: none;">
+                        <p id="incoming-call-text">Incoming call...</p>
+                        <div class="incoming-actions">
+                            <button class="btn btn-accept" onclick="acceptCall()">Accept</button>
+                            <button class="btn btn-danger" onclick="declineCall()">Decline</button>
+                        </div>
+                    </div>
+
+                    <p id="call-status" class="call-status">No active call.</p>
+                </div>
+            </div>
+        </div>
+        <div class="phone-footer">
+            <button class="btn" onclick="closePhone()">Close</button>
+        </div>
+    </div>
+
+    <div id="incoming-toast" class="incoming-toast" aria-live="polite">
+        <div class="incoming-toast-indicator"></div>
+        <div class="incoming-toast-copy">
+            <p class="incoming-toast-label">Incoming call</p>
+            <h4 id="incoming-toast-number" class="incoming-toast-number">Unknown</h4>
+            <p class="incoming-toast-hint">Press F4 to answer</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,138 @@
+.outfit-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+.outfit-row .slot { width:28px; text-align:center; font-weight:bold; }
+.outfit-row .oname { flex:1; font-size:13px; color:#cfcfcf; }
+.outfit-row button { padding:6px 8px; }
+.save-editor { display:flex; align-items:center; }
+.confirm-editor { display:flex; align-items:center; background:#1a1b1c; padding:6px; border-radius:6px; }
+.confirm-editor div { color:#f88; }
+body {
+    background: transparent;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+#app {
+    position: fixed;
+    top: 40px;
+    right: 24px;
+    width: 720px;
+    height: calc(100% - 80px);
+    background: transparent;
+    display: none;
+    overflow: auto;
+}
+h1 {
+    text-align: center;
+    margin-bottom: 24px;
+}
+.ped-controls, .ped-appearance {
+    margin-bottom: 18px;
+}
+.component-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.component-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #1f2326;
+    padding: 8px;
+    border-radius: 6px;
+}
+.component-row .comp-label {
+    font-weight: bold;
+}
+.component-row button {
+    margin-left: 8px;
+}
+.comp-form {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+.comp-form label { margin: 0; }
+.comp-form input { width: 80px; }
+
+/* New editor layout */
+.editor {
+    display: flex;
+    height: 100%;
+    gap: 12px;
+}
+.sidebar {
+    flex: 1;
+    background: #1f2326;
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.outfits { background:#151718; padding:8px; border-radius:6px; }
+.outfit-row { display:flex; gap:6px; align-items:center; margin-bottom:6px; }
+.outfit-row .slot { width:28px; text-align:center; font-weight:bold; }
+.outfit-row .oname { flex:1; font-size:13px; color:#cfcfcf; }
+.outfit-row button { padding:6px 8px; }
+.sidebar-header { display:flex; flex-direction:column; gap:8px; }
+.sidebar-header h1 { margin:0; font-size:18px; }
+/* small notice under the title explaining camera keys */
+.sidebar-header .notice { font-size:12px; color:#bdbdbd; text-align:center; }
+.sidebar-header .notice strong { color:#fff; font-weight:600; }
+.sidebar input { padding:6px; border-radius:4px; border:1px solid #333; background:#121317; color:#fff }
+.sidebar-actions { display:flex; gap:8px; margin-top:auto; }
+.sidebar-actions button { flex:1; padding:8px; border-radius:6px; }
+.component-list { padding-right:4px; }
+.component-row { padding:8px; border-radius:6px; margin-bottom:6px; background:#161718; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+.component-row.active { outline: 2px solid #4caf50; }
+.details { flex: 1; background:#23272b; border-radius:8px; padding:16px; display:flex; flex-direction:column; }
+.details-top { margin-bottom:12px; }
+.gender-select { display:flex; gap:8px; }
+.gender-btn { flex:1; padding:8px; border-radius:6px; background:#2a2d30; color:#fff; border:1px solid #333; cursor:pointer; }
+.gender-btn.active { outline:2px solid #4caf50; background:#324034; }
+.detail-panel { flex:1; display:flex; flex-direction:column; }
+.detail-controls { margin-top:12px; }
+.control-row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.control-row input { width:80px; padding:6px; border-radius:4px; border:1px solid #333; background:#121317; color:#fff }
+.control-row button { padding:6px 8px; border-radius:4px; }
+.control-actions { margin-top:8px; }
+.control-actions button { padding:8px 12px; background:#4caf50; color:#fff; border-radius:6px; }
+
+#app { background: rgba(35,39,43,0.95); }
+label {
+    display: block;
+    margin-bottom: 8px;
+}
+input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #444;
+    background: #1a1d20;
+    color: #fff;
+}
+
+/* Remove native number input spin buttons for cleaner UI */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+button {
+    background: #4caf50;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-top: 8px;
+}
+button:hover {
+    background: #388e3c;
+}

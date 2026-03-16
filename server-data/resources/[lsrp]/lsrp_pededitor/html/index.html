@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ped Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div class="editor">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h1>Ped Editor</h1>
+                    <div class="notice">Camera: press <strong>W</strong>/<strong>S</strong> to move up/down, <strong>A</strong>/<strong>D</strong> to rotate</div>
+                </div>
+                <div id="component-list" class="component-list"></div>
+                <div class="sidebar-actions">
+                    <button id="revert-btn">Revert</button>
+                    <button id="close-nui">Close</button>
+                </div>
+            </div>
+            <div class="details">
+                <div class="details-top">
+                    <div class="gender-select">
+                        <button id="male-btn" class="gender-btn">Male</button>
+                        <button id="female-btn" class="gender-btn">Female</button>
+                    </div>
+                </div>
+                <div id="detail-panel" class="detail-panel">
+                    <h2 id="detail-title">Select a component</h2>
+                    <div id="detail-controls" class="detail-controls">
+                        <div class="control-row">
+                            <label>Drawable</label>
+                            <button id="dec-draw">-</button>
+                            <input id="draw-val" type="number" min="0" value="0" />
+                            <button id="inc-draw">+</button>
+                        </div>
+                        <div class="control-row">
+                            <label>Texture</label>
+                            <button id="dec-text">-</button>
+                            <input id="text-val" type="number" min="0" value="0" />
+                            <button id="inc-text">+</button>
+                        </div>
+                        <div class="control-actions">
+                            <!-- Apply removed: changes are applied live -->
+                        </div>
+                    </div>
+                    <div id="outfits" class="outfits" style="margin-top:12px;">
+                        <h3>Saved Outfits</h3>
+                        <div id="outfits-list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="main.js"></script>
+</body>
+</html>

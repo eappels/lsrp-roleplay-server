@@ -1,0 +1,205 @@
+╔══════════════════════════════════════════════════════════════╗
+║     LSRP VEHICLE PARKING - INSTALLATION CHECKLIST            ║
+╚══════════════════════════════════════════════════════════════╝
+
+Follow this checklist to install and test the resource:
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 1: DATABASE SETUP                                       │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Open your database manager (HeidiSQL, phpMyAdmin, DBeaver, etc.)
+[ ] Connect to your FiveM server's MySQL database
+[ ] Open and execute: sql/schema.sql
+    OR copy/paste the SQL from that file
+[ ] Verify the table "parked_vehicles" was created
+    - Should have 7 columns: id, license, vehicle_model, 
+      vehicle_plate, parking_zone, vehicle_props, stored_at
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 2: VERIFY DEPENDENCIES                                  │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Confirm oxmysql is installed in your resources folder
+[ ] Confirm polyzone is installed in your resources folder
+[ ] Check server.cfg contains: ensure oxmysql
+[ ] Check server.cfg contains: ensure polyzone
+[ ] Verify both oxmysql and polyzone start without errors
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 3: SERVER CONFIGURATION                                 │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Open your server.cfg file
+[ ] Add these lines in order:
+    ensure oxmysql
+    ensure polyzone
+    ensure lsrp_vehicleparking
+[ ] Save server.cfg
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 4: START THE RESOURCE                                   │
+└──────────────────────────────────────────────────────────────┘
+
+Option A - Server Restart (Recommended)
+[ ] Stop your FiveM server
+[ ] Start your FiveM server
+[ ] Watch server console for this message:
+    "[lsrp_vehicleparking] Server script loaded successfully"
+    "[lsrp_vehicleparking] Client script loaded successfully"
+    "[lsrp_vehicleparking] Created zone: Legion Square Parking"
+    "[lsrp_vehicleparking] Created zone: Airport Parking"
+    "[lsrp_vehicleparking] Created zone: Downtown Parking"
+
+Option B - Live Start (If server is running)
+[ ] Open server console
+[ ] Type: ensure lsrp_vehicleparking
+[ ] Press Enter
+[ ] Check for success messages
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 5: IN-GAME TESTING                                      │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Join your FiveM server
+[ ] Open the map (M key)
+[ ] Look for purple garage blips (should see 3)
+[ ] Go to Legion Square Parking:
+    - Coordinates: 215.9, -809.1, 30.7
+    - Near Maze Bank downtown
+
+[ ] When you get close, you should see:
+    "Press E to open parking menu"
+
+[ ] Press E - UI should open with:
+    ✓ Zone name "Legion Square Parking"
+    ✓ Vehicle count: 0
+    ✓ Max capacity: 10
+    ✓ "Park Current Vehicle" button
+    ✓ "Refresh" button
+    ✓ "No vehicles parked" message
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 6: TEST PARKING A VEHICLE                               │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Spawn or get into any vehicle
+[ ] Drive to the parking zone
+[ ] Make sure you're in the DRIVER seat
+[ ] Open parking menu (Press E)
+[ ] Click "Park Current Vehicle"
+[ ] You should see:
+    ✓ "Vehicle parked successfully" notification
+    ✓ You exit the vehicle
+    ✓ Vehicle disappears after 2 seconds
+    ✓ UI updates to show 1 vehicle
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 7: TEST RETRIEVING A VEHICLE                            │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Open parking menu (Press E)
+[ ] You should see your parked vehicle card with:
+    ✓ Vehicle model name
+    ✓ License plate
+    ✓ Date/time parked
+    ✓ "Retrieve Vehicle" button
+
+[ ] Click "Retrieve Vehicle"
+[ ] Vehicle should spawn nearby
+[ ] You should be placed in the driver seat
+[ ] Vehicle should have all the same modifications
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 8: TEST VEHICLE PERSISTENCE (IMPORTANT!)                │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Get a vehicle with modifications:
+    - Change color at Los Santos Customs
+    - Add spoiler, bumpers, wheels, etc.
+    - Add neon lights
+    - Change window tint
+
+[ ] Park the modified vehicle
+[ ] Retrieve it from parking
+[ ] Verify ALL modifications are still there:
+    [ ] Paint color matches
+    [ ] Body modifications present
+    [ ] Wheels are correct
+    [ ] Neon lights still on
+    [ ] Window tint matches
+
+┌──────────────────────────────────────────────────────────────┐
+│ STEP 9: TEST MULTIPLE ZONES                                  │
+└──────────────────────────────────────────────────────────────┘
+
+[ ] Park a vehicle at Legion Square
+[ ] Go to Airport Parking (-796.9, -2024.5, 9.2)
+[ ] Open menu - should NOT see Legion Square vehicle
+[ ] Park another vehicle at Airport
+[ ] Go back to Legion Square
+[ ] Open menu - should see original vehicle
+[ ] Confirm vehicles are zone-specific
+
+┌──────────────────────────────────────────────────────────────┐
+│ TROUBLESHOOTING CHECKLIST                                    │
+└──────────────────────────────────────────────────────────────┘
+
+If UI doesn't open:
+[ ] Check F8 console for JavaScript errors
+[ ] Verify you're within the zone (enable debug mode to see boundaries)
+[ ] Ensure polyzone is running: /ensure polyzone
+[ ] Try /restart lsrp_vehicleparking
+
+If vehicle doesn't save:
+[ ] Check server console for SQL errors
+[ ] Verify database table exists
+[ ] Check oxmysql is running
+[ ] Make sure license identifier is valid
+
+If vehicle spawns without mods:
+[ ] Check vehicle_props column is LONGTEXT (not TEXT)
+[ ] Look for JSON errors in server console
+[ ] Verify no errors during storage
+
+If blips don't show:
+[ ] Verify polyzone is running (check server console)
+[ ] Enable debug zones: Config.showParkingZoneDebug = true
+[ ] Restart the resource
+[ ] Check shared/config.lua for syntax errors
+[ ] Look for BoxZone errors in console
+
+┌──────────────────────────────────────────────────────────────┐
+│ SUCCESS INDICATORS                                            │
+└──────────────────────────────────────────────────────────────┘
+
+You'll know it's working correctly when:
+
+✓ Purple garage blips appear on map
+✓ "Press E" prompt shows near zones
+✓ UI opens with modern purple/blue design
+✓ Vehicles can be parked and disappear
+✓ Parked vehicles show in the list
+✓ Retrieved vehicles spawn with player inside
+✓ All modifications are preserved perfectly
+✓ No errors in server console
+✓ No errors in F8 client console
+
+┌──────────────────────────────────────────────────────────────┐
+│ OPTIONAL: CUSTOMIZE THE RESOURCE                             │
+└──────────────────────────────────────────────────────────────┘
+
+After testing, you can customize:
+
+[ ] Add more parking zones (shared/config.lua)
+[ ] Change interaction key from E to another
+[ ] Add parking fees (Config.StorageFee)
+[ ] Modify zone sizes
+[ ] Change UI colors (html/style.css)
+[ ] Integrate custom notification system
+
+See README.md for detailed customization instructions.
+
+╔══════════════════════════════════════════════════════════════╗
+║  Once all checks pass, your parking system is ready! 🎉      ║
+╚══════════════════════════════════════════════════════════════╝

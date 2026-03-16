@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSRP Inventory</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="hidden">
+        <div class="inventory-shell">
+            <header class="inventory-header">
+                <div>
+                    <p class="eyebrow">LSRP</p>
+                    <h1>Inventory</h1>
+                    <p class="layout-tag">3x3 Grid Layout</p>
+                </div>
+                <button id="close-btn" type="button" class="close-btn">Close</button>
+            </header>
+
+            <section class="inventory-summary">
+                <div class="summary-card">
+                    <span class="summary-label">Slots Used</span>
+                    <strong id="slots-text">0 / 0</strong>
+                </div>
+                <div class="summary-card">
+                    <span class="summary-label">Carry Weight</span>
+                    <strong id="weight-text">0 / 0</strong>
+                </div>
+            </section>
+
+            <section class="inventory-body">
+                <div id="slot-grid" class="slot-grid"></div>
+            </section>
+
+            <footer class="inventory-footer">
+                <p id="status-text">Press ESC to close.</p>
+            </footer>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

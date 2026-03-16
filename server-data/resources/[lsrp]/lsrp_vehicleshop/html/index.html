@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSRP Vehicle Shop</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="hidden">
+        <div class="backdrop-ring"></div>
+
+        <div class="shop-shell">
+            <aside class="rail">
+                <div class="brand-block">
+                    <p class="eyebrow">LSRP DEALERSHIP</p>
+                    <h1 id="shop-name">Vehicle Shop</h1>
+                    <p id="shop-subtitle" class="subtitle">Choose your next ride.</p>
+                </div>
+
+                <div class="balance-card">
+                    <span class="balance-label">Current Balance</span>
+                    <strong id="balance-text" class="balance-value">LS$0</strong>
+                </div>
+
+                <div class="delivery-card">
+                    <span class="delivery-label">Delivery Parking</span>
+                    <strong id="delivery-zone" class="delivery-value">Unknown</strong>
+                </div>
+
+                <section class="category-section">
+                    <h2>Categories</h2>
+                    <div id="category-list" class="category-list"></div>
+                </section>
+
+                <div class="rail-footer">
+                    <button id="close-btn" class="btn btn-close" type="button">Close</button>
+                    <p class="tip">Tip: Vehicles are delivered to parking after purchase.</p>
+                </div>
+            </aside>
+
+            <main class="catalog">
+                <header class="catalog-header">
+                    <div>
+                        <h2>Inventory</h2>
+                        <p id="inventory-meta">0 vehicles listed</p>
+                    </div>
+                    <div class="search-wrap">
+                        <input id="search-input" type="text" placeholder="Search by name or model" autocomplete="off">
+                    </div>
+                </header>
+
+                <section id="vehicle-grid" class="vehicle-grid"></section>
+            </main>
+        </div>
+
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

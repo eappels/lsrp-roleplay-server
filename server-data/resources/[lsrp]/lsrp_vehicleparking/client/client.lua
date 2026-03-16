@@ -1,0 +1,745 @@
+local inZone = false
+local currentZone = nil
+local parkingBlips = {}
+local parkingZones = {}
+local parkedVehicles = {}
+local uiOpen = false
+local OWNED_VEHICLE_ID_STATE_KEY = 'lsrpOwnedVehicleId'
+local OWNED_VEHICLE_OWNER_STATE_KEY = 'lsrpVehicleOwner'
+
+local function canStoreVehiclesInZone(zoneCfg)
+    return type(zoneCfg) == 'table' and zoneCfg.allowStore ~= false
+end
+
+local function getParkingZoneByName(zoneName)
+    if type(zoneName) ~= 'string' or zoneName == '' then
+        return nil
+    end
+
+    local normalizedName = string.lower(zoneName)
+
+    for _, zoneCfg in ipairs(Config.ParkingZones) do
+        if type(zoneCfg.name) == 'string' and string.lower(zoneCfg.name) == normalizedName then
+            return zoneCfg
+        end
+    end
+
+    return nil
+end
+
+-- Helper function to get vehicle properties (all customization)
+local function getVehicleProperties(vehicle)
+    if not DoesEntityExist(vehicle) then
+        return nil
+    end
+
+    local colorPrimary, colorSecondary = GetVehicleColours(vehicle)
+    local pearlescentColor, wheelColor = GetVehicleExtraColours(vehicle)
+    local extras = {}
+    
+    for extraId = 0, 12 do
+        if DoesExtraExist(vehicle, extraId) then
+            extras[tostring(extraId)] = IsVehicleExtraTurnedOn(vehicle, extraId)
+        end
+    end
+
+    local doorsBroken, windowsBroken = {}, {}
+    local tyreBurst = {}
+    
+    for i = 0, 5 do
+        doorsBroken[i] = IsVehicleDoorDamaged(vehicle, i)
+        windowsBroken[i] = not IsVehicleWindowIntact(vehicle, i)
+    end
+    
+    for i = 0, 7 do
+        tyreBurst[i] = IsVehicleTyreBurst(vehicle, i, false)
+    end
+
+    return {
+        model = GetEntityModel(vehicle),
+        
+        -- Colors
+        pearlescentColor = pearlescentColor,
+        wheelColor = wheelColor,
+        color1 = colorPrimary,
+        color2 = colorSecondary,
+        
+        -- Custom colors
+        customPrimaryColor = {GetVehicleCustomPrimaryColour(vehicle)},
+        customSecondaryColor = {GetVehicleCustomSecondaryColour(vehicle)},
+        
+        -- Paint types
+        paintType1 = GetVehicleModColor_1(vehicle),
+        paintType2 = GetVehicleModColor_2(vehicle),
+        
+        -- Plates
+        plate = GetVehicleNumberPlateText(vehicle),
+        plateIndex = GetVehicleNumberPlateTextIndex(vehicle),
+        
+        -- Damage
+        bodyHealth = GetVehicleBodyHealth(vehicle),
+        engineHealth = GetVehicleEngineHealth(vehicle),
+        tankHealth = GetVehiclePetrolTankHealth(vehicle),
+        fuelLevel = GetVehicleFuelLevel(vehicle),
+        dirtLevel = GetVehicleDirtLevel(vehicle),
+        oilLevel = GetVehicleOilLevel(vehicle),
+        
+        -- Doors and windows
+        doorsBroken = doorsBroken,
+        windowsBroken = windowsBroken,
+        tyreBurst = tyreBurst,
+        
+        -- Mods
+        modSpoilers = GetVehicleMod(vehicle, 0),
+        modFrontBumper = GetVehicleMod(vehicle, 1),
+        modRearBumper = GetVehicleMod(vehicle, 2),
+        modSideSkirt = GetVehicleMod(vehicle, 3),
+        modExhaust = GetVehicleMod(vehicle, 4),
+        modFrame = GetVehicleMod(vehicle, 5),
+        modGrille = GetVehicleMod(vehicle, 6),
+        modHood = GetVehicleMod(vehicle, 7),
+        modFender = GetVehicleMod(vehicle, 8),
+        modRightFender = GetVehicleMod(vehicle, 9),
+        modRoof = GetVehicleMod(vehicle, 10),
+        
+        modEngine = GetVehicleMod(vehicle, 11),
+        modBrakes = GetVehicleMod(vehicle, 12),
+        modTransmission = GetVehicleMod(vehicle, 13),
+        modHorns = GetVehicleMod(vehicle, 14),
+        modSuspension = GetVehicleMod(vehicle, 15),
+        modArmor = GetVehicleMod(vehicle, 16),
+        
+        modTurbo = IsToggleModOn(vehicle, 18),
+        modSmokeEnabled = IsToggleModOn(vehicle, 20),
+        modXenon = IsToggleModOn(vehicle, 22),
+        
+        modFrontWheels = GetVehicleMod(vehicle, 23),
+        modBackWheels = GetVehicleMod(vehicle, 24),
+        
+        modPlateHolder = GetVehicleMod(vehicle, 25),
+        modVanityPlate = GetVehicleMod(vehicle, 26),
+        modTrimA = GetVehicleMod(vehicle, 27),
+        modOrnaments = GetVehicleMod(vehicle, 28),
+        modDashboard = GetVehicleMod(vehicle, 29),
+        modDial = GetVehicleMod(vehicle, 30),
+        modDoorSpeaker = GetVehicleMod(vehicle, 31),
+        modSeats = GetVehicleMod(vehicle, 32),
+        modSteeringWheel = GetVehicleMod(vehicle, 33),
+        modShifterLeavers = GetVehicleMod(vehicle, 34),
+        modAPlate = GetVehicleMod(vehicle, 35),
+        modSpeakers = GetVehicleMod(vehicle, 36),
+        modTrunk = GetVehicleMod(vehicle, 37),
+        modHydrolic = GetVehicleMod(vehicle, 38),
+        modEngineBlock = GetVehicleMod(vehicle, 39),
+        modAirFilter = GetVehicleMod(vehicle, 40),
+        modStruts = GetVehicleMod(vehicle, 41),
+        modArchCover = GetVehicleMod(vehicle, 42),
+        modAerials = GetVehicleMod(vehicle, 43),
+        modTrimB = GetVehicleMod(vehicle, 44),
+        modTank = GetVehicleMod(vehicle, 45),
+        modWindows = GetVehicleMod(vehicle, 46),
+        modLivery = GetVehicleMod(vehicle, 48),
+        
+        -- Wheel type and custom tires
+        wheelType = GetVehicleWheelType(vehicle),
+        modCustomTiresF = GetVehicleModVariation(vehicle, 23),
+        modCustomTiresR = GetVehicleModVariation(vehicle, 24),
+        
+        -- Neon
+        neonEnabled = {
+            IsVehicleNeonLightEnabled(vehicle, 0),
+            IsVehicleNeonLightEnabled(vehicle, 1),
+            IsVehicleNeonLightEnabled(vehicle, 2),
+            IsVehicleNeonLightEnabled(vehicle, 3)
+        },
+        neonColor = {GetVehicleNeonLightsColour(vehicle)},
+        
+        -- Tire smoke color
+        tyreSmokeColor = {GetVehicleTyreSmokeColor(vehicle)},
+        
+        -- Window tint
+        windowTint = GetVehicleWindowTint(vehicle),
+        
+        -- Extras
+        extras = extras
+    }
+end
+
+-- Helper function to set vehicle properties
+local function setVehicleProperties(vehicle, props)
+    if not DoesEntityExist(vehicle) or not props then
+        return
+    end
+
+    SetVehicleModKit(vehicle, 0)
+    
+    -- Colors
+    if props.color1 and props.color2 then
+        SetVehicleColours(vehicle, props.color1, props.color2)
+    end
+    
+    if props.pearlescentColor and props.wheelColor then
+        SetVehicleExtraColours(vehicle, props.pearlescentColor, props.wheelColor)
+    end
+    
+    -- Custom colors
+    if props.customPrimaryColor then
+        SetVehicleCustomPrimaryColour(vehicle, props.customPrimaryColor[1], props.customPrimaryColor[2], props.customPrimaryColor[3])
+    end
+    
+    if props.customSecondaryColor then
+        SetVehicleCustomSecondaryColour(vehicle, props.customSecondaryColor[1], props.customSecondaryColor[2], props.customSecondaryColor[3])
+    end
+    
+    -- Plates
+    if props.plate then
+        SetVehicleNumberPlateText(vehicle, props.plate)
+    end
+    
+    if props.plateIndex then
+        SetVehicleNumberPlateTextIndex(vehicle, props.plateIndex)
+    end
+    
+    -- Mods
+    if props.modSpoilers then SetVehicleMod(vehicle, 0, props.modSpoilers, false) end
+    if props.modFrontBumper then SetVehicleMod(vehicle, 1, props.modFrontBumper, false) end
+    if props.modRearBumper then SetVehicleMod(vehicle, 2, props.modRearBumper, false) end
+    if props.modSideSkirt then SetVehicleMod(vehicle, 3, props.modSideSkirt, false) end
+    if props.modExhaust then SetVehicleMod(vehicle, 4, props.modExhaust, false) end
+    if props.modFrame then SetVehicleMod(vehicle, 5, props.modFrame, false) end
+    if props.modGrille then SetVehicleMod(vehicle, 6, props.modGrille, false) end
+    if props.modHood then SetVehicleMod(vehicle, 7, props.modHood, false) end
+    if props.modFender then SetVehicleMod(vehicle, 8, props.modFender, false) end
+    if props.modRightFender then SetVehicleMod(vehicle, 9, props.modRightFender, false) end
+    if props.modRoof then SetVehicleMod(vehicle, 10, props.modRoof, false) end
+    if props.modEngine then SetVehicleMod(vehicle, 11, props.modEngine, false) end
+    if props.modBrakes then SetVehicleMod(vehicle, 12, props.modBrakes, false) end
+    if props.modTransmission then SetVehicleMod(vehicle, 13, props.modTransmission, false) end
+    if props.modHorns then SetVehicleMod(vehicle, 14, props.modHorns, false) end
+    if props.modSuspension then SetVehicleMod(vehicle, 15, props.modSuspension, false) end
+    if props.modArmor then SetVehicleMod(vehicle, 16, props.modArmor, false) end
+    
+    if props.modTurbo then ToggleVehicleMod(vehicle, 18, true) end
+    if props.modXenon then ToggleVehicleMod(vehicle, 22, true) end
+    
+    -- Wheels
+    if props.wheelType then
+        SetVehicleWheelType(vehicle, props.wheelType)
+    end
+    
+    if props.modFrontWheels then
+        SetVehicleMod(vehicle, 23, props.modFrontWheels, props.modCustomTiresF or false)
+    end
+    
+    if props.modBackWheels then
+        SetVehicleMod(vehicle, 24, props.modBackWheels, props.modCustomTiresR or false)
+    end
+    
+    -- Other mods
+    if props.modPlateHolder then SetVehicleMod(vehicle, 25, props.modPlateHolder, false) end
+    if props.modVanityPlate then SetVehicleMod(vehicle, 26, props.modVanityPlate, false) end
+    if props.modTrimA then SetVehicleMod(vehicle, 27, props.modTrimA, false) end
+    if props.modOrnaments then SetVehicleMod(vehicle, 28, props.modOrnaments, false) end
+    if props.modDashboard then SetVehicleMod(vehicle, 29, props.modDashboard, false) end
+    if props.modDial then SetVehicleMod(vehicle, 30, props.modDial, false) end
+    if props.modDoorSpeaker then SetVehicleMod(vehicle, 31, props.modDoorSpeaker, false) end
+    if props.modSeats then SetVehicleMod(vehicle, 32, props.modSeats, false) end
+    if props.modSteeringWheel then SetVehicleMod(vehicle, 33, props.modSteeringWheel, false) end
+    if props.modShifterLeavers then SetVehicleMod(vehicle, 34, props.modShifterLeavers, false) end
+    if props.modAPlate then SetVehicleMod(vehicle, 35, props.modAPlate, false) end
+    if props.modSpeakers then SetVehicleMod(vehicle, 36, props.modSpeakers, false) end
+    if props.modTrunk then SetVehicleMod(vehicle, 37, props.modTrunk, false) end
+    if props.modHydrolic then SetVehicleMod(vehicle, 38, props.modHydrolic, false) end
+    if props.modEngineBlock then SetVehicleMod(vehicle, 39, props.modEngineBlock, false) end
+    if props.modAirFilter then SetVehicleMod(vehicle, 40, props.modAirFilter, false) end
+    if props.modStruts then SetVehicleMod(vehicle, 41, props.modStruts, false) end
+    if props.modArchCover then SetVehicleMod(vehicle, 42, props.modArchCover, false) end
+    if props.modAerials then SetVehicleMod(vehicle, 43, props.modAerials, false) end
+    if props.modTrimB then SetVehicleMod(vehicle, 44, props.modTrimB, false) end
+    if props.modTank then SetVehicleMod(vehicle, 45, props.modTank, false) end
+    if props.modWindows then SetVehicleMod(vehicle, 46, props.modWindows, false) end
+    if props.modLivery then SetVehicleMod(vehicle, 48, props.modLivery, false) end
+    
+    -- Window tint
+    if props.windowTint then
+        SetVehicleWindowTint(vehicle, props.windowTint)
+    end
+    
+    -- Neon
+    if props.neonEnabled then
+        SetVehicleNeonLightEnabled(vehicle, 0, props.neonEnabled[1])
+        SetVehicleNeonLightEnabled(vehicle, 1, props.neonEnabled[2])
+        SetVehicleNeonLightEnabled(vehicle, 2, props.neonEnabled[3])
+        SetVehicleNeonLightEnabled(vehicle, 3, props.neonEnabled[4])
+    end
+    
+    if props.neonColor then
+        SetVehicleNeonLightsColour(vehicle, props.neonColor[1], props.neonColor[2], props.neonColor[3])
+    end
+    
+    -- Tire smoke
+    if props.tyreSmokeColor then
+        SetVehicleTyreSmokeColor(vehicle, props.tyreSmokeColor[1], props.tyreSmokeColor[2], props.tyreSmokeColor[3])
+    end
+    
+    -- Extras
+    if props.extras then
+        for id, enabled in pairs(props.extras) do
+            local extraId = tonumber(id)
+            if DoesExtraExist(vehicle, extraId) then
+                SetVehicleExtra(vehicle, extraId, not enabled)
+            end
+        end
+    end
+    
+    -- Damage
+    if props.bodyHealth then
+        SetVehicleBodyHealth(vehicle, props.bodyHealth + 0.0)
+    end
+    
+    if props.engineHealth then
+        SetVehicleEngineHealth(vehicle, props.engineHealth + 0.0)
+    end
+    
+    if props.tankHealth then
+        SetVehiclePetrolTankHealth(vehicle, props.tankHealth + 0.0)
+    end
+    
+    if props.fuelLevel then
+        SetVehicleFuelLevel(vehicle, props.fuelLevel + 0.0)
+    end
+    
+    if props.dirtLevel then
+        SetVehicleDirtLevel(vehicle, props.dirtLevel + 0.0)
+    end
+    
+    if props.oilLevel then
+        SetVehicleOilLevel(vehicle, props.oilLevel + 0.0)
+    end
+end
+
+local function disableVehicleRadio(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return
+    end
+
+    if type(SetVehRadioStation) == 'function' then
+        SetVehRadioStation(vehicle, 'OFF')
+    end
+
+    if type(SetVehicleRadioEnabled) == 'function' then
+        SetVehicleRadioEnabled(vehicle, false)
+    end
+end
+
+-- Create blips for parking zones
+local function destroyParkingZones()
+    for i = 1, #parkingZones do
+        local zone = parkingZones[i]
+        if zone and type(zone.destroy) == 'function' then
+            zone:destroy()
+        end
+    end
+    parkingZones = {}
+end
+
+local function createParkingZones()
+    destroyParkingZones()
+    
+    if type(BoxZone) ~= 'table' or type(BoxZone.Create) ~= 'function' then
+        print('[lsrp_vehicleparking] BoxZone is not available. Ensure polyzone is started.')
+        return
+    end
+
+    local zoneDebugEnabled = Config.showParkingZoneDebug
+    
+    for index, zoneCfg in ipairs(Config.ParkingZones) do
+        local zone = BoxZone:Create(zoneCfg.coords, zoneCfg.size.x, zoneCfg.size.y, {
+            name = zoneCfg.name,
+            heading = zoneCfg.rotation,
+            minZ = zoneCfg.coords.z - (zoneCfg.size.z / 2.0),
+            maxZ = zoneCfg.coords.z + (zoneCfg.size.z / 2.0),
+            debugPoly = zoneDebugEnabled == true
+        })
+        
+        zone:onPlayerInOut(function(isInside)
+            if isInside then
+                inZone = true
+                currentZone = zoneCfg
+            else
+                if currentZone and currentZone.name == zoneCfg.name then
+                    inZone = false
+                    currentZone = nil
+                    closeParkingUI()
+                end
+            end
+        end)
+        
+        parkingZones[#parkingZones + 1] = zone
+        print(('[lsrp_vehicleparking] Created zone: %s'):format(zoneCfg.name))
+        
+        -- Create blip
+        if zoneCfg.blip then
+            local blip = AddBlipForCoord(zoneCfg.coords.x, zoneCfg.coords.y, zoneCfg.coords.z)
+            SetBlipSprite(blip, zoneCfg.blip.sprite)
+            SetBlipDisplay(blip, 4)
+            SetBlipScale(blip, zoneCfg.blip.scale)
+            SetBlipColour(blip, zoneCfg.blip.color)
+            SetBlipAsShortRange(blip, true)
+            BeginTextCommandSetBlipName("STRING")
+            AddTextComponentString(zoneCfg.blip.label)
+            EndTextCommandSetBlipName(blip)
+            table.insert(parkingBlips, blip)
+        end
+    end
+end
+
+-- Initialize zones when resource starts
+CreateThread(function()
+    Wait(1000) -- Wait for polyzone to be ready
+    createParkingZones()
+end)
+
+-- Interaction prompt thread
+CreateThread(function()
+    while true do
+        local sleep = 500
+        
+        if inZone and currentZone then
+            sleep = 0
+            
+            -- Show help text
+            BeginTextCommandDisplayHelp("STRING")
+            AddTextComponentString("Press ~INPUT_CONTEXT~ to open parking menu")
+            EndTextCommandDisplayHelp(0, false, true, -1)
+            
+            if IsControlJustReleased(0, Config.OpenKey) then
+                openParkingUI()
+            end
+        end
+        
+        Wait(sleep)
+    end
+end)
+
+-- Open parking UI
+function openParkingUI()
+    if not currentZone or uiOpen then return end
+    
+    uiOpen = true
+    SetNuiFocus(true, true)
+    
+    -- Request parked vehicles from server
+    TriggerServerEvent('lsrp_vehicleparking:server:getParkedVehicles', currentZone.name)
+    
+    SendNUIMessage({
+        action = 'openUI',
+        zoneName = currentZone.name,
+        maxSlots = currentZone.maxSlots,
+        canStoreVehicle = canStoreVehiclesInZone(currentZone)
+    })
+end
+
+local function getOwnedVehicleId(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return nil
+    end
+
+    local entityState = Entity(vehicle).state
+    if not entityState then
+        return nil
+    end
+
+    local ownedVehicleId = tonumber(entityState[OWNED_VEHICLE_ID_STATE_KEY])
+    if not ownedVehicleId or ownedVehicleId <= 0 then
+        return nil
+    end
+
+    return ownedVehicleId
+end
+
+local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return
+    end
+
+    local entityState = Entity(vehicle).state
+    if not entityState then
+        return
+    end
+
+    local normalizedOwnedVehicleId = tonumber(ownedVehicleId)
+    if normalizedOwnedVehicleId and normalizedOwnedVehicleId > 0 then
+        entityState:set(OWNED_VEHICLE_ID_STATE_KEY, normalizedOwnedVehicleId, true)
+    end
+
+    if type(ownerLicense) == 'string' and ownerLicense ~= '' then
+        entityState:set(OWNED_VEHICLE_OWNER_STATE_KEY, ownerLicense, true)
+    end
+end
+
+-- Close parking UI
+function closeParkingUI()
+    if not uiOpen then return end
+    
+    uiOpen = false
+    SetNuiFocus(false, false)
+    
+    SendNUIMessage({
+        action = 'closeUI'
+    })
+end
+
+-- NUI Callbacks
+RegisterNUICallback('close', function(data, cb)
+    closeParkingUI()
+    cb('ok')
+end)
+
+RegisterNUICallback('storeVehicle', function(data, cb)
+    if not currentZone then
+        closeParkingUI()
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'You are no longer in a parking zone', 'error')
+        cb('error')
+        return
+    end
+
+    if not canStoreVehiclesInZone(currentZone) then
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'This is a private delivery parking zone and cannot be used for manual parking', 'error')
+        cb('error')
+        return
+    end
+    
+    local playerPed = PlayerPedId()
+    local vehicle = GetVehiclePedIsIn(playerPed, false)
+    
+    if vehicle == 0 then
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'You must be in a vehicle to park it', 'error')
+        cb('error')
+        return
+    end
+    
+    if GetPedInVehicleSeat(vehicle, -1) ~= playerPed then
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'You must be in the driver seat', 'error')
+        cb('error')
+        return
+    end
+    
+    local vehicleProps = getVehicleProperties(vehicle)
+    local vehicleModel = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
+    local vehiclePlate = GetVehicleNumberPlateText(vehicle)
+    local ownedVehicleId = getOwnedVehicleId(vehicle)
+    
+    TriggerServerEvent('lsrp_vehicleparking:server:storeVehicle', {
+        model = vehicleModel,
+        plate = vehiclePlate,
+        props = vehicleProps,
+        netId = VehToNet(vehicle),
+        ownedVehicleId = ownedVehicleId
+    }, currentZone.name)
+
+    closeParkingUI()
+    cb('ok')
+end)
+
+RegisterNUICallback('retrieveVehicle', function(data, cb)
+    local parkingId = data and tonumber(data.id)
+    local vehiclePlate = data and data.plate
+
+    if not parkingId and (not vehiclePlate or vehiclePlate == '') then
+        cb('error')
+        return
+    end
+
+    TriggerServerEvent('lsrp_vehicleparking:server:retrieveVehicle', {
+        id = parkingId,
+        plate = vehiclePlate
+    })
+
+    closeParkingUI()
+    cb('ok')
+end)
+
+RegisterNUICallback('refreshVehicles', function(data, cb)
+    if currentZone then
+        TriggerServerEvent('lsrp_vehicleparking:server:getParkedVehicles', currentZone.name)
+    end
+    cb('ok')
+end)
+
+-- Client events
+RegisterNetEvent('lsrp_vehicleparking:client:receiveParkedVehicles', function(vehicles)
+    parkedVehicles = vehicles
+    
+    SendNUIMessage({
+        action = 'updateVehicles',
+        vehicles = vehicles
+    })
+end)
+
+local function ejectAllVehicleOccupants(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return
+    end
+
+    local maxPassengers = tonumber(GetVehicleMaxNumberOfPassengers(vehicle)) or 0
+    local maxSeatIndex = math.max(maxPassengers - 1, -1)
+
+    for seat = -1, maxSeatIndex do
+        local occupant = GetPedInVehicleSeat(vehicle, seat)
+        if occupant ~= 0 then
+            TaskLeaveVehicle(occupant, vehicle, 0)
+        end
+    end
+
+    Wait(1750)
+
+    for seat = -1, maxSeatIndex do
+        local occupant = GetPedInVehicleSeat(vehicle, seat)
+        if occupant ~= 0 then
+            TaskLeaveVehicle(occupant, vehicle, 4160)
+        end
+    end
+end
+
+local function requestEntityControl(entity, timeoutMs)
+    if entity == 0 or not DoesEntityExist(entity) then
+        return false
+    end
+
+    if not NetworkGetEntityIsNetworked(entity) then
+        return true
+    end
+
+    local timeoutAt = GetGameTimer() + (timeoutMs or 2000)
+    NetworkRequestControlOfEntity(entity)
+
+    while GetGameTimer() < timeoutAt do
+        if NetworkHasControlOfEntity(entity) then
+            return true
+        end
+
+        Wait(0)
+        NetworkRequestControlOfEntity(entity)
+    end
+
+    return NetworkHasControlOfEntity(entity)
+end
+
+local function tryDeleteStoredVehicle(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return true
+    end
+
+    requestEntityControl(vehicle, 2500)
+    SetEntityAsMissionEntity(vehicle, true, true)
+    DeleteVehicle(vehicle)
+
+    if DoesEntityExist(vehicle) then
+        DeleteEntity(vehicle)
+    end
+
+    return not DoesEntityExist(vehicle)
+end
+
+RegisterNetEvent('lsrp_vehicleparking:client:vehicleStored', function(success, storedVehicleNetId)
+    if success then
+        local playerPed = PlayerPedId()
+        local vehicle = 0
+
+        local netId = tonumber(storedVehicleNetId)
+        if netId and netId > 0 and NetworkDoesNetworkIdExist(netId) then
+            vehicle = NetToVeh(netId)
+        end
+
+        if vehicle == 0 then
+            vehicle = GetVehiclePedIsIn(playerPed, true)
+        end
+        
+        if vehicle ~= 0 and DoesEntityExist(vehicle) then
+            ejectAllVehicleOccupants(vehicle)
+
+            if not tryDeleteStoredVehicle(vehicle) then
+                TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle was stored but could not be despawned immediately', 'error')
+            end
+        end
+        
+        -- Refresh the vehicle list
+        if currentZone then
+            TriggerServerEvent('lsrp_vehicleparking:server:getParkedVehicles', currentZone.name)
+        end
+    end
+end)
+
+RegisterNetEvent('lsrp_vehicleparking:client:spawnVehicle', function(vehicleData)
+    if not currentZone then return end
+    
+    -- Cache zone data in case player leaves zone during spawn
+    local zoneName = currentZone.name
+    local zoneCoords = currentZone.coords
+    local zoneRotation = currentZone.rotation or 0.0
+    
+    local playerPed = PlayerPedId()
+    local modelHash = tonumber(vehicleData.model)
+    if not modelHash then
+        modelHash = GetHashKey(vehicleData.model)
+    end
+    
+    RequestModel(modelHash)
+    while not HasModelLoaded(modelHash) do
+        Wait(10)
+    end
+    
+    -- Find a spawn position near the zone
+    local spawnCoords = zoneCoords + vector3(5.0, 5.0, 0.0)
+    local spawnHeading = zoneRotation
+    
+    local vehicle = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnHeading, true, false)
+    
+    SetVehicleOnGroundProperly(vehicle)
+    SetEntityAsMissionEntity(vehicle, true, true)
+    SetVehicleHasBeenOwnedByPlayer(vehicle, true)
+    SetVehicleNeedsToBeHotwired(vehicle, false)
+    setOwnedVehicleState(vehicle, vehicleData.id, vehicleData.ownerLicense)
+    SetModelAsNoLongerNeeded(modelHash)
+    disableVehicleRadio(vehicle)
+    
+    -- Apply all saved properties
+    if vehicleData.props then
+        setVehicleProperties(vehicle, vehicleData.props)
+    end
+    
+    -- Put player in vehicle
+    TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
+    Wait(0)
+    disableVehicleRadio(vehicle)
+    
+    -- Refresh the vehicle list
+    Wait(500)
+    if currentZone then
+        TriggerServerEvent('lsrp_vehicleparking:server:getParkedVehicles', currentZone.name)
+    end
+    
+    closeParkingUI()
+end)
+
+RegisterNetEvent('lsrp_vehicleparking:client:notify', function(message, type)
+    -- Simple notification - you can replace this with your framework's notification system
+    BeginTextCommandThefeedPost("STRING")
+    AddTextComponentString(message)
+    EndTextCommandThefeedPostTicker(false, true)
+end)
+
+RegisterNetEvent('lsrp_vehicleparking:client:setWaypointToZone', function(zoneName)
+    local zoneCfg = getParkingZoneByName(zoneName)
+
+    if not zoneCfg then
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'Parking location not found', 'error')
+        return
+    end
+
+    SetNewWaypoint(zoneCfg.coords.x + 0.0, zoneCfg.coords.y + 0.0)
+    TriggerEvent('lsrp_vehicleparking:client:notify', ('GPS set to %s'):format(zoneCfg.name), 'success')
+end)
+
+print('^2[lsrp_vehicleparking]^7 Client script loaded successfully')

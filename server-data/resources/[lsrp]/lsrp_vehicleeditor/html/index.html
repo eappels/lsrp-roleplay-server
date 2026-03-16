@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Editor</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app">
+        <div class="editor">
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h1>Vehicle Editor</h1>
+                    <div id="vehicle-name" class="notice">Enter a vehicle as driver to edit setup</div>
+                    <div class="notice camera-hint">Camera: hold <strong>W</strong>/<strong>S</strong> up/down, <strong>A</strong>/<strong>D</strong> rotate, <strong>Q</strong>/<strong>E</strong> zoom</div>
+                </div>
+
+                <div id="mod-list" class="mod-list"></div>
+
+                <div class="toggle-grid">
+                    <label><input id="toggle-turbo" type="checkbox"> Turbo</label>
+                    <label><input id="toggle-tyresmoke" type="checkbox"> Tyre Smoke</label>
+                    <label><input id="toggle-xenon" type="checkbox"> Xenon</label>
+                </div>
+
+                <div class="sidebar-actions">
+                    <button id="refresh-btn">Refresh</button>
+                    <button id="revert-btn">Revert</button>
+                    <button id="close-nui">Close</button>
+                </div>
+            </div>
+
+            <div class="details">
+                <h2 id="detail-title">Select a mod</h2>
+
+                <div class="detail-controls">
+                    <div class="control-row">
+                        <label for="mod-index">Index</label>
+                        <div class="value-stepper" data-step="1">
+                            <button id="dec-index" type="button" class="stepper-btn">-</button>
+                            <input id="mod-index" type="number" min="-1" value="-1">
+                            <button id="inc-index" type="button" class="stepper-btn">+</button>
+                        </div>
+                    </div>
+                    <div class="control-row">
+                        <label class="checkbox-row"><input id="mod-variation" type="checkbox"> Variation</label>
+                        <button id="apply-mod-btn">Apply Mod</button>
+                    </div>
+                </div>
+
+                <div class="color-controls">
+                    <h3>Colors</h3>
+                    <div class="color-grid">
+                        <label>Primary
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="primary-color" type="number" min="0" max="255" value="0">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>Secondary
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="secondary-color" type="number" min="0" max="255" value="0">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>Pearlescent
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="pearlescent-color" type="number" min="0" max="255" value="0">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>Wheel
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="wheel-color" type="number" min="0" max="255" value="0">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>Wheel Type
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="wheel-type" type="number" min="0" max="12" value="0">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>Window Tint
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="window-tint" type="number" min="-1" max="6" value="-1">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>Xenon Color
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="xenon-color" type="number" min="-1" max="13" value="-1">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                    </div>
+
+                    <h3>Tyre Smoke RGB</h3>
+                    <div class="color-grid">
+                        <label>R
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="tyresmoke-r" type="number" min="0" max="255" value="255">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>G
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="tyresmoke-g" type="number" min="0" max="255" value="255">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>B
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="tyresmoke-b" type="number" min="0" max="255" value="255">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                    </div>
+
+                    <h3>Neon RGB</h3>
+                    <div class="color-grid">
+                        <label>R
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="neon-r" type="number" min="0" max="255" value="255">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>G
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="neon-g" type="number" min="0" max="255" value="255">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                        <label>B
+                            <div class="value-stepper" data-step="1">
+                                <button type="button" class="stepper-btn" data-dir="-1">-</button>
+                                <input id="neon-b" type="number" min="0" max="255" value="255">
+                                <button type="button" class="stepper-btn" data-dir="1">+</button>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="neon-grid">
+                        <label><input id="neon-0" type="checkbox"> Left</label>
+                        <label><input id="neon-1" type="checkbox"> Right</label>
+                        <label><input id="neon-2" type="checkbox"> Front</label>
+                        <label><input id="neon-3" type="checkbox"> Back</label>
+                    </div>
+
+                    <button id="apply-colors-btn">Apply Colors</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>

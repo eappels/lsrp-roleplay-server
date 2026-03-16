@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Loading Screen</title>
+        <link rel="stylesheet" href="style.css">
+    </head>
+    <body>
+        <img id="logo" src="image-generator.png">
+
+        <div id="loading-wrapper" aria-label="Loading progress">
+            <div id="loading-bar-track">
+                <div id="loading-bar-fill"></div>
+            </div>
+            <div id="loading-percent">0%</div>
+            <div id="loading-status">Waiting for server</div>
+        </div>
+
+        <script>
+            (function () {
+                var fill = document.getElementById('loading-bar-fill');
+                var label = document.getElementById('loading-percent');
+                var status = document.getElementById('loading-status');
+
+                var shownPercent = 0;
+                var targetPercent = 0;
+                var animationFrame = null;
+
+                var initCount = 0;
+                var mapLoadCount = 0;
+                var mapLoadDone = 0;
+
+                function clamp(value, min, max) {
+                    return Math.max(min, Math.min(max, value));
+                }
+
+                function render(value) {
+                    fill.style.width = value + '%';
+                    label.textContent = Math.floor(value) + '%';
+                }
+
+                function setStatus(text) {
+                    if (typeof text === 'string' && text.length > 0) {
+                        status.textContent = text;
+                    }
+                }
+
+                function tick() {
+                    if (shownPercent >= targetPercent) {
+                        animationFrame = null;
+                        return;
+                    }
+
+                    var delta = targetPercent - shownPercent;
+                    shownPercent = Math.min(targetPercent, shownPercent + Math.max(0.25, delta * 0.2));
+                    render(shownPercent);
+
+                    animationFrame = window.requestAnimationFrame(tick);
+                }
+
+                function setTargetPercent(nextPercent) {
+                    var clamped = clamp(nextPercent, 0, 100);
+
+                    if (clamped <= targetPercent) {
+                        return;
+                    }
+
+                    targetPercent = clamped;
+
+                    if (animationFrame === null) {
+                        animationFrame = window.requestAnimationFrame(tick);
+                    }
+                }
+
+                function setSegmentProgress(idx, count, startPercent, endPercent) {
+                    if (!count || count <= 0) {
+                        return;
+                    }
+
+                    var ratio = clamp(idx / count, 0, 1);
+                    var progress = startPercent + ((endPercent - startPercent) * ratio);
+                    setTargetPercent(progress);
+                }
+
+                var handlers = {
+                    loadProgress: function (data) {
+                        var value = null;
+
+                        if (typeof data.loadFraction === 'number') {
+                            value = data.loadFraction * 100;
+                        } else if (typeof data.progress === 'number') {
+                            value = data.progress <= 1 ? data.progress * 100 : data.progress;
+                        } else if (typeof data.percent === 'number') {
+                            value = data.percent;
+                        }
+
+                        if (value !== null) {
+                            setTargetPercent(value);
+                        }
+                    },
+
+                    startInitFunctionOrder: function (data) {
+                        initCount = Number(data.count) || initCount;
+                        setStatus('Initializing game state');
+                        setTargetPercent(5);
+                    },
+
+                    initFunctionInvoking: function (data) {
+                        var idx = Number(data.idx) || 0;
+                        var count = Number(data.count) || initCount;
+                        setSegmentProgress(idx, count, 5, 45);
+                    },
+
+                    initFunctionInvoked: function (data) {
+                        var idx = Number(data.idx) || 0;
+                        var count = Number(data.count) || initCount;
+                        setSegmentProgress(idx, count, 5, 45);
+                    },
+
+                    startDataFileEntries: function (data) {
+                        mapLoadCount = Number(data.count) || 0;
+                        mapLoadDone = 0;
+                        setStatus('Loading map assets');
+                        setTargetPercent(50);
+                    },
+
+                    performMapLoadFunction: function (data) {
+                        if (typeof data.idx === 'number') {
+                            mapLoadDone = Number(data.idx);
+                        } else {
+                            mapLoadDone = mapLoadDone + 1;
+                        }
+
+                        setSegmentProgress(mapLoadDone, mapLoadCount || mapLoadDone, 50, 92);
+                    },
+
+                    onDataFileEntry: function (data) {
+                        if (typeof data.idx === 'number') {
+                            mapLoadDone = Number(data.idx);
+                        } else {
+                            mapLoadDone = mapLoadDone + 1;
+                        }
+
+                        setSegmentProgress(mapLoadDone, mapLoadCount || mapLoadDone, 50, 92);
+                    },
+
+                    endDataFileEntries: function () {
+                        setStatus('Finalizing connection');
+                        setTargetPercent(95);
+                    },
+
+                    onLogLine: function (data) {
+                        setStatus(data.message);
+                    },
+
+                    lsrpProgress: function (data) {
+                        if (typeof data.progress === 'number') {
+                            setTargetPercent(data.progress);
+                        }
+
+                        if (typeof data.status === 'string') {
+                            setStatus(data.status);
+                        }
+                    }
+                };
+
+                window.addEventListener('message', function (event) {
+                    var data = event.data || {};
+                    var handler = handlers[data.eventName];
+
+                    if (handler) {
+                        handler(data);
+                    }
+                });
+
+                render(0);
+                setTargetPercent(1);
+            })();
+        </script>
+    </body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Parking</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="parking-container" class="hidden">
+        <div class="parking-panel">
+            <div class="panel-header">
+                <h1 id="zone-name">Parking</h1>
+                <div class="notice">Manage parked vehicles at this location</div>
+            </div>
+
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-label">Vehicles Parked</span>
+                    <span class="stat-value" id="vehicle-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Max Capacity</span>
+                    <span class="stat-value" id="max-slots">0</span>
+                </div>
+            </div>
+
+            <div class="actions">
+                <button class="action-btn store-btn" onclick="storeVehicle()">Park Current Vehicle</button>
+                <button class="action-btn refresh-btn" onclick="refreshVehicles()">Refresh List</button>
+                <button class="action-btn close-btn" onclick="closeUI()">Close</button>
+            </div>
+
+            <div class="section-divider">
+                <h2>Your Parked Vehicles</h2>
+            </div>
+
+            <div class="vehicle-list">
+                <div id="vehicles" class="vehicles-grid">
+                    <div class="no-vehicles">No vehicles parked</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

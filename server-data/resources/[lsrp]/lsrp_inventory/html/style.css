@@ -1,0 +1,266 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --bg-a: rgba(8, 12, 20, 0.9);
+    --bg-b: rgba(14, 22, 34, 0.94);
+    --panel: rgba(20, 30, 44, 0.9);
+    --line: rgba(255, 255, 255, 0.14);
+    --text-main: #eef5ff;
+    --text-dim: #9fb2c9;
+    --accent: #f5b531;
+    --empty: rgba(255, 255, 255, 0.05);
+}
+
+body {
+    background: transparent;
+    color: var(--text-main);
+    font-family: "Bahnschrift", "Segoe UI", sans-serif;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 1.25rem;
+}
+
+.inventory-shell {
+    width: min(940px, 100%);
+    height: min(760px, calc(100vh - 2rem));
+    border: 1px solid var(--line);
+    border-radius: 20px;
+    background:
+        radial-gradient(circle at 78% 10%, rgba(245, 181, 49, 0.2), transparent 48%),
+        linear-gradient(145deg, var(--bg-a), var(--bg-b));
+    box-shadow: 0 24px 65px rgba(0, 0, 0, 0.5);
+    display: grid;
+    grid-template-rows: auto auto 1fr auto;
+    overflow: hidden;
+}
+
+.inventory-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 1.1rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+    color: var(--accent);
+    letter-spacing: 0.18rem;
+    font-size: 0.66rem;
+    margin-bottom: 0.25rem;
+}
+
+.inventory-header h1 {
+    font-size: 1.45rem;
+    line-height: 1;
+}
+
+.layout-tag {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+    margin-top: 0.3rem;
+    letter-spacing: 0.04rem;
+    text-transform: uppercase;
+}
+
+.close-btn {
+    border: 1px solid rgba(255, 120, 120, 0.45);
+    color: #ffd7d7;
+    background: rgba(255, 92, 92, 0.2);
+    border-radius: 10px;
+    padding: 0.54rem 0.9rem;
+    cursor: pointer;
+    transition: 0.16s ease;
+}
+
+.close-btn:hover {
+    background: rgba(255, 92, 92, 0.3);
+}
+
+.inventory-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    padding: 0.85rem 1.1rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.summary-card {
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: var(--panel);
+    padding: 0.68rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.summary-label {
+    color: var(--text-dim);
+    font-size: 0.73rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06rem;
+}
+
+.summary-card strong {
+    font-size: 1.06rem;
+}
+
+.inventory-body {
+    min-height: 0;
+    padding: 1rem 1.2rem 1.15rem;
+}
+
+.slot-grid {
+    height: 100%;
+    width: min(100%, 560px);
+    margin: 0 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.72rem;
+    align-content: start;
+    padding-right: 0.2rem;
+}
+
+.slot-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.slot-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.22);
+    border-radius: 999px;
+}
+
+.slot {
+    border: 1px solid var(--line);
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.04);
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+    padding: 0.6rem;
+    display: grid;
+    grid-template-rows: auto minmax(52px, 1fr) auto auto auto;
+    gap: 0.4rem;
+}
+
+.slot.empty {
+    background: var(--empty);
+}
+
+.slot-index {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+}
+
+.item-visual {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 9px;
+    background: rgba(0, 0, 0, 0.15);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 52px;
+    overflow: hidden;
+}
+
+.item-image {
+    width: 42px;
+    height: 42px;
+    object-fit: contain;
+    image-rendering: auto;
+}
+
+.item-name {
+    font-size: 0.8rem;
+    line-height: 1.2;
+    font-weight: 600;
+}
+
+.item-detail {
+    color: var(--text-dim);
+    font-size: 0.68rem;
+    line-height: 1.25;
+    min-height: 1.7em;
+}
+
+.item-meta {
+    color: var(--text-dim);
+    font-size: 0.72rem;
+}
+
+.inventory-footer {
+    border-top: 1px solid var(--line);
+    padding: 0.75rem 1.1rem;
+}
+
+#status-text {
+    color: var(--text-dim);
+    font-size: 0.8rem;
+}
+
+@media (max-width: 920px) {
+    .inventory-shell {
+        height: calc(100vh - 1.1rem);
+        border-radius: 14px;
+    }
+
+    .slot-grid {
+        width: min(100%, 520px);
+        gap: 0.6rem;
+    }
+}
+
+@media (max-width: 620px) {
+    .inventory-shell {
+        height: calc(100vh - 0.8rem);
+    }
+
+    .inventory-summary {
+        gap: 0.55rem;
+        padding: 0.72rem 0.85rem;
+    }
+
+    .inventory-body {
+        padding: 0.75rem;
+    }
+
+    .slot-grid {
+        gap: 0.46rem;
+    }
+
+    .slot {
+        padding: 0.44rem;
+        gap: 0.32rem;
+        grid-template-rows: auto minmax(44px, 1fr) auto auto auto;
+    }
+
+    .item-image {
+        width: 34px;
+        height: 34px;
+    }
+
+    .item-name {
+        font-size: 0.72rem;
+    }
+
+    .item-detail,
+    .item-meta,
+    .slot-index {
+        font-size: 0.64rem;
+    }
+}

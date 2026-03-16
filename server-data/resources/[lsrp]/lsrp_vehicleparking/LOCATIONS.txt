@@ -1,0 +1,122 @@
+================================================================
+    LSRP VEHICLE PARKING - PARKING ZONE LOCATIONS
+================================================================
+
+Use these coordinates to find the parking zones in-game:
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🅿️  ZONE 1: LEGION SQUARE PARKING                          │
+├─────────────────────────────────────────────────────────────┤
+│ Location:   Downtown Los Santos (Near Maze Bank)           │
+│ Coordinates: X: 215.9  Y: -809.1  Z: 30.7                  │
+│ Capacity:    10 vehicles                                    │
+│ Zone Size:   20m x 20m x 3m                                │
+│ Map Blip:    Purple Garage Icon                            │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ ✈️  ZONE 2: AIRPORT PARKING                                 │
+├─────────────────────────────────────────────────────────────┤
+│ Location:   Los Santos International Airport               │
+│ Coordinates: X: -796.9  Y: -2024.5  Z: 9.2                 │
+│ Capacity:    20 vehicles                                    │
+│ Zone Size:   30m x 30m x 3m                                │
+│ Map Blip:    Purple Garage Icon                            │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│ 🏙️  ZONE 3: DOWNTOWN PARKING                                │
+├─────────────────────────────────────────────────────────────┤
+│ Location:   Pillbox Hill / Downtown Area                   │
+│ Coordinates: X: -340.5  Y: -874.5  Z: 31.1                 │
+│ Capacity:    15 vehicles                                    │
+│ Zone Size:   25m x 25m x 3m                                │
+│ Map Blip:    Purple Garage Icon                            │
+└─────────────────────────────────────────────────────────────┘
+
+================================================================
+    HOW TO FIND ZONES
+================================================================
+
+METHOD 1: Use Map Blips
+  • Open your map (M key)
+  • Look for purple garage icons
+  • Set waypoint and drive there
+
+METHOD 2: Teleport (Admin/Dev)
+  In F8 console, type:
+  /tp 215.9 -809.1 30.7     (Legion Square)
+  /tp -796.9 -2024.5 9.2    (Airport)
+  /tp -340.5 -874.5 31.1    (Downtown)
+  
+  (Note: Requires admin teleport command)
+
+METHOD 3: Coordinates Display
+  • Enable coordinate display in your FiveM settings
+  • Drive around to find the locations
+  • Match your position to coordinates above
+
+================================================================
+    ADDING MORE ZONES
+================================================================
+
+Edit: shared/config.lua
+
+1. Find a good parking location in-game
+2. Note the coordinates (use /getcoords or similar)
+3. Add new entry to Config.ParkingZones:
+
+Config.ParkingZones = {
+    -- ... existing zones ...
+    
+    {
+        name = "Your New Parking Name",
+        coords = vector3(x, y, z),  -- Your coordinates
+        size = vector3(20.0, 20.0, 3.0),
+        rotation = 0.0,
+        maxSlots = 10,
+        blip = {
+            sprite = 357,
+            color = 3,
+            scale = 0.8,
+            label = "Parking"
+        }
+    }
+}
+
+4. Restart the resource: /restart lsrp_vehicleparking
+
+================================================================
+    ZONE SIZING GUIDE
+================================================================
+
+Zone Size (adjust to fit your location):
+  • Small parking: vector3(15.0, 15.0, 3.0)
+  • Medium parking: vector3(25.0, 25.0, 3.0)
+  • Large parking: vector3(40.0, 40.0, 3.0)
+
+The zone is a rectangular box:
+  • First number = Width (X axis)
+  • Second number = Length (Y axis)
+  • Third number = Height (Z axis)
+
+================================================================
+    TESTING YOUR ZONES
+================================================================
+
+1. Start the resource: ensure lsrp_vehicleparking
+2. Join the server
+3. Go to a parking zone
+4. You should see:
+   ✓ Purple blip on map
+   ✓ "Press E to open parking menu" when close
+5. Press E to test the UI
+6. Get in a vehicle and try parking it
+
+If zones aren't working:
+  • Check server console for errors
+  • Verify coordinates are correct
+  • Make sure you're within the zone size
+  • Check Config.InteractionDistance in config.lua
+
+================================================================
