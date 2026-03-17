@@ -23,6 +23,7 @@ Config.VehicleBehaviour = {
 		cacheMs = 6000,
 		lockSoundEnabled = true,
 		lockSoundMode = 'entity',
+		lockSoundBroadcastRange = 45.0,
 		frontendSoundSet = 'HUD_FRONTEND_DEFAULT_SOUNDSET',
 		frontendLockSoundName = 'NAV_UP_DOWN',
 		frontendUnlockSoundName = 'NAV_UP_DOWN',

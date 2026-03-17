@@ -29,8 +29,31 @@
                 </div>
             </section>
 
+            <section class="inventory-transfer">
+                <div class="transfer-field">
+                    <label for="transfer-target-id">Target ID</label>
+                    <input id="transfer-target-id" type="number" min="1" step="1" placeholder="Server ID">
+                </div>
+
+                <button id="open-target-btn" type="button" class="transfer-btn">Open Target Inventory</button>
+            </section>
+
             <section class="inventory-body">
-                <div id="slot-grid" class="slot-grid"></div>
+                <div class="inventory-panels" id="inventory-panels">
+                    <section class="inventory-panel">
+                        <header class="panel-header">
+                            <h2>Your Inventory</h2>
+                        </header>
+                        <div id="self-grid" class="slot-grid"></div>
+                    </section>
+
+                    <section class="inventory-panel" id="target-panel">
+                        <header class="panel-header">
+                            <h2 id="target-panel-title">Target Inventory</h2>
+                        </header>
+                        <div id="target-grid" class="slot-grid"></div>
+                    </section>
+                </div>
             </section>
 
             <footer class="inventory-footer">

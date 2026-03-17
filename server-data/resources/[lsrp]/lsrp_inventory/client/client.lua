@@ -4,6 +4,7 @@ local latestInventory = {
 	maxWeight = 0,
 	items = {}
 }
+local latestTransferTarget = nil
 
 local function normalizeInventoryPayload(raw)
 	raw = type(raw) == 'table' and raw or {}
@@ -26,6 +27,24 @@ local function sendInventoryToNui(inventory)
 	})
 end
 
+local function sendTransferTargetToNui(targetPayload)
+	if type(targetPayload) ~= 'table' then
+		SendNUIMessage({
+			action = 'clearTransferTarget'
+		})
+		return
+	end
+
+	SendNUIMessage({
+		action = 'setTransferTarget',
+		target = {
+			targetId = math.floor(tonumber(targetPayload.targetId) or 0),
+			targetName = tostring(targetPayload.targetName or 'Player'),
+			targetInventory = normalizeInventoryPayload(targetPayload.targetInventory)
+		}
+	})
+end
+
 local function setUiOpen(shouldOpen)
 	if uiOpen == shouldOpen then
 		return
@@ -41,6 +60,10 @@ local function setUiOpen(shouldOpen)
 
 	if shouldOpen then
 		sendInventoryToNui(latestInventory)
+		sendTransferTargetToNui(latestTransferTarget)
+	else
+		latestTransferTarget = nil
+		sendTransferTargetToNui(nil)
 	end
 end
 
@@ -59,13 +82,43 @@ end
 
 RegisterNetEvent('lsrp_inventory:client:receiveInventory', function(inventory)
 	latestInventory = normalizeInventoryPayload(inventory)
+	latestTransferTarget = nil
 
 	if uiOpen then
 		sendInventoryToNui(latestInventory)
+		sendTransferTargetToNui(nil)
 		return
 	end
 
 	setUiOpen(true)
+end)
+
+RegisterNetEvent('lsrp_inventory:client:syncInventory', function(inventory)
+	latestInventory = normalizeInventoryPayload(inventory)
+
+	if uiOpen then
+		sendInventoryToNui(latestInventory)
+	end
+end)
+
+RegisterNetEvent('lsrp_inventory:client:syncTransferTarget', function(targetPayload)
+	if type(targetPayload) ~= 'table' then
+		latestTransferTarget = nil
+		if uiOpen then
+			sendTransferTargetToNui(nil)
+		end
+		return
+	end
+
+	latestTransferTarget = {
+		targetId = math.floor(tonumber(targetPayload.targetId) or 0),
+		targetName = tostring(targetPayload.targetName or 'Player'),
+		targetInventory = normalizeInventoryPayload(targetPayload.targetInventory or {})
+	}
+
+	if uiOpen then
+		sendTransferTargetToNui(latestTransferTarget)
+	end
 end)
 
 RegisterNUICallback('closeInventory', function(_, cb)
@@ -75,6 +128,45 @@ end)
 
 RegisterNUICallback('requestInventory', function(_, cb)
 	requestOpenInventory()
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('requestTransferTargetInventory', function(data, cb)
+	if type(data) ~= 'table' then
+		cb({ ok = false, error = 'invalid_payload' })
+		return
+	end
+
+	local targetId = math.floor(tonumber(data.targetId) or 0)
+	if targetId < 1 then
+		cb({ ok = false, error = 'invalid_target' })
+		return
+	end
+
+	TriggerServerEvent('lsrp_inventory:server:requestTransferTargetInventory', targetId)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('transferItem', function(data, cb)
+	if type(data) ~= 'table' then
+		cb({ ok = false, error = 'invalid_payload' })
+		return
+	end
+
+	local targetId = math.floor(tonumber(data.targetId) or 0)
+	local fromSlot = math.floor(tonumber(data.fromSlot) or 0)
+	local amount = math.floor(tonumber(data.amount) or 1)
+
+	if targetId < 1 or fromSlot < 1 then
+		cb({ ok = false, error = 'invalid_params' })
+		return
+	end
+
+	if amount < 1 then
+		amount = 1
+	end
+
+	TriggerServerEvent('lsrp_inventory:server:transferItemToPlayer', targetId, fromSlot, amount)
 	cb({ ok = true })
 end)
 

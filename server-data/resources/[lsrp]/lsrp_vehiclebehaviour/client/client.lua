@@ -1,4 +1,5 @@
 local IGNITION_STATE_BAG_KEY = 'lsrpIgnitionOn'
+local LOCK_STATE_BAG_KEY = 'lsrpVehicleLocked'
 local OWNED_VEHICLE_OWNER_STATE_BAG_KEY = 'lsrpVehicleOwner'
 local KEY_ACCESS_MODE_DOOR = 'door'
 local KEY_ACCESS_MODE_START = 'start'
@@ -24,6 +25,7 @@ local lockedEntryAttemptSeat = nil
 local lockedEntryAttemptStartedAt = 0
 local lockedEntryAttemptBlockedUntil = 0
 local playerLicenseIdentifier = nil
+local lockToggleRequestInFlight = false
 
 local function getVehicleBehaviourConfig()
 	return Config and Config.VehicleBehaviour or nil
@@ -461,9 +463,24 @@ local function getVehicleForLockToggle(ped, maxDistance)
 	return GetClosestVehicle(coords.x, coords.y, coords.z, radius + 0.0, 0, 71)
 end
 
+local function applyVehicleLockState(vehicle, shouldLock)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	local locked = shouldLock == true
+	SetVehicleDoorsLocked(vehicle, locked and 2 or 1)
+	SetVehicleDoorsLockedForAllPlayers(vehicle, locked)
+end
+
 local function isVehicleLocked(vehicle)
 	if vehicle == 0 or not DoesEntityExist(vehicle) then
 		return false
+	end
+
+	local entityState = Entity(vehicle).state
+	if entityState and entityState[LOCK_STATE_BAG_KEY] ~= nil then
+		return entityState[LOCK_STATE_BAG_KEY] == true
 	end
 
 	local lockStatus = GetVehicleDoorLockStatus(vehicle)
@@ -556,10 +573,39 @@ local function playVehicleLockSound(vehicle, shouldLock)
 	ReleaseSoundId(soundId)
 end
 
+local function isWithinLockSoundBroadcastRange(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	local keysConfig = getKeysConfig()
+	local maxDistance = tonumber(keysConfig and keysConfig.lockSoundBroadcastRange)
+	if not maxDistance or maxDistance <= 0 then
+		maxDistance = 45.0
+	end
+
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) then
+		return true
+	end
+
+	local pedCoords = GetEntityCoords(ped)
+	local vehicleCoords = GetEntityCoords(vehicle)
+	local dx = pedCoords.x - vehicleCoords.x
+	local dy = pedCoords.y - vehicleCoords.y
+	local dz = pedCoords.z - vehicleCoords.z
+
+	return (dx * dx + dy * dy + dz * dz) <= (maxDistance * maxDistance)
+end
+
 local function toggleVehicleLocks()
 	local vehicleBehaviour = getVehicleBehaviourConfig()
 	local keysConfig = getKeysConfig()
 	if not vehicleBehaviour or vehicleBehaviour.enabled == false or not keysConfig or keysConfig.enabled == false then
+		return
+	end
+
+	if lockToggleRequestInFlight then
 		return
 	end
 
@@ -572,22 +618,37 @@ local function toggleVehicleLocks()
 		return
 	end
 
-	local hasKey, reason = requestVehicleKeyAccess(vehicle, true, KEY_ACCESS_MODE_DOOR)
-	if hasKey ~= true then
+	local vehicleNetId = NetworkGetNetworkIdFromEntity(vehicle)
+	local plate = getVehiclePlate(vehicle)
+	if not vehicleNetId or vehicleNetId == 0 or not plate then
 		if keysConfig.notify ~= false then
-			notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
+			notify('Could not identify this vehicle')
 		end
 		return
 	end
 
-	local shouldLock = not isVehicleLocked(vehicle)
-	SetVehicleDoorsLocked(vehicle, shouldLock and 2 or 1)
-	SetVehicleDoorsLockedForAllPlayers(vehicle, shouldLock)
-	playVehicleLockSound(vehicle, shouldLock)
+	lockToggleRequestInFlight = true
+	TriggerServerEvent('lsrp_vehiclebehaviour:server:toggleVehicleLock', vehicleNetId, plate)
 
-	if keysConfig.notify ~= false then
-		notify(shouldLock and 'Vehicle locked' or 'Vehicle unlocked')
+	SetTimeout(KEY_REQUEST_TIMEOUT_MS, function()
+		lockToggleRequestInFlight = false
+	end)
+end
+
+local function getLockToggleFailureMessage(reason)
+	if isTransientKeyReason(reason) then
+		return 'Vehicle key service is unavailable'
 	end
+
+	if reason == 'no_key' or reason == 'unowned_vehicle' then
+		return 'You do not have the keys for this vehicle'
+	end
+
+	if reason == 'invalid_vehicle' or reason == 'invalid_plate' then
+		return 'Could not identify this vehicle'
+	end
+
+	return 'Could not toggle vehicle lock'
 end
 
 local function giveVehicleKeyToPlayer(targetServerId)
@@ -666,6 +727,67 @@ end)
 
 RegisterNetEvent('lsrp_vehiclebehaviour:client:notify', function(message)
 	notify(message)
+end)
+
+RegisterNetEvent('lsrp_vehiclebehaviour:client:applyVehicleLockState', function(vehicleNetId, shouldLock)
+	local normalizedNetId = tonumber(vehicleNetId)
+	if not normalizedNetId then
+		return
+	end
+
+	local vehicle = NetworkGetEntityFromNetworkId(normalizedNetId)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	applyVehicleLockState(vehicle, shouldLock == true)
+end)
+
+RegisterNetEvent('lsrp_vehiclebehaviour:client:lockToggleResult', function(success, shouldLock, reason, vehicleNetId)
+	lockToggleRequestInFlight = false
+
+	local keysConfig = getKeysConfig()
+	if success ~= true then
+		if keysConfig and keysConfig.notify ~= false then
+			notify(getLockToggleFailureMessage(reason))
+		end
+		return
+	end
+
+	local normalizedNetId = tonumber(vehicleNetId)
+	local vehicle = normalizedNetId and NetworkGetEntityFromNetworkId(normalizedNetId) or 0
+	if vehicle and vehicle ~= 0 and DoesEntityExist(vehicle) then
+		applyVehicleLockState(vehicle, shouldLock == true)
+		playVehicleLockSound(vehicle, shouldLock == true)
+	end
+
+	if keysConfig and keysConfig.notify ~= false then
+		notify((shouldLock == true) and 'Vehicle locked' or 'Vehicle unlocked')
+	end
+end)
+
+RegisterNetEvent('lsrp_vehiclebehaviour:client:playVehicleLockSound', function(vehicleNetId, shouldLock, initiatorServerId)
+	local localServerId = tonumber(GetPlayerServerId(PlayerId()))
+	local normalizedInitiator = tonumber(initiatorServerId)
+	if localServerId and normalizedInitiator and localServerId == normalizedInitiator then
+		return
+	end
+
+	local normalizedNetId = tonumber(vehicleNetId)
+	if not normalizedNetId then
+		return
+	end
+
+	local vehicle = NetworkGetEntityFromNetworkId(normalizedNetId)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	if not isWithinLockSoundBroadcastRange(vehicle) then
+		return
+	end
+
+	playVehicleLockSound(vehicle, shouldLock == true)
 end)
 
 RegisterNetEvent('lsrp_vehiclebehaviour:client:setPlayerLicense', function(license)
@@ -861,6 +983,45 @@ RegisterKeyMapping(lockKeyMappingCommand, 'Toggle vehicle lock', 'keyboard', def
 RegisterCommand(giveKeyCommandName, function(_, args)
 	giveVehicleKeyToPlayer(args and args[1])
 end, false)
+
+if type(AddStateBagChangeHandler) == 'function' and type(GetEntityFromStateBagName) == 'function' then
+	AddStateBagChangeHandler(LOCK_STATE_BAG_KEY, nil, function(bagName, _, value)
+		if value == nil then
+			return
+		end
+
+		local entity = GetEntityFromStateBagName(bagName)
+		if entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 2 then
+			return
+		end
+
+		applyVehicleLockState(entity, value == true)
+	end)
+
+	AddStateBagChangeHandler(IGNITION_STATE_BAG_KEY, nil, function(bagName, _, value)
+		if value == nil then
+			return
+		end
+
+		local entity = GetEntityFromStateBagName(bagName)
+		if entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 2 then
+			return
+		end
+
+		-- If the local player is the driver, setVehicleIgnitionState already called
+		-- SetVehicleEngineOn with instantly=false (startup sound). Skip here so the
+		-- state bag handler does not interrupt the startup animation/sound.
+		local localPed = PlayerPedId()
+		if localPed ~= 0 and GetPedInVehicleSeat(entity, -1) == localPed then
+			return
+		end
+
+		local ignitionOn = value == true
+		SetVehicleNeedsToBeHotwired(entity, false)
+		SetVehicleUndriveable(entity, not ignitionOn)
+		SetVehicleEngineOn(entity, ignitionOn, true, true)
+	end)
+end
 
 CreateThread(function()
 	while not NetworkIsSessionStarted() do
