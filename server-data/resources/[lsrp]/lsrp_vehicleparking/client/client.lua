@@ -526,7 +526,7 @@ RegisterNUICallback('storeVehicle', function(data, cb)
     end
     
     local vehicleProps = getVehicleProperties(vehicle)
-    local vehicleModel = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
+    local vehicleModel = GetEntityModel(vehicle)
     local vehiclePlate = GetVehicleNumberPlateText(vehicle)
     local ownedVehicleId = getOwnedVehicleId(vehicle)
     
@@ -671,55 +671,141 @@ RegisterNetEvent('lsrp_vehicleparking:client:vehicleStored', function(success, s
     end
 end)
 
-RegisterNetEvent('lsrp_vehicleparking:client:spawnVehicle', function(vehicleData)
-    if not currentZone then return end
-    
-    -- Cache zone data in case player leaves zone during spawn
-    local zoneName = currentZone.name
-    local zoneCoords = currentZone.coords
-    local zoneRotation = currentZone.rotation or 0.0
-    
-    local playerPed = PlayerPedId()
-    local modelHash = tonumber(vehicleData.model)
-    if not modelHash then
-        modelHash = GetHashKey(vehicleData.model)
+local function sendRetrievalSpawnResult(requestId, success, reason)
+    local normalizedRequestId = tonumber(requestId)
+    if not normalizedRequestId then
+        return
     end
-    
+
+    TriggerServerEvent('lsrp_vehicleparking:server:retrievalSpawnResult', {
+        requestId = normalizedRequestId,
+        success = success == true,
+        reason = tostring(reason or '')
+    })
+end
+
+local function resolveRetrievalModelHash(vehicleData)
+    local candidates = {}
+    local seen = {}
+
+    local function addCandidate(value)
+        local hash = tonumber(value)
+        if not hash and type(value) == 'string' and value ~= '' then
+            hash = GetHashKey(value)
+        end
+
+        if hash and hash ~= 0 and not seen[hash] then
+            seen[hash] = true
+            candidates[#candidates + 1] = hash
+        end
+    end
+
+    if type(vehicleData) == 'table' then
+        addCandidate(vehicleData.model)
+
+        if type(vehicleData.props) == 'table' then
+            addCandidate(vehicleData.props.model)
+        end
+    end
+
+    for _, modelHash in ipairs(candidates) do
+        if IsModelInCdimage(modelHash) and IsModelAVehicle(modelHash) then
+            return modelHash
+        end
+    end
+
+    return nil
+end
+
+RegisterNetEvent('lsrp_vehicleparking:client:spawnVehicle', function(vehicleData)
+    local retrievalRequestId = tonumber(vehicleData and vehicleData.retrievalRequestId)
+    local requestedZone = getParkingZoneByName(vehicleData and vehicleData.parkingZone)
+    local zoneCfg = requestedZone or currentZone
+
+    if not zoneCfg then
+        sendRetrievalSpawnResult(retrievalRequestId, false, 'missing_zone')
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle retrieval failed: parking zone is unavailable', 'error')
+        return
+    end
+
+    local zoneName = zoneCfg.name
+    local zoneCoords = zoneCfg.coords
+    local zoneRotation = zoneCfg.rotation or 0.0
+
+    local playerPed = PlayerPedId()
+    local modelHash = resolveRetrievalModelHash(vehicleData)
+
+    if not modelHash or modelHash == 0 or not IsModelInCdimage(modelHash) or not IsModelAVehicle(modelHash) then
+        sendRetrievalSpawnResult(retrievalRequestId, false, 'invalid_model')
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle retrieval failed: vehicle model is unavailable', 'error')
+        return
+    end
+
     RequestModel(modelHash)
-    while not HasModelLoaded(modelHash) do
+    local modelLoadTimeoutAt = GetGameTimer() + 7000
+    while not HasModelLoaded(modelHash) and GetGameTimer() < modelLoadTimeoutAt do
         Wait(10)
     end
-    
-    -- Find a spawn position near the zone
-    local spawnCoords = zoneCoords + vector3(5.0, 5.0, 0.0)
+
+    if not HasModelLoaded(modelHash) then
+        sendRetrievalSpawnResult(retrievalRequestId, false, 'model_load_timeout')
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle retrieval failed: model loading timed out', 'error')
+        return
+    end
+
     local spawnHeading = zoneRotation
-    
-    local vehicle = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnHeading, true, false)
-    
+    local spawnOffsets = {
+        vector3(5.0, 5.0, 0.0),
+        vector3(-5.0, 5.0, 0.0),
+        vector3(5.0, -5.0, 0.0),
+        vector3(-5.0, -5.0, 0.0),
+        vector3(0.0, 8.0, 0.0)
+    }
+
+    local vehicle = 0
+    for _, offset in ipairs(spawnOffsets) do
+        local spawnCoords = zoneCoords + offset
+        local candidate = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnHeading, true, false)
+        if candidate ~= 0 and DoesEntityExist(candidate) then
+            vehicle = candidate
+            break
+        end
+    end
+
+    SetModelAsNoLongerNeeded(modelHash)
+
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        sendRetrievalSpawnResult(retrievalRequestId, false, 'create_vehicle_failed')
+        TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle retrieval failed: no clear spawn point found', 'error')
+        return
+    end
+
     SetVehicleOnGroundProperly(vehicle)
     SetEntityAsMissionEntity(vehicle, true, true)
     SetVehicleHasBeenOwnedByPlayer(vehicle, true)
     SetVehicleNeedsToBeHotwired(vehicle, false)
     setOwnedVehicleState(vehicle, vehicleData.id, vehicleData.ownerLicense)
-    SetModelAsNoLongerNeeded(modelHash)
     disableVehicleRadio(vehicle)
-    
-    -- Apply all saved properties
-    if vehicleData.props then
+
+    if vehicleData and type(vehicleData.plate) == 'string' and vehicleData.plate ~= '' then
+        SetVehicleNumberPlateText(vehicle, vehicleData.plate)
+    end
+
+    if vehicleData and vehicleData.props then
         setVehicleProperties(vehicle, vehicleData.props)
     end
-    
-    -- Put player in vehicle
+
     TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
     Wait(0)
     disableVehicleRadio(vehicle)
-    
-    -- Refresh the vehicle list
+
+    sendRetrievalSpawnResult(retrievalRequestId, true)
+
     Wait(500)
-    if currentZone then
+    if currentZone and currentZone.name == zoneName then
         TriggerServerEvent('lsrp_vehicleparking:server:getParkedVehicles', currentZone.name)
     end
-    
+
     closeParkingUI()
 end)
 

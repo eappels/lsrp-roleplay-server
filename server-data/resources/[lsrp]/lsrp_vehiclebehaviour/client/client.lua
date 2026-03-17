@@ -770,26 +770,15 @@ local function toggleIgnition()
 	local currentIgnitionState = ensureVehicleIgnitionState(vehicle)
 	local newIgnitionState = not currentIgnitionState
 
-	if keysConfig and keysConfig.enabled ~= false then
-		if newIgnitionState == true then
-			-- Turning ON: the local player or any occupant must have the key
-			local hasKey, reason = canStartVehicle(vehicle)
-			if hasKey ~= true then
-				if ignitionConfig.notify ~= false then
-					notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
-				end
-				setVehicleIgnitionState(vehicle, false)
-				return
+	if newIgnitionState == true and keysConfig and keysConfig.enabled ~= false then
+		-- Turning ON: the local player or any occupant must have the key.
+		local hasKey, reason = canStartVehicle(vehicle)
+		if hasKey ~= true then
+			if ignitionConfig.notify ~= false then
+				notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
 			end
-		else
-			-- Turning OFF: the player pressing ignition must have the key (unowned/public vehicles are freely accessible)
-			local hasKey, reason = requestVehicleKeyAccess(vehicle, true, KEY_ACCESS_MODE_DOOR)
-			if hasKey ~= true and reason ~= 'unowned_vehicle' then
-				if ignitionConfig.notify ~= false then
-					notify(isTransientKeyReason(reason) and 'Vehicle key service is unavailable' or 'You do not have the keys for this vehicle')
-				end
-				return
-			end
+			setVehicleIgnitionState(vehicle, false)
+			return
 		end
 	end
 
