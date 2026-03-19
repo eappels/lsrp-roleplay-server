@@ -100,6 +100,8 @@ Citizen.CreateThread(function()
                 speed = speed * 3.0
             end
 
+            local verticalSpeed = speed * 0.1
+
             -- Keep forward/strafe on a flat plane; vertical movement is space/ctrl only.
             local move = flatDir * (forward * speed)
 
@@ -107,7 +109,7 @@ Citizen.CreateThread(function()
             local rightVec = vector3(flatDir.y, -flatDir.x, 0.0)
             local moveRight = rightVec * (right * speed)
 
-            local newPos = pos + move + moveRight + vector3(0.0, 0.0, up * speed)
+            local newPos = pos + move + moveRight + vector3(0.0, 0.0, up * verticalSpeed)
 
             -- apply position
             setPlayerCoords(newPos)

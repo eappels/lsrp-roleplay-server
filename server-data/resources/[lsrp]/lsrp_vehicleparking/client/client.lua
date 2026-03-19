@@ -27,6 +27,133 @@ local function getParkingZoneByName(zoneName)
     return nil
 end
 
+local function trimString(value)
+    if value == nil then
+        return nil
+    end
+
+    local trimmed = tostring(value):gsub('^%s+', ''):gsub('%s+$', '')
+    if trimmed == '' then
+        return nil
+    end
+
+    return trimmed
+end
+
+local function decodeVehicleProps(rawProps)
+    if type(rawProps) == 'table' then
+        return rawProps
+    end
+
+    local propsText = trimString(rawProps)
+    if not propsText then
+        return nil
+    end
+
+    local ok, decoded = pcall(function()
+        return json.decode(propsText)
+    end)
+
+    if ok and type(decoded) == 'table' then
+        return decoded
+    end
+
+    return nil
+end
+
+local function prettifyVehicleLabel(label)
+    local text = trimString(label)
+    if not text then
+        return nil
+    end
+
+    text = text:gsub('[_%-]+', ' '):gsub('%s+', ' ')
+
+    if text == '' then
+        return nil
+    end
+
+    if text == string.upper(text) then
+        text = string.lower(text)
+    end
+
+    text = text:gsub('(%a)([%w]*)', function(first, rest)
+        return string.upper(first) .. string.lower(rest)
+    end)
+
+    return text
+end
+
+local function resolveVehicleDisplayName(vehicleData)
+    if type(vehicleData) ~= 'table' then
+        return 'Unknown'
+    end
+
+    local props = decodeVehicleProps(vehicleData.vehicle_props)
+    local rawModel = trimString(vehicleData.vehicle_display_name)
+        or trimString(vehicleData.vehicle_model)
+        or trimString(props and props.modelName)
+    local modelHash = tonumber(rawModel)
+
+    if not modelHash and props and props.model ~= nil then
+        modelHash = tonumber(props.model)
+    end
+
+    if not modelHash and rawModel then
+        modelHash = GetHashKey(rawModel)
+    end
+
+    if modelHash and modelHash ~= 0 and IsModelInCdimage(modelHash) and IsModelAVehicle(modelHash) then
+        local displayCode = trimString(GetDisplayNameFromVehicleModel(modelHash))
+        if displayCode and displayCode ~= 'CARNOTFOUND' then
+            local labelText = trimString(GetLabelText(displayCode))
+            if labelText and labelText ~= 'NULL' then
+                return labelText
+            end
+
+            local prettyCode = prettifyVehicleLabel(displayCode)
+            if prettyCode then
+                return prettyCode
+            end
+        end
+    end
+
+    local prettyRawModel = prettifyVehicleLabel(rawModel)
+    if prettyRawModel then
+        return prettyRawModel
+    end
+
+    local prettyPropsModel = prettifyVehicleLabel(props and props.modelName)
+    if prettyPropsModel then
+        return prettyPropsModel
+    end
+
+    return rawModel or 'Unknown'
+end
+
+local function normalizeVehiclesForUi(vehicles)
+    if type(vehicles) ~= 'table' then
+        return {}
+    end
+
+    local normalizedVehicles = {}
+
+    for index, vehicle in ipairs(vehicles) do
+        if type(vehicle) == 'table' then
+            local normalizedVehicle = {}
+
+            for key, value in pairs(vehicle) do
+                normalizedVehicle[key] = value
+            end
+
+            normalizedVehicle.vehicle_display_name = resolveVehicleDisplayName(vehicle)
+            normalizedVehicles[index] = normalizedVehicle
+        end
+    end
+
+    return normalizedVehicles
+end
+
 -- Helper function to get vehicle properties (all customization)
 local function getVehicleProperties(vehicle)
     if not DoesEntityExist(vehicle) then
@@ -569,11 +696,12 @@ end)
 
 -- Client events
 RegisterNetEvent('lsrp_vehicleparking:client:receiveParkedVehicles', function(vehicles)
-    parkedVehicles = vehicles
+    local normalizedVehicles = normalizeVehiclesForUi(vehicles)
+    parkedVehicles = normalizedVehicles
     
     SendNUIMessage({
         action = 'updateVehicles',
-        vehicles = vehicles
+        vehicles = normalizedVehicles
     })
 end)
 

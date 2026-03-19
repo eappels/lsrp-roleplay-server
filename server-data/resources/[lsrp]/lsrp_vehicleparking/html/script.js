@@ -123,13 +123,14 @@ function createVehicleCard(vehicle) {
     
     const storedDate = new Date(vehicle.stored_at);
     const formattedDate = storedDate.toLocaleDateString() + ' ' + storedDate.toLocaleTimeString();
+    const modelName = vehicle.vehicle_display_name || vehicle.vehicle_model || 'Unknown';
     
     const parkingId = Number(vehicle.id);
     const safePlate = String(vehicle.vehicle_plate || '').replace(/'/g, "\\'");
 
     card.innerHTML = `
         <div class="vehicle-card-header">
-            <div class="vehicle-model">${vehicle.vehicle_model}</div>
+            <div class="vehicle-model">${modelName}</div>
             <div class="vehicle-icon">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M5 17h14v-5l-1.5-4.5h-11L5 12v5z"/>
