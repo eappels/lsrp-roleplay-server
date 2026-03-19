@@ -12,6 +12,9 @@ local DEMO_FLOAT_HEIGHT_THRESHOLD = 0.35
 local DEMO_MAX_SETTLE_ATTEMPTS = 8
 local DEMO_SETTLE_RETRY_INTERVAL_MS = 500
 local spawnedDemoShops = {}
+local canAdminCustomPurchase = false
+local adminCustomUnlistedPrice = 0
+local adminCustomFormattedUnlistedPrice = 'LS$0'
 
 local function trimString(value)
 	if value == nil then
@@ -170,6 +173,30 @@ local function setUiBalance(balance, formattedBalance)
 	end
 end
 
+local function setAdminCustomPurchaseAccess(enabled, fallbackPrice, formattedPrice)
+	canAdminCustomPurchase = enabled == true
+	adminCustomUnlistedPrice = math.max(0, math.floor(tonumber(fallbackPrice) or 0))
+	adminCustomFormattedUnlistedPrice = trimString(formattedPrice) or formatFallbackCurrency(adminCustomUnlistedPrice)
+
+	if uiOpen then
+		SendNUIMessage({
+			action = 'setAdminState',
+			canAdminCustomPurchase = canAdminCustomPurchase,
+			adminCustomUnlistedPrice = adminCustomUnlistedPrice,
+			formattedAdminCustomUnlistedPrice = adminCustomFormattedUnlistedPrice
+		})
+	end
+end
+
+local function isVehicleModelValid(model)
+	if not model then
+		return false
+	end
+
+	local modelHash = GetHashKey(model)
+	return IsModelInCdimage(modelHash) and IsModelAVehicle(modelHash)
+end
+
 local function closeShop()
 	if not uiOpen then
 		return
@@ -190,7 +217,7 @@ local function openShop(shop)
 	end
 
 	local vehicles = getVehiclesForShop(shop)
-	if #vehicles == 0 then
+	if #vehicles == 0 and not canAdminCustomPurchase then
 		notify('This dealership currently has no inventory.')
 		return
 	end
@@ -212,11 +239,15 @@ local function openShop(shop)
 		},
 		categories = categories,
 		vehicles = vehicles,
+		canAdminCustomPurchase = canAdminCustomPurchase,
+		adminCustomUnlistedPrice = adminCustomUnlistedPrice,
+		formattedAdminCustomUnlistedPrice = adminCustomFormattedUnlistedPrice,
 		balance = currentBalance,
 		formattedBalance = currentFormattedBalance
 	})
 
 	TriggerServerEvent('lsrp_vehicleshop:server:requestBalance')
+	TriggerServerEvent('lsrp_vehicleshop:server:requestAccess')
 end
 
 local function getShopById(shopId)
@@ -516,6 +547,18 @@ RegisterNetEvent('lsrp_vehicleshop:client:updateBalance', function(payload)
 	setUiBalance(payload.balance, payload.formattedBalance)
 end)
 
+RegisterNetEvent('lsrp_vehicleshop:client:setAccess', function(payload)
+	if type(payload) ~= 'table' then
+		return
+	end
+
+	setAdminCustomPurchaseAccess(
+		payload.canAdminCustomPurchase,
+		payload.adminCustomUnlistedPrice,
+		payload.formattedAdminCustomUnlistedPrice
+	)
+end)
+
 RegisterNetEvent('lsrp_economy:client:balanceUpdated', function(balance, currencySymbol)
 	local formatted = nil
 	if type(currencySymbol) == 'string' and currencySymbol ~= '' then
@@ -633,6 +676,36 @@ RegisterNUICallback('purchaseVehicle', function(data, cb)
 	cb({ ok = true })
 end)
 
+RegisterNUICallback('purchaseCustomVehicle', function(data, cb)
+	if not uiOpen or not activeShop then
+		cb({ ok = false, error = 'shop_not_open' })
+		return
+	end
+
+	if not canAdminCustomPurchase then
+		cb({ ok = false, error = 'admin_forbidden' })
+		return
+	end
+
+	local model = normalizeIdentifier(data and data.model)
+	if not model then
+		cb({ ok = false, error = 'invalid_model' })
+		return
+	end
+
+	if not isVehicleModelValid(model) then
+		cb({ ok = false, error = 'invalid_vehicle' })
+		return
+	end
+
+	TriggerServerEvent('lsrp_vehicleshop:server:purchaseVehicle', {
+		shopId = activeShop.id,
+		customModel = model
+	})
+
+	cb({ ok = true })
+end)
+
 CreateThread(function()
 	while true do
 		local sleep = 700
@@ -719,6 +792,11 @@ end)
 
 AddEventHandler('lsrp_vehicleeditor:closed', function()
 	vehicleEditorOpen = false
+end)
+
+CreateThread(function()
+	Wait(0)
+	TriggerServerEvent('lsrp_vehicleshop:server:requestAccess')
 end)
 
 AddEventHandler('onResourceStop', function(resourceName)

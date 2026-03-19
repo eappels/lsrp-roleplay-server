@@ -4,6 +4,8 @@ Config.InteractionKey = 38 -- E
 Config.OpenPrompt = 'Press ~INPUT_CONTEXT~ to browse dealership inventory'
 Config.AutoCloseDistance = 9.0
 Config.PurchaseCooldownMs = 1750
+Config.AdminCustomPurchaseAce = 'lsrp.vehicleshop.admin'
+Config.AdminCustomUnlistedPrice = 0
 
 Config.Marker = {
     enabled = true,

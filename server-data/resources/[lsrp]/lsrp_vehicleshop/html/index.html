@@ -28,6 +28,21 @@
                     <strong id="delivery-zone" class="delivery-value">Unknown</strong>
                 </div>
 
+                <section id="admin-quick-buy" class="admin-card hidden">
+                    <div class="admin-card__header">
+                        <span class="admin-card__eyebrow">Admin Quick Buy</span>
+                        <strong class="admin-card__title">Direct Vehicle Purchase</strong>
+                    </div>
+
+                    <form id="admin-purchase-form" class="admin-form">
+                        <label for="admin-model-input">Vehicle model</label>
+                        <input id="admin-model-input" type="text" placeholder="e.g. buffalo4" autocomplete="off" spellcheck="false">
+                        <button id="admin-buy-btn" class="btn btn-admin" type="submit">Buy typed vehicle</button>
+                    </form>
+
+                    <p id="admin-quick-buy-hint" class="admin-card__hint">Configured vehicles use their catalog price. Unlisted vehicles use the admin override price.</p>
+                </section>
+
                 <section class="category-section">
                     <h2>Categories</h2>
                     <div id="category-list" class="category-list"></div>

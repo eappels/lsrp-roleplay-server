@@ -18,6 +18,7 @@ It integrates with the economy resource for payment, with vehicle parking for pe
 - Category-based vehicle browsing.
 - Demo vehicle spawning for preview.
 - Purchase flow with LS$ balance checks.
+- Admin-only quick-buy input for direct vehicle model purchases.
 - Persistent registration of bought vehicles through the parking resource.
 - Automatic owner key assignment for the purchased vehicle plate.
 
@@ -33,3 +34,4 @@ It integrates with the economy resource for payment, with vehicle parking for pe
 
 - Demo vehicle placement and stabilization are handled on the client side.
 - Purchased vehicles are not owned here directly; ownership is registered through `lsrp_vehicleparking`, then the owner key is granted through `lsrp_vehiclebehaviour`.
+- Admin quick-buy requires ACE `lsrp.vehicleshop.admin` by default, and also accepts `lsrp.economy.admin` as a compatibility fallback for existing admin setups. Unlisted direct-buy models use `Config.AdminCustomUnlistedPrice` when they are not present in the configured catalog.

@@ -19,6 +19,9 @@ const state = {
     search: '',
     balance: 0,
     formattedBalance: 'LS$0',
+    canAdminCustomPurchase: false,
+    adminCustomUnlistedPrice: 0,
+    formattedAdminCustomUnlistedPrice: 'LS$0',
     purchasePending: false,
     toastTimer: null
 };
@@ -32,6 +35,11 @@ const categoryListElement = document.getElementById('category-list');
 const vehicleGridElement = document.getElementById('vehicle-grid');
 const inventoryMetaElement = document.getElementById('inventory-meta');
 const searchInputElement = document.getElementById('search-input');
+const adminQuickBuyElement = document.getElementById('admin-quick-buy');
+const adminPurchaseFormElement = document.getElementById('admin-purchase-form');
+const adminModelInputElement = document.getElementById('admin-model-input');
+const adminBuyButtonElement = document.getElementById('admin-buy-btn');
+const adminQuickBuyHintElement = document.getElementById('admin-quick-buy-hint');
 const closeButtonElement = document.getElementById('close-btn');
 const toastElement = document.getElementById('toast');
 
@@ -101,6 +109,41 @@ function updateBalance(balance, formattedBalance) {
         : formatFallbackCurrency(parsedBalance);
 
     balanceTextElement.textContent = state.formattedBalance;
+}
+
+function normalizeModelInput(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, '');
+}
+
+function getPurchaseRequestErrorMessage(errorCode) {
+    switch (String(errorCode || '')) {
+        case 'admin_forbidden':
+            return 'You do not have permission to use admin quick buy.';
+        case 'invalid_model':
+        case 'invalid_vehicle':
+            return 'Enter a valid vehicle model.';
+        case 'shop_not_open':
+            return 'The vehicle shop is not open.';
+        default:
+            return 'Purchase request failed.';
+    }
+}
+
+function updateAdminState(payload = {}) {
+    state.canAdminCustomPurchase = payload.canAdminCustomPurchase === true;
+    state.adminCustomUnlistedPrice = Math.max(0, Math.floor(Number(payload.adminCustomUnlistedPrice) || 0));
+    state.formattedAdminCustomUnlistedPrice = (typeof payload.formattedAdminCustomUnlistedPrice === 'string' && payload.formattedAdminCustomUnlistedPrice.trim() !== '')
+        ? payload.formattedAdminCustomUnlistedPrice
+        : formatFallbackCurrency(state.adminCustomUnlistedPrice);
+
+    renderAdminQuickBuy();
+}
+
+function renderAdminQuickBuy() {
+    adminQuickBuyElement.classList.toggle('hidden', !state.canAdminCustomPurchase);
+    adminBuyButtonElement.disabled = state.purchasePending;
+    adminModelInputElement.disabled = state.purchasePending;
+    adminQuickBuyHintElement.textContent = `Configured vehicles use their catalog price. Unlisted vehicles use ${state.formattedAdminCustomUnlistedPrice}.`;
 }
 
 function getFilteredVehicles() {
@@ -232,18 +275,20 @@ function renderVehicles() {
 
             state.purchasePending = true;
             renderVehicles();
+            renderAdminQuickBuy();
 
             const result = await postNui('purchaseVehicle', {
                 model: vehicle.model
             });
 
             if (result && result.ok === false) {
-                showToast('Purchase request failed.', 'error');
+                showToast(getPurchaseRequestErrorMessage(result.error), 'error');
             }
 
             window.setTimeout(() => {
                 state.purchasePending = false;
                 renderVehicles();
+                renderAdminQuickBuy();
             }, 700);
         });
 
@@ -286,12 +331,14 @@ function openShop(payload) {
 
     state.search = '';
     searchInputElement.value = '';
+    adminModelInputElement.value = '';
 
     shopNameElement.textContent = (state.shop && state.shop.name) || 'Vehicle Shop';
     shopSubtitleElement.textContent = (state.shop && state.shop.subtitle) || 'Choose your next ride.';
     deliveryZoneElement.textContent = (state.shop && state.shop.deliveryParkingZone) || 'Unknown';
 
     updateBalance(payload.balance, payload.formattedBalance);
+    updateAdminState(payload);
 
     setAppVisibility(true);
     renderCategories();
@@ -306,6 +353,12 @@ function closeShopInternal() {
     state.selectedCategory = 'compact';
     state.search = '';
     state.purchasePending = false;
+    state.canAdminCustomPurchase = false;
+    state.adminCustomUnlistedPrice = 0;
+    state.formattedAdminCustomUnlistedPrice = 'LS$0';
+
+    adminModelInputElement.value = '';
+    renderAdminQuickBuy();
 
     setAppVisibility(false);
 }
@@ -336,6 +389,8 @@ window.addEventListener('message', (event) => {
         closeShopInternal();
     } else if (data.action === 'updateBalance') {
         updateBalance(data.balance, data.formattedBalance);
+    } else if (data.action === 'setAdminState') {
+        updateAdminState(data);
     } else if (data.action === 'purchaseResult') {
         handlePurchaseResult(data.result);
     }
@@ -350,6 +405,38 @@ document.addEventListener('keydown', (event) => {
 searchInputElement.addEventListener('input', () => {
     state.search = searchInputElement.value || '';
     renderVehicles();
+});
+
+adminPurchaseFormElement.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    if (!state.open || !state.canAdminCustomPurchase || state.purchasePending) {
+        return;
+    }
+
+    const model = normalizeModelInput(adminModelInputElement.value);
+    if (!model) {
+        showToast('Enter a vehicle model.', 'error');
+        return;
+    }
+
+    state.purchasePending = true;
+    renderVehicles();
+    renderAdminQuickBuy();
+
+    const result = await postNui('purchaseCustomVehicle', {
+        model
+    });
+
+    if (result && result.ok === false) {
+        showToast(getPurchaseRequestErrorMessage(result.error), 'error');
+    }
+
+    window.setTimeout(() => {
+        state.purchasePending = false;
+        renderVehicles();
+        renderAdminQuickBuy();
+    }, 700);
 });
 
 closeButtonElement.addEventListener('click', () => {
