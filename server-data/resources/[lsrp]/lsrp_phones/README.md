@@ -19,6 +19,7 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 ## Current Features
 
 - Incoming and outgoing call flow.
+- Persisted player-to-player text messaging with unread counts and conversation threads.
 - Phonebook storage.
 - Phone number lookup and assignment.
 - Integration with parking data for vehicle lists.

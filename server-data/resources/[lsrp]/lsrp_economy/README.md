@@ -9,6 +9,7 @@ It is the main money service used by gameplay systems that need to charge, refun
 ## Main Features
 
 - Persistent player balances.
+- Persistent numeric Account IDs for human-friendly transfers.
 - Transaction logging.
 - Server exports for balance operations.
 - Client balance sync for UI and gameplay checks.
@@ -21,7 +22,7 @@ It is the main money service used by gameplay systems that need to charge, refun
 ## Commands
 
 - `/lsbalance`: show your current balance.
-- `/payls <id> <amount>`: transfer LS$ to another player.
+- `/payls <accountId> <amount>`: transfer LS$ to another account (online or offline).
 - `/givels <id> <amount>`: admin grant LS$.
 - `/takels <id> <amount>`: admin remove LS$.
 - `/setls <id> <amount>`: admin set LS$.
@@ -29,6 +30,7 @@ It is the main money service used by gameplay systems that need to charge, refun
 ## Important Exports
 
 - `getBalance(playerSrc)`
+- `getAccountId(playerSrc)`
 - `formatCurrency(amount)`
 - `canAfford(playerSrc, amount)`
 - `addBalance(playerSrc, amount, reason, metadata)`

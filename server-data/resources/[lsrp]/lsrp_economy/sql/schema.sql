@@ -8,6 +8,14 @@ CREATE TABLE IF NOT EXISTS `lsrp_economy_balances` (
     PRIMARY KEY (`license`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS `lsrp_economy_accounts` (
+    `account_id` int unsigned NOT NULL AUTO_INCREMENT,
+    `license` varchar(64) NOT NULL,
+    `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`account_id`),
+    UNIQUE KEY `uniq_license` (`license`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS `lsrp_economy_transactions` (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT,
     `license` varchar(64) NOT NULL,

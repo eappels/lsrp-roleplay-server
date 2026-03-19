@@ -20,6 +20,11 @@
                         <div class="icon">💵</div>
                         <span>Balance</span>
                     </div>
+                    <div class="app-icon" onclick="openApp('messages')">
+                        <div class="icon">💬</div>
+                        <span>Messages</span>
+                        <span id="messages-badge" class="app-badge" style="display: none;">0</span>
+                    </div>
                     <div class="app-icon" onclick="openApp('parking')">
                         <div class="icon">🚗</div>
                         <span>Parking</span>
@@ -49,6 +54,60 @@
                         <button class="btn" onclick="loadBalance()">Refresh</button>
                     </div>
                     <p id="balance-meta" class="balance-meta">Not synced yet.</p>
+                </div>
+            </div>
+            <div id="messages-app" class="app-screen" style="display: none;">
+                <div class="app-header">
+                    <button class="back-btn" onclick="closeApp()">← Back</button>
+                    <h3>Messages</h3>
+                </div>
+                <div id="messages-overview" class="messages-overview">
+                    <div class="messages-compose-card">
+                        <label class="field-label" for="message-target-id">Phone Number</label>
+                        <input id="message-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
+
+                        <label class="field-label" for="message-body">Message</label>
+                        <textarea id="message-body" maxlength="280" placeholder="Write a text message..."></textarea>
+
+                        <div class="messages-compose-actions">
+                            <button class="btn" onclick="sendNewMessage()">Send</button>
+                            <button class="phonebook-refresh" onclick="loadMessageConversations()">Refresh</button>
+                        </div>
+
+                        <p id="messages-status" class="messages-status">Your conversations will appear here.</p>
+                    </div>
+
+                    <div class="messages-list-header">
+                        <h4>Conversations</h4>
+                        <span id="messages-unread-summary" class="messages-unread-summary">No unread messages</span>
+                    </div>
+
+                    <div id="messages-thread-list" class="messages-thread-list">
+                        <p class="loading">Loading conversations...</p>
+                    </div>
+                </div>
+
+                <div id="messages-thread-view" class="messages-thread-view" style="display: none;">
+                    <div class="messages-thread-header">
+                        <button class="back-btn" onclick="closeMessagesThread()">← Back</button>
+                        <div class="messages-thread-meta">
+                            <h4 id="messages-thread-title">Conversation</h4>
+                            <p id="messages-thread-subtitle">Select a conversation</p>
+                        </div>
+                        <span id="messages-thread-presence" class="phonebook-status offline">Offline</span>
+                    </div>
+
+                    <div id="messages-thread-messages" class="messages-thread-messages">
+                        <p class="messages-empty">No messages yet.</p>
+                    </div>
+
+                    <div class="messages-reply-box">
+                        <textarea id="message-reply-body" maxlength="280" placeholder="Write a reply..."></textarea>
+                        <div class="messages-reply-actions">
+                            <button class="btn" onclick="sendThreadReply()">Send</button>
+                        </div>
+                        <p id="messages-thread-status" class="messages-status">Open a conversation to reply.</p>
+                    </div>
                 </div>
             </div>
             <div id="parking-app" class="app-screen" style="display: none;">

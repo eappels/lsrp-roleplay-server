@@ -21,7 +21,9 @@ It is not intended as a production gameplay system.
 - `/revive`: respawn the player through the spawner flow.
 - `/wep [name]`: give a predefined test weapon.
 - `/veh [model]`: spawn a vehicle in front of the player.
+- `/ids`: toggle nearby overhead player IDs and names (admin only).
 - `F1`: toggle noclip.
+- `F3`: toggle nearby overhead player IDs and names (admin only).
 
 ## Main Files
 
@@ -35,4 +37,4 @@ It is not intended as a production gameplay system.
 ## Notes
 
 - Treat this resource as a toolbox for development and QA.
-- If commands should be restricted later, add permission checks here instead of in gameplay resources.
+- `/ids` requires ACE `lsrp.dev.ids`.

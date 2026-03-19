@@ -196,6 +196,12 @@ local function pushBalanceToNui()
 	})
 end
 
+local function showPhoneNotification(message)
+	BeginTextCommandThefeedPost('STRING')
+	AddTextComponentSubstringPlayerName(tostring(message or ''))
+	EndTextCommandThefeedPostTicker(false, false)
+end
+
 -- Load animation dictionary
 local function loadAnimDict(dict)
 	RequestAnimDict(dict)
@@ -208,10 +214,62 @@ local function loadAnimDict(dict)
 	return HasAnimDictLoaded(dict)
 end
 
+local function cleanupPhonePropEntity(entity)
+	if not entity or entity == 0 then
+		return
+	end
+
+	if not DoesEntityExist(entity) then
+		if phoneObject == entity then
+			phoneObject = nil
+		end
+
+		return
+	end
+
+	if IsEntityAttached(entity) then
+		DetachEntity(entity, true, true)
+	end
+
+	SetEntityAsMissionEntity(entity, true, true)
+
+	if NetworkGetEntityIsNetworked(entity) then
+		local timeout = GetGameTimer() + 1000
+
+		NetworkRequestControlOfEntity(entity)
+
+		while DoesEntityExist(entity) and not NetworkHasControlOfEntity(entity) and GetGameTimer() < timeout do
+			Wait(0)
+			NetworkRequestControlOfEntity(entity)
+		end
+	end
+
+	DeleteObject(entity)
+
+	if DoesEntityExist(entity) then
+		DeleteEntity(entity)
+	end
+
+	if DoesEntityExist(entity) then
+		SetEntityAsNoLongerNeeded(entity)
+	end
+
+	if phoneObject == entity then
+		phoneObject = nil
+	end
+end
+
+-- Remove phone prop
+local function removePhoneProp()
+	cleanupPhonePropEntity(phoneObject)
+end
+
 -- Create and attach phone prop
 local function attachPhoneProp()
 	local ped = PlayerPedId()
 	local phoneModel = GetHashKey('prop_npc_phone_02')
+
+	removePhoneProp()
 	
 	RequestModel(phoneModel)
 	local timeout = GetGameTimer() + 5000
@@ -222,17 +280,10 @@ local function attachPhoneProp()
 	
 	if HasModelLoaded(phoneModel) then
 		phoneObject = CreateObject(phoneModel, 0.0, 0.0, 0.0, true, true, false)
+		SetEntityAsMissionEntity(phoneObject, true, true)
 		local boneIndex = GetPedBoneIndex(ped, 28422)
 		AttachEntityToEntity(phoneObject, ped, boneIndex, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, false, true, 1, true)
 		SetModelAsNoLongerNeeded(phoneModel)
-	end
-end
-
--- Remove phone prop
-local function removePhoneProp()
-	if phoneObject and DoesEntityExist(phoneObject) then
-		DeleteObject(phoneObject)
-		phoneObject = nil
 	end
 end
 
@@ -251,6 +302,7 @@ end
 -- Stop phone animation
 local function stopPhoneAnim()
 	local ped = PlayerPedId()
+	local phoneObjectToRemove = phoneObject
 	
 	if loadAnimDict('cellphone@') then
 		TaskPlayAnim(ped, 'cellphone@', 'cellphone_text_out', 3.0, -8.0, 1500, 50, 0, false, false, false)
@@ -259,10 +311,10 @@ local function stopPhoneAnim()
 		-- Wait for animation to finish before removing phone prop
 		CreateThread(function()
 			Wait(1500)
-			removePhoneProp()
+			cleanupPhonePropEntity(phoneObjectToRemove)
 		end)
 	else
-		removePhoneProp()
+		cleanupPhonePropEntity(phoneObjectToRemove)
 	end
 end
 
@@ -372,6 +424,45 @@ RegisterNUICallback('getPhonebook', function(_, cb)
 	cb('ok')
 end)
 
+RegisterNUICallback('getMessageConversations', function(_, cb)
+	TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
+	cb('ok')
+end)
+
+RegisterNUICallback('getMessageThread', function(data, cb)
+	local phoneNumber = tostring((data and data.phoneNumber) or '')
+	phoneNumber = phoneNumber:gsub('^%s+', ''):gsub('%s+$', '')
+
+	if phoneNumber == '' then
+		cb({ ok = false, error = 'invalid_target' })
+		return
+	end
+
+	TriggerServerEvent('lsrp_phones:server:requestMessageThread', phoneNumber)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('sendMessage', function(data, cb)
+	local phoneNumber = tostring((data and data.phoneNumber) or '')
+	local body = tostring((data and data.body) or '')
+
+	phoneNumber = phoneNumber:gsub('^%s+', ''):gsub('%s+$', '')
+	body = body:gsub('^%s+', ''):gsub('%s+$', '')
+
+	if phoneNumber == '' then
+		cb({ ok = false, error = 'invalid_target' })
+		return
+	end
+
+	if body == '' then
+		cb({ ok = false, error = 'empty_message' })
+		return
+	end
+
+	TriggerServerEvent('lsrp_phones:server:sendMessage', phoneNumber, body)
+	cb({ ok = true })
+end)
+
 -- NUI callback to start a player-to-player phone call
 RegisterNUICallback('startCall', function(data, cb)
 	local phoneNumber = tostring((data and data.phoneNumber) or '')
@@ -430,6 +521,48 @@ RegisterNetEvent('lsrp_phones:client:receivePhonebook')
 AddEventHandler('lsrp_phones:client:receivePhonebook', function(entries)
 	phonebookEntries = type(entries) == 'table' and entries or {}
 	pushPhonebookToNui()
+end)
+
+RegisterNetEvent('lsrp_phones:client:receiveMessageConversations')
+AddEventHandler('lsrp_phones:client:receiveMessageConversations', function(conversations, unreadTotal)
+	SendNUIMessage({
+		action = 'displayMessageConversations',
+		conversations = type(conversations) == 'table' and conversations or {},
+		unreadTotal = tonumber(unreadTotal) or 0
+	})
+end)
+
+RegisterNetEvent('lsrp_phones:client:receiveMessageThread')
+AddEventHandler('lsrp_phones:client:receiveMessageThread', function(thread)
+	SendNUIMessage({
+		action = 'displayMessageThread',
+		thread = thread
+	})
+end)
+
+RegisterNetEvent('lsrp_phones:client:messageIncoming')
+AddEventHandler('lsrp_phones:client:messageIncoming', function(fromNumber, preview)
+	local senderNumber = tostring(fromNumber or 'Unknown')
+	local messagePreview = tostring(preview or 'New message received.')
+
+	if not phoneOpen then
+		showPhoneNotification(('Text from %s: %s'):format(senderNumber, messagePreview))
+	end
+
+	SendNUIMessage({
+		action = 'messageIncoming',
+		phoneNumber = senderNumber,
+		preview = messagePreview
+	})
+end)
+
+RegisterNetEvent('lsrp_phones:client:messageStatus')
+AddEventHandler('lsrp_phones:client:messageStatus', function(message, isError)
+	SendNUIMessage({
+		action = 'messageStatus',
+		message = message or '',
+		isError = isError == true
+	})
 end)
 
 RegisterNetEvent('lsrp_phones:client:callIncoming')
@@ -508,6 +641,7 @@ end)
 AddEventHandler('lsrp_phones:openPhone', function()
 	TriggerServerEvent('lsrp_phones:server:requestPhoneNumber')
 	TriggerServerEvent('lsrp_phones:server:requestPhonebook')
+	TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
 	pushPhoneNumberToNui()
 	pushPhonebookToNui()
 end)
@@ -515,4 +649,14 @@ end)
 -- Phone close event
 AddEventHandler('lsrp_phones:closePhone', function()
 	-- Phone close logic goes here
+end)
+
+AddEventHandler('onResourceStop', function(resourceName)
+	if resourceName ~= GetCurrentResourceName() then
+		return
+	end
+
+	stopIncomingRingtone()
+	removePhoneProp()
+	SetNuiFocus(false, false)
 end)
