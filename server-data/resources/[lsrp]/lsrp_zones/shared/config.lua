@@ -24,7 +24,7 @@ Config.Zones = {
             label  = "Clothing Store"
         }
     },
-        {
+    {
         name       = "Clothing Store",
         prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
         coords     = vector3(124.02, -219.81, 54.56),
@@ -37,7 +37,7 @@ Config.Zones = {
             label  = "Clothing Store"
         }
     },
-        {
+    {
         name       = "Clothing Store",
         prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
         coords     = vector3(76.22, -1392.84, 29.38),
@@ -51,6 +51,19 @@ Config.Zones = {
         }
     },
         {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(617.65, 2760.04, 42.09),
+        radius     = 3.5,
+        action     = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
         name       = "Vehicle Mod Shop",
         prompt     = "Press ~INPUT_CONTEXT~ to open vehicle editor",
         coords     = vector3(-212.19, -1324.22, 30.89),
@@ -63,7 +76,7 @@ Config.Zones = {
             label  = "Vehicle Mod Shop"
         }
     },
-        {
+    {
         name       = "Vehicle Mod Shop",
         prompt     = "Press ~INPUT_CONTEXT~ to open vehicle editor",
         coords     = vector3(-337.70, -136.13, 38.43),

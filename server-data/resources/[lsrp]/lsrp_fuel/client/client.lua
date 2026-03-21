@@ -11,6 +11,13 @@ local hudState = {
     isLow = false,
     isCritical = false
 }
+local refuelProgressState = {
+    visible = false,
+    label = '',
+    progress = 0.0,
+    totalCost = 0,
+    liters = 0.0
+}
 local lastHudSnapshot = nil
 
 local function trimString(value)
@@ -41,9 +48,66 @@ local function clampFuelLevel(value, maxFuel)
     return fuelLevel + 0.0
 end
 
+local function snapFuelLevelToCapacity(value, tankCapacity)
+    local normalizedCapacity = clampTankCapacity(tankCapacity)
+    local fuelLevel = clampFuelLevel(value, normalizedCapacity)
+    local snapTolerance = math.max(0.01, tonumber(Config.FullTankSnapTolerance) or 0.25)
+
+    if (normalizedCapacity - fuelLevel) <= snapTolerance then
+        return normalizedCapacity
+    end
+
+    return fuelLevel
+end
+
 local function roundFuelValue(value)
     local numericValue = tonumber(value) or 0.0
     return math.floor((numericValue * 10.0) + 0.5) / 10.0
+end
+
+local function requestAnimDictLoaded(animDict)
+    local normalizedAnimDict = trimString(animDict)
+    if not normalizedAnimDict then
+        return false
+    end
+
+    RequestAnimDict(normalizedAnimDict)
+    local timeoutAt = GetGameTimer() + 5000
+    while not HasAnimDictLoaded(normalizedAnimDict) do
+        if GetGameTimer() >= timeoutAt then
+            return false
+        end
+
+        Wait(0)
+    end
+
+    return true
+end
+
+local function getRefuelAnimationConfig()
+    local animationMode = trimString(Config and Config.RefuelAnimationMode)
+    if animationMode == 'anim' then
+        local animDict = trimString(Config and Config.RefuelAnimationDict)
+        local animName = trimString(Config and Config.RefuelAnimationName)
+        if animDict and animName then
+            return {
+                mode = 'anim',
+                dict = animDict,
+                name = animName,
+                flag = math.floor(tonumber(Config and Config.RefuelAnimationFlag) or 1)
+            }
+        end
+    end
+
+    local scenarioName = trimString(Config and Config.RefuelAnimationScenario)
+    if not scenarioName then
+        scenarioName = 'WORLD_HUMAN_VEHICLE_MECHANIC'
+    end
+
+    return {
+        mode = 'scenario',
+        scenario = scenarioName
+    }
 end
 
 local function formatCurrency(amount)
@@ -157,7 +221,7 @@ local function getStateFuel(vehicle)
     local stateFuel = entityState and entityState.lsrpFuelLevel
 
     if type(stateFuel) == 'number' then
-        return clampFuelLevel(stateFuel, getVehicleTankCapacity(vehicle))
+        return snapFuelLevelToCapacity(stateFuel, getVehicleTankCapacity(vehicle))
     end
 
     return nil
@@ -169,7 +233,7 @@ local function setVehicleFuelLevelSafe(vehicle, fuelLevel, replicate)
     end
 
     local tankCapacity = getVehicleTankCapacity(vehicle)
-    local clampedFuel = clampFuelLevel(fuelLevel, tankCapacity)
+    local clampedFuel = snapFuelLevelToCapacity(fuelLevel, tankCapacity)
     SetVehicleFuelLevel(vehicle, clampedFuel)
 
     local entityState = Entity(vehicle).state
@@ -197,16 +261,23 @@ local function getVehicleFuelLevelSafe(vehicle)
 
     local tankCapacity = getVehicleTankCapacity(vehicle)
     local stateFuel = getStateFuel(vehicle)
+    local nativeFuel = snapFuelLevelToCapacity(GetVehicleFuelLevel(vehicle), tankCapacity)
     if stateFuel ~= nil then
-        local nativeFuel = clampFuelLevel(GetVehicleFuelLevel(vehicle), tankCapacity)
-        if math.abs(nativeFuel - stateFuel) > (tonumber(Config.SyncTolerance) or 0.2) then
-            SetVehicleFuelLevel(vehicle, stateFuel)
+        local tolerance = tonumber(Config.SyncTolerance) or 0.2
+
+        -- Let small local decreases accumulate between replicated sync updates.
+        if nativeFuel < stateFuel and (stateFuel - nativeFuel) <= tolerance then
+            return nativeFuel
         end
 
-        return stateFuel
+        if math.abs(nativeFuel - stateFuel) > tolerance then
+            SetVehicleFuelLevel(vehicle, stateFuel)
+            nativeFuel = stateFuel
+        end
+
+        return nativeFuel
     end
 
-    local nativeFuel = clampFuelLevel(GetVehicleFuelLevel(vehicle), tankCapacity)
     return setVehicleFuelLevelSafe(vehicle, nativeFuel, true)
 end
 
@@ -322,6 +393,18 @@ local function drawFuelHudText(x, y, text, scale, red, green, blue, alpha, cente
     EndTextCommandDisplayText(x, y)
 end
 
+local function setRefuelProgressVisible(visible, label, progress, totalCost, liters)
+    refuelProgressState.visible = visible == true
+    refuelProgressState.label = tostring(label or '')
+    refuelProgressState.progress = math.max(0.0, math.min(1.0, tonumber(progress) or 0.0))
+    refuelProgressState.totalCost = math.max(0, math.floor(tonumber(totalCost) or 0))
+    refuelProgressState.liters = math.max(0.0, tonumber(liters) or 0.0)
+end
+
+local function hideRefuelProgress()
+    setRefuelProgressVisible(false, '', 0.0, 0, 0.0)
+end
+
 local function drawFuelHud()
     if hudState.visible ~= true then
         return
@@ -362,6 +445,112 @@ local function drawFuelHud()
     else
         drawFuelHudText(cardX - 0.05, cardY + 0.023, 'FUEL STABLE', 0.24, 190, 198, 207, 190, false)
     end
+end
+
+local function drawRefuelProgress()
+    if refuelProgressState.visible ~= true then
+        return
+    end
+
+    local safeZone = GetSafeZoneSize()
+    local safeZoneOffset = (1.0 - safeZone) * 0.5
+    local cardWidth = 0.19
+    local cardHeight = 0.062
+    local cardX = 0.5
+    local cardY = 1.0 - safeZoneOffset - (cardHeight * 0.5) - 0.045
+    local barWidth = cardWidth - 0.02
+    local barHeight = 0.012
+    local barY = cardY + 0.012
+    local progress = math.max(0.0, math.min(1.0, refuelProgressState.progress))
+    local fillWidth = barWidth * progress
+
+    drawFuelHudRect(cardX, cardY, cardWidth, cardHeight, 9, 16, 24, 205)
+    drawFuelHudText(cardX, cardY - 0.018, refuelProgressState.label ~= '' and refuelProgressState.label or 'Refueling vehicle', 0.31, 244, 241, 236, 225, true)
+    drawFuelHudText(cardX, cardY - 0.001, ('%d%%  |  %.1fL  |  %s'):format(math.floor((progress * 100.0) + 0.5), refuelProgressState.liters, formatCurrency(refuelProgressState.totalCost)), 0.24, 214, 221, 228, 215, true)
+    drawFuelHudRect(cardX, barY, barWidth, barHeight, 24, 33, 42, 225)
+
+    if fillWidth > 0.0005 then
+        local fillX = (cardX - (barWidth * 0.5)) + (fillWidth * 0.5)
+        drawFuelHudRect(fillX, barY, fillWidth, barHeight * 0.72, 74, 181, 116, 235)
+    end
+end
+
+local function startRefuelAnimation(ped, vehicle)
+    if ped == 0 or not DoesEntityExist(ped) then
+        return
+    end
+
+    if vehicle ~= 0 and DoesEntityExist(vehicle) then
+        TaskTurnPedToFaceEntity(ped, vehicle, 1200)
+        Wait(250)
+    end
+
+    local animationConfig = getRefuelAnimationConfig()
+    if animationConfig.mode == 'anim' then
+        if requestAnimDictLoaded(animationConfig.dict) then
+            TaskPlayAnim(ped, animationConfig.dict, animationConfig.name, 8.0, 1.0, -1, animationConfig.flag, 0.0, false, false, false)
+            return
+        end
+    end
+
+    TaskStartScenarioInPlace(ped, animationConfig.scenario, 0, true)
+end
+
+local function stopRefuelAnimation(ped)
+    if ped == 0 or not DoesEntityExist(ped) then
+        return
+    end
+
+    ClearPedTasks(ped)
+end
+
+local function disableRefuelControls()
+    DisableControlAction(0, 21, true)
+    DisableControlAction(0, 22, true)
+    DisableControlAction(0, 23, true)
+    DisableControlAction(0, 24, true)
+    DisableControlAction(0, 25, true)
+    DisableControlAction(0, 30, true)
+    DisableControlAction(0, 31, true)
+    DisableControlAction(0, 32, true)
+    DisableControlAction(0, 33, true)
+    DisableControlAction(0, 34, true)
+    DisableControlAction(0, 35, true)
+    DisableControlAction(0, 44, true)
+    DisableControlAction(0, 75, true)
+    DisableControlAction(0, 140, true)
+    DisableControlAction(0, 141, true)
+    DisableControlAction(0, 142, true)
+    DisableControlAction(0, 63, true)
+    DisableControlAction(0, 64, true)
+    DisableControlAction(0, 71, true)
+    DisableControlAction(0, 72, true)
+end
+
+local function ensurePedReadyForRefuel(ped, vehicle)
+    if ped == 0 or not DoesEntityExist(ped) then
+        return false
+    end
+
+    if IsPedInAnyVehicle(ped, false) then
+        if vehicle == 0 or not DoesEntityExist(vehicle) or GetVehiclePedIsIn(ped, false) ~= vehicle or GetPedInVehicleSeat(vehicle, -1) ~= ped then
+            return false
+        end
+
+        TaskLeaveVehicle(ped, vehicle, 0)
+
+        local timeoutAt = GetGameTimer() + 4000
+        while IsPedInAnyVehicle(ped, false) and GetGameTimer() < timeoutAt do
+            disableRefuelControls()
+            Wait(0)
+        end
+
+        if IsPedInAnyVehicle(ped, false) then
+            return false
+        end
+    end
+
+    return true
 end
 
 local function updateFuelHud(vehicle)
@@ -446,29 +635,6 @@ local function getClosestFuelVehicle(originCoords, maxDistance)
     return closestVehicle, closestDistance
 end
 
-local function disableRefuelControls()
-    DisableControlAction(0, 21, true)
-    DisableControlAction(0, 22, true)
-    DisableControlAction(0, 23, true)
-    DisableControlAction(0, 24, true)
-    DisableControlAction(0, 25, true)
-    DisableControlAction(0, 30, true)
-    DisableControlAction(0, 31, true)
-    DisableControlAction(0, 32, true)
-    DisableControlAction(0, 33, true)
-    DisableControlAction(0, 34, true)
-    DisableControlAction(0, 35, true)
-    DisableControlAction(0, 44, true)
-    DisableControlAction(0, 75, true)
-    DisableControlAction(0, 140, true)
-    DisableControlAction(0, 141, true)
-    DisableControlAction(0, 142, true)
-    DisableControlAction(0, 63, true)
-    DisableControlAction(0, 64, true)
-    DisableControlAction(0, 71, true)
-    DisableControlAction(0, 72, true)
-end
-
 local function beginRefuel(vehicle, purchasedFuelUnits, totalCost)
     if refuelInProgress then
         return
@@ -485,24 +651,68 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost)
         return
     end
 
-    local targetFuel = clampFuelLevel(currentFuel + (tonumber(purchasedFuelUnits) or 0.0), getVehicleTankCapacity(vehicle))
-    local durationMs = math.max(750, math.floor((tonumber(purchasedFuelUnits) or 1.0) * (tonumber(Config.RefuelDurationMsPerUnit) or 80)))
+    local tankCapacity = getVehicleTankCapacity(vehicle)
+    local targetFuel = clampFuelLevel(currentFuel + (tonumber(purchasedFuelUnits) or 0.0), tankCapacity)
+    local litersAdded = math.max(0.0, targetFuel - currentFuel)
+    if litersAdded <= 0.0 then
+        notify(('The %s tank is already full.'):format(getVehicleDisplayName(vehicle)))
+        return
+    end
+
+    local fillFraction = litersAdded / math.max(0.1, tankCapacity)
+    local durationMs = math.max(
+        math.floor(tonumber(Config.MinRefuelDurationMs) or 1500),
+        math.floor((tonumber(Config.FullRefuelDurationMs) or 60000) * fillFraction)
+    )
     local vehicleName = getVehicleDisplayName(vehicle)
 
     refuelInProgress = true
+    hideRefuelProgress()
 
     CreateThread(function()
         local ped = PlayerPedId()
-        TaskTurnPedToFaceEntity(ped, vehicle, durationMs)
+        if not ensurePedReadyForRefuel(ped, vehicle) then
+            refuelInProgress = false
+            notify('Exit the vehicle to start refueling.')
+            return
+        end
+
+        if not DoesEntityExist(vehicle) then
+            refuelInProgress = false
+            notify('Refuel failed: vehicle is no longer available.')
+            return
+        end
+
         SetVehicleEngineOn(vehicle, false, true, true)
+        startRefuelAnimation(ped, vehicle)
 
         local endAt = GetGameTimer() + durationMs
 
         while GetGameTimer() < endAt do
+            if not DoesEntityExist(vehicle) then
+                break
+            end
+
             disableRefuelControls()
+
+            if not IsEntityPlayingAnim(ped, trimString(Config and Config.RefuelAnimationDict) or '', trimString(Config and Config.RefuelAnimationName) or '', 3)
+                and not IsPedActiveInScenario(ped)
+            then
+                startRefuelAnimation(ped, vehicle)
+            end
+
+            local remainingMs = math.max(0, endAt - GetGameTimer())
+            local progress = 1.0 - (remainingMs / math.max(1, durationMs))
+            local currentRefuelFuel = currentFuel + (litersAdded * progress)
+
+            setVehicleFuelLevelSafe(vehicle, currentRefuelFuel, true)
+            setRefuelProgressVisible(true, ('Refueling %s'):format(vehicleName), progress, totalCost, litersAdded)
             showHelpPrompt(('Refueling %s...'):format(vehicleName))
             Wait(0)
         end
+
+        stopRefuelAnimation(ped)
+        hideRefuelProgress()
 
         if DoesEntityExist(vehicle) then
             setVehicleFuelLevelSafe(vehicle, targetFuel, true)
@@ -566,15 +776,29 @@ CreateThread(function()
             if vehicle ~= 0 and isFuelManagedVehicle(vehicle) then
                 local fuelLevel = getVehicleFuelLevelSafe(vehicle)
                 if fuelLevel ~= nil and GetPedInVehicleSeat(vehicle, -1) == ped and GetIsVehicleEngineRunning(vehicle) then
-                    local rpm = math.max(0.2, tonumber(GetVehicleCurrentRpm(vehicle)) or 0.0)
-                    local speedMultiplier = 1.0
-                        + math.min((GetEntitySpeed(vehicle) * 3.6) / 140.0, 1.0)
-                        * (tonumber(Config.SpeedUsageMultiplier) or 0.35)
-                    local delta = (tonumber(Config.BaseUsagePerSecond) or 0.12)
-                        * rpm
-                        * speedMultiplier
-                        * getConsumptionMultiplier(vehicle)
-                        * (waitMs / 1000.0)
+                    local speedKmh = math.max(0.0, GetEntitySpeed(vehicle) * 3.6)
+                    local baseUsagePerSecond = tonumber(Config.BaseUsagePerSecond) or 0.12
+                    local classMultiplier = getConsumptionMultiplier(vehicle)
+                    local idleSpeedThresholdKmh = math.max(0.0, tonumber(Config.IdleSpeedThresholdKmh) or 1.0)
+                    local delta = 0.0
+
+                    if speedKmh <= idleSpeedThresholdKmh then
+                        delta = baseUsagePerSecond
+                            * math.max(0.0, tonumber(Config.IdleUsageMultiplier) or 0.1)
+                            * classMultiplier
+                            * (waitMs / 1000.0)
+                    else
+                        local rpm = math.max(0.2, tonumber(GetVehicleCurrentRpm(vehicle)) or 0.0)
+                        local speedMultiplier = 1.0
+                            + math.min(speedKmh / 140.0, 1.0)
+                            * (tonumber(Config.SpeedUsageMultiplier) or 0.35)
+
+                        delta = baseUsagePerSecond
+                            * rpm
+                            * speedMultiplier
+                            * classMultiplier
+                            * (waitMs / 1000.0)
+                    end
 
                     local nextFuelLevel = setVehicleFuelLevelSafe(vehicle, fuelLevel - delta, true)
                     if nextFuelLevel and nextFuelLevel <= (tonumber(Config.EmptyFuelThreshold) or 0.1) then
@@ -695,12 +919,25 @@ CreateThread(function()
     end
 end)
 
+CreateThread(function()
+    while true do
+        if refuelProgressState.visible == true and not IsPauseMenuActive() then
+            drawRefuelProgress()
+            Wait(0)
+        else
+            Wait(250)
+        end
+    end
+end)
+
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then
         return
     end
 
     hideFuelHud()
+    hideRefuelProgress()
+    stopRefuelAnimation(PlayerPedId())
     refuelInProgress = false
     pendingRefuelRequests = {}
     modelTankCapacityCache = {}
@@ -712,6 +949,13 @@ AddEventHandler('onResourceStop', function(resourceName)
         vehicleName = '',
         isLow = false,
         isCritical = false
+    }
+    refuelProgressState = {
+        visible = false,
+        label = '',
+        progress = 0.0,
+        totalCost = 0,
+        liters = 0.0
     }
     lastHudSnapshot = nil
 end)

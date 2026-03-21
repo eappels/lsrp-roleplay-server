@@ -26,17 +26,6 @@
 					<span>Weight</span>
 					<strong id="weight-text">0 / 0</strong>
 				</div>
-				<div class="target-controls">
-					<div class="target-id-row">
-						<input id="transfer-target-id" type="number" min="1" step="1" placeholder="Target ID">
-						<button id="open-target-btn" type="button">Open Target</button>
-					</div>
-					<div class="nearby-header-row">
-						<span class="nearby-label">Nearby Players</span>
-						<button id="refresh-nearby-btn" type="button">Refresh</button>
-					</div>
-					<div id="nearby-players" class="nearby-players-list"></div>
-				</div>
 			</section>
 
 			<section class="panels" id="inventory-panels">
@@ -47,17 +36,23 @@
 					<div class="slot-grid" id="self-grid"></div>
 				</section>
 
-				<section class="panel panel-hidden" id="target-panel">
+				<section class="panel" id="target-panel">
 					<header class="panel-header">
 						<h2 id="target-panel-title">Target Inventory</h2>
+						<button id="refresh-nearby-btn" class="panel-close-btn" type="button">Refresh</button>
+						<button id="close-target-btn" class="panel-close-btn" type="button">Close</button>
 					</header>
+					<div id="nearby-panel" class="panel-body nearby-panel-body">
+						<div id="nearby-players" class="nearby-players-list nearby-players-panel-list"></div>
+					</div>
 					<div class="slot-grid" id="target-grid"></div>
 				</section>
 			</section>
 
 			<footer class="actionbar">
+				<div class="use-zone" id="use-drop-zone">Drag Here To Use</div>
 				<div class="drop-zone" id="ground-drop-zone">Drag Here To Drop</div>
-				<p id="status-text">Drag items between your slots, drag to the right panel to give, or drag to ground to drop.</p>
+				<p id="status-text">Drag items between your slots, drag to the right panel to give, drag to Use to consume one item, or drag to Drop to place it on the ground.</p>
 			</footer>
 		</div>
 	</div>

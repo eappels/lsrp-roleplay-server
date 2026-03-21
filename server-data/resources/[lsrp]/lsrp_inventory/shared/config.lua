@@ -29,21 +29,55 @@ Config.Items = {
 		weight = 350,
 		maxStack = 10,
 		image = 'burger-WvWkGmk7.png',
-		description = 'Fast food that actually helps.'
+		description = 'Fast food that actually helps.',
+		use = {
+			label = 'Eat',
+			mode = 'anim',
+			animDict = 'mp_player_inteat@burger',
+			animName = 'mp_player_int_eat_burger_fp',
+			flag = 49,
+			durationMs = 10000,
+			consumeAmount = 1,
+			requireOnFoot = true
+		}
 	},
 	cola = {
 		label = 'Cola',
 		weight = 300,
 		maxStack = 10,
 		image = 'cola-Db24EFMX.png',
-		description = 'Cold and sugary.'
+		description = 'Cold and sugary.',
+		use = {
+			label = 'Drink',
+			mode = 'anim',
+			animDict = 'mp_player_intdrink',
+			animName = 'loop_bottle',
+			flag = 49,
+			durationMs = 10000,
+			consumeAmount = 1,
+			requireOnFoot = true
+		}
 	},
 	bandage = {
 		label = 'Bandage',
 		weight = 150,
 		maxStack = 10,
 		image = 'bandage-Br_-nzB2.png',
-		description = 'Basic first aid.'
+		description = 'Basic first aid.',
+		use = {
+			label = 'Apply',
+			mode = 'anim',
+			animDict = 'amb@medic@standing@tendtodead@base',
+			animName = 'base',
+			flag = 49,
+			durationMs = 10000,
+			consumeAmount = 1,
+			requireOnFoot = true,
+			effect = {
+				type = 'heal',
+				amount = 25
+			}
+		}
 	},
 	lockpick = {
 		label = 'Lockpick',
@@ -57,6 +91,14 @@ Config.Items = {
 		weight = 50,
 		maxStack = 10,
 		image = 'joint-B6xGll5e.png',
-		description = 'Handle responsibly.'
+		description = 'Handle responsibly.',
+		use = {
+			label = 'Smoke',
+			mode = 'scenario',
+			scenario = 'WORLD_HUMAN_SMOKING_POT',
+			durationMs = 10000,
+			consumeAmount = 1,
+			requireOnFoot = true
+		}
 	}
 }

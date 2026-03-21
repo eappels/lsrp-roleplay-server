@@ -7,6 +7,18 @@ local latestInventory = {
 local latestTarget = nil
 local worldDrops = {}
 local latestNearbyPlayers = {}
+local useInProgress = false
+local activeUseToken = nil
+
+local function notifyLocal(message)
+	if not message or message == '' then
+		return
+	end
+
+	TriggerEvent('chat:addMessage', {
+		args = { ('^3[Inventory]^7 %s'):format(tostring(message)) }
+	})
+end
 
 local function normalizeInventoryPayload(raw)
 	raw = type(raw) == 'table' and raw or {}
@@ -19,6 +31,116 @@ end
 
 local function getTransferRange()
 	return math.max(1.0, tonumber(Config and Config.Inventory and Config.Inventory.transferRange) or 4.0)
+end
+
+local function getInventoryItemBySlot(slot)
+	local normalizedSlot = math.floor(tonumber(slot) or 0)
+	if normalizedSlot < 1 then
+		return nil
+	end
+
+	for _, item in ipairs(latestInventory.items or {}) do
+		if math.floor(tonumber(item.slot) or 0) == normalizedSlot then
+			return item
+		end
+	end
+
+	return nil
+end
+
+local function requestAnimDictLoaded(animDict)
+	if not animDict or animDict == '' then
+		return false
+	end
+
+	RequestAnimDict(animDict)
+	local timeoutAt = GetGameTimer() + 5000
+	while not HasAnimDictLoaded(animDict) do
+		if GetGameTimer() >= timeoutAt then
+			return false
+		end
+		Citizen.Wait(0)
+	end
+
+	return true
+end
+
+local function playItemUseAnimation(useData)
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
+		return false, 'invalid_ped'
+	end
+
+	if useData.requireOnFoot ~= false and IsPedInAnyVehicle(ped, false) then
+		return false, 'in_vehicle'
+	end
+
+	local mode = tostring(useData.mode or 'anim')
+	if mode == 'scenario' then
+		local scenario = tostring(useData.scenario or '')
+		if scenario == '' then
+			return false, 'invalid_scenario'
+		end
+		TaskStartScenarioInPlace(ped, scenario, 0, true)
+		return true, nil
+	end
+
+	local animDict = tostring(useData.animDict or '')
+	local animName = tostring(useData.animName or '')
+	if animDict == '' or animName == '' then
+		return false, 'invalid_anim'
+	end
+
+	if not requestAnimDictLoaded(animDict) then
+		return false, 'missing_anim_dict'
+	end
+
+	TaskPlayAnim(
+		ped,
+		animDict,
+		animName,
+		8.0,
+		-8.0,
+		-1,
+		math.floor(tonumber(useData.flag) or 49),
+		0.0,
+		false,
+		false,
+		false
+	)
+
+	return true, nil
+end
+
+local function finishUseAnimation()
+	local ped = PlayerPedId()
+	if ped ~= 0 and DoesEntityExist(ped) then
+		ClearPedTasks(ped)
+	end
+	useInProgress = false
+	activeUseToken = nil
+end
+
+local function applyUseEffect(effect)
+	if type(effect) ~= 'table' then
+		return
+	end
+
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
+		return
+	end
+
+	if tostring(effect.type or '') == 'heal' then
+		local healAmount = math.max(1, math.floor(tonumber(effect.amount) or 1))
+		local currentHealth = GetEntityHealth(ped)
+		local maxHealth = GetEntityMaxHealth(ped)
+		if currentHealth <= 0 or maxHealth <= 0 then
+			return
+		end
+
+		SetEntityHealth(ped, math.min(maxHealth, currentHealth + healAmount))
+	end
 end
 
 local function buildNearbyPlayersPayload()
@@ -84,6 +206,11 @@ local function setUiOpen(shouldOpen)
 end
 
 local function requestOpenInventory()
+	if useInProgress then
+		notifyLocal('Finish using your current item first.')
+		return
+	end
+
 	refreshNearbyPlayers()
 	TriggerServerEvent('lsrp_inventory:server:requestOpen')
 end
@@ -201,6 +328,103 @@ RegisterNUICallback('dropItem', function(data, cb)
 	cb({ ok = true })
 end)
 
+RegisterNUICallback('useItem', function(data, cb)
+	if useInProgress then
+		cb({ ok = false, error = 'busy' })
+		return
+	end
+
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	if fromSlot < 1 then
+		cb({ ok = false, error = 'invalid_slot' })
+		return
+	end
+
+	local item = getInventoryItemBySlot(fromSlot)
+	if not item then
+		cb({ ok = false, error = 'item_not_found' })
+		return
+	end
+
+	if type(item.use) ~= 'table' then
+		cb({ ok = false, error = 'not_usable' })
+		return
+	end
+
+	TriggerServerEvent('lsrp_inventory:server:useItem', fromSlot)
+	cb({ ok = true })
+end)
+
+RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
+	payload = type(payload) == 'table' and payload or {}
+	local token = tostring(payload.token or '')
+	local useData = type(payload.use) == 'table' and payload.use or nil
+	local item = type(payload.item) == 'table' and payload.item or {}
+	local durationMs = math.max(1000, math.floor(tonumber(useData and useData.durationMs) or 10000))
+	local itemLabel = tostring(item.label or item.name or 'item')
+
+	if token == '' or not useData then
+		TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
+		return
+	end
+
+	if useInProgress then
+		TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
+		notifyLocal('You are already using an item.')
+		return
+	end
+
+	setUiOpen(false)
+	useInProgress = true
+	activeUseToken = token
+
+	CreateThread(function()
+		local started, errorCode = playItemUseAnimation(useData)
+		if not started then
+			finishUseAnimation()
+			TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
+			if errorCode == 'in_vehicle' then
+				notifyLocal('Exit your vehicle before using that item.')
+			else
+				notifyLocal(('Could not use %s right now.'):format(itemLabel))
+			end
+			return
+		end
+
+		local deadline = GetGameTimer() + durationMs
+		local cancelled = false
+		while GetGameTimer() < deadline do
+			Citizen.Wait(0)
+			DisableControlAction(0, 24, true)
+			DisableControlAction(0, 25, true)
+			DisableControlAction(0, 37, true)
+			DisableControlAction(0, 44, true)
+			DisableControlAction(0, 140, true)
+			DisableControlAction(0, 141, true)
+			DisableControlAction(0, 142, true)
+			DisableControlAction(0, 21, true)
+			DisableControlAction(0, 22, true)
+			if IsEntityDead(PlayerPedId()) or IsPedRagdoll(PlayerPedId()) then
+				cancelled = true
+				break
+			end
+		end
+
+		finishUseAnimation()
+		if cancelled then
+			TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
+			notifyLocal(('Using %s was interrupted.'):format(itemLabel))
+			return
+		end
+
+		TriggerServerEvent('lsrp_inventory:server:completeUseItem', token)
+	end)
+end)
+
+RegisterNetEvent('lsrp_inventory:client:applyUseEffect', function(effect)
+	applyUseEffect(effect)
+end)
+
 RegisterCommand('inventory', function()
 	if uiOpen then
 		setUiOpen(false)
@@ -263,6 +487,7 @@ AddEventHandler('onResourceStop', function(resourceName)
 	if resourceName ~= GetCurrentResourceName() then
 		return
 	end
+	finishUseAnimation()
 	SetNuiFocus(false, false)
 end)
 

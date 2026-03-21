@@ -18,17 +18,19 @@ const selfGrid = document.getElementById('self-grid');
 const targetGrid = document.getElementById('target-grid');
 const targetPanel = document.getElementById('target-panel');
 const targetPanelTitle = document.getElementById('target-panel-title');
-const targetInput = document.getElementById('transfer-target-id');
-const openTargetButton = document.getElementById('open-target-btn');
+const nearbyPanel = document.getElementById('nearby-panel');
+const closeTargetButton = document.getElementById('close-target-btn');
 const refreshNearbyButton = document.getElementById('refresh-nearby-btn');
 const nearbyPlayersElement = document.getElementById('nearby-players');
 const statusText = document.getElementById('status-text');
+const useDropZone = document.getElementById('use-drop-zone');
 const amountModal = document.getElementById('amount-modal');
 const amountTitle = document.getElementById('amount-modal-title');
 const amountInput = document.getElementById('amount-input');
 const amountConfirm = document.getElementById('amount-confirm');
 const amountCancel = document.getElementById('amount-cancel');
 let activeAmountCleanup = null;
+let lastNearbyPlayersRenderKey = '';
 
 function postNui(endpoint, payload = {}) {
 	return fetch(`https://${resourceName}/${endpoint}`, {
@@ -101,13 +103,42 @@ function setStatus(message) {
 	statusText.textContent = String(message || '');
 }
 
+function getNearbyPlayersRenderKey(players) {
+	if (!Array.isArray(players)) {
+		return '';
+	}
+
+	return players.map((player) => {
+		const targetId = toInteger(player && player.targetId, 0);
+		const targetName = String((player && player.targetName) || '');
+		return `${targetId}:${targetName}`;
+	}).join('|');
+}
+
+async function requestOpenTargetInventory(targetId) {
+	const normalizedTargetId = Math.max(1, toInteger(targetId, 0));
+	const response = await postNui('requestTransferTargetInventory', { targetId: normalizedTargetId });
+	if (!response || response.ok !== true) {
+		setStatus('Could not open target inventory.');
+		return;
+	}
+
+	setStatus(`Requested inventory for ID ${normalizedTargetId}.`);
+}
+
 function renderNearbyPlayers() {
 	if (!nearbyPlayersElement) {
 		return;
 	}
 
-	nearbyPlayersElement.innerHTML = '';
 	const players = Array.isArray(state.nearbyPlayers) ? state.nearbyPlayers : [];
+	const renderKey = getNearbyPlayersRenderKey(players);
+	if (renderKey === lastNearbyPlayersRenderKey) {
+		return;
+	}
+
+	lastNearbyPlayersRenderKey = renderKey;
+	nearbyPlayersElement.innerHTML = '';
 	if (players.length === 0) {
 		const empty = document.createElement('div');
 		empty.className = 'nearby-empty';
@@ -134,14 +165,8 @@ function renderNearbyPlayers() {
 		const button = document.createElement('button');
 		button.type = 'button';
 		button.textContent = 'Open';
-		button.addEventListener('click', async () => {
-			targetInput.value = String(toInteger(player.targetId, 0));
-			const response = await postNui('requestTransferTargetInventory', { targetId: player.targetId });
-			if (!response || response.ok !== true) {
-				setStatus('Could not open target inventory.');
-				return;
-			}
-			setStatus(`Requested inventory for ID ${player.targetId}.`);
+		button.addEventListener('click', () => {
+			requestOpenTargetInventory(player.targetId);
 		});
 
 		row.appendChild(info);
@@ -183,6 +208,12 @@ function updateDropHighlight(clientX, clientY) {
 	const element = document.elementFromPoint(clientX, clientY);
 	if (!element) {
 		return null;
+	}
+
+	const useZoneElement = element.closest('#use-drop-zone');
+	if (useZoneElement) {
+		useZoneElement.classList.add('drop-target');
+		return { type: 'use' };
 	}
 
 	const slotElement = element.closest('.slot');
@@ -367,21 +398,39 @@ function renderInventoryPanels() {
 	}
 
 	if (!state.target) {
-		targetPanel.classList.add('panel-hidden');
+		targetPanelTitle.textContent = 'Nearby Players';
+		targetGrid.classList.add('panel-hidden');
+		if (nearbyPanel) {
+			nearbyPanel.classList.remove('panel-hidden');
+		}
+		lastNearbyPlayersRenderKey = '';
+		if (closeTargetButton) {
+			closeTargetButton.disabled = true;
+		}
+		if (refreshNearbyButton) {
+			refreshNearbyButton.disabled = false;
+		}
 		renderNearbyPlayers();
 		return;
 	}
 
-	targetPanel.classList.remove('panel-hidden');
 	targetPanelTitle.textContent = `${state.target.targetName} (${state.target.targetId})`;
+	targetGrid.classList.remove('panel-hidden');
+	if (nearbyPanel) {
+		nearbyPanel.classList.add('panel-hidden');
+	}
+	if (closeTargetButton) {
+		closeTargetButton.disabled = false;
+	}
+	if (refreshNearbyButton) {
+		refreshNearbyButton.disabled = true;
+	}
 	targetGrid.innerHTML = '';
 	const targetInventory = normalizeInventory(state.target.targetInventory);
 	const targetItemsBySlot = getItemsBySlot(targetInventory);
 	for (let slot = 1; slot <= targetInventory.slots; slot += 1) {
 		targetGrid.appendChild(buildSlot(slot, targetItemsBySlot[slot] || null, 'target'));
 	}
-
-	renderNearbyPlayers();
 }
 
 async function handleDropAction(target) {
@@ -394,6 +443,28 @@ async function handleDropAction(target) {
 
 	if (!target) {
 		setStatus('Drag cancelled.');
+		return;
+	}
+
+	if (target.type === 'use') {
+		if (!sourceItem.use || typeof sourceItem.use !== 'object') {
+			setStatus('That item cannot be used.');
+			return;
+		}
+
+		const response = await postNui('useItem', { fromSlot: sourceSlot });
+		if (!response || response.ok !== true) {
+			if (response && response.error === 'busy') {
+				setStatus('You are already using an item.');
+			} else if (response && response.error === 'not_usable') {
+				setStatus('That item cannot be used.');
+			} else {
+				setStatus('Could not use item.');
+			}
+			return;
+		}
+
+		setStatus(`${sourceItem.use.label || 'Using'} ${sourceItem.label || sourceItem.name}...`);
 		return;
 	}
 
@@ -479,28 +550,13 @@ closeButton.addEventListener('click', () => {
 	postNui('closeInventory');
 });
 
-openTargetButton.addEventListener('click', async () => {
-	if (state.target) {
+if (closeTargetButton) {
+	closeTargetButton.addEventListener('click', () => {
 		state.target = null;
 		renderInventoryPanels();
 		setStatus('Target panel closed.');
-		return;
-	}
-
-	const targetId = Math.max(0, toInteger(targetInput.value, 0));
-	if (targetId < 1) {
-		setStatus('Enter a valid target server ID.');
-		return;
-	}
-
-	const response = await postNui('requestTransferTargetInventory', { targetId });
-	if (!response || response.ok !== true) {
-		setStatus('Could not open target inventory.');
-		return;
-	}
-
-	setStatus(`Requested inventory for ID ${targetId}.`);
-});
+	});
+}
 
 if (refreshNearbyButton) {
 	refreshNearbyButton.addEventListener('click', async () => {
@@ -557,7 +613,9 @@ window.addEventListener('message', (event) => {
 
 	if (payload.action === 'setNearbyPlayers') {
 		state.nearbyPlayers = Array.isArray(payload.players) ? payload.players : [];
-		renderNearbyPlayers();
+		if (!state.target) {
+			renderNearbyPlayers();
+		}
 		return;
 	}
 

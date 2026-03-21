@@ -17,10 +17,11 @@ It is not intended as a production gameplay system.
 ## Commands And Controls
 
 - `/pos`: print current coordinates and heading.
-- `/heal`: restore player health.
-- `/revive`: respawn the player through the spawner flow.
-- `/wep [name]`: give a predefined test weapon.
-- `/veh [model]`: spawn a vehicle in front of the player.
+- `/heal`: restore player health (admin only).
+- `/revive`: respawn the player through the spawner flow (admin only).
+- `/wep [name]`: give a predefined test weapon (admin only).
+- `/veh [model]`: spawn a vehicle in front of the player (admin only).
+- `/devveh`: spawn your owned vehicle with plate `LS516FS` and saved props (admin only).
 - `/ids`: toggle nearby overhead player IDs and names (admin only).
 - `F1`: toggle noclip.
 - `F3`: toggle nearby overhead player IDs and names (admin only).
@@ -37,4 +38,9 @@ It is not intended as a production gameplay system.
 ## Notes
 
 - Treat this resource as a toolbox for development and QA.
+- `/heal` requires ACE `lsrp.dev.heal`.
+- `/revive` requires ACE `lsrp.dev.revive`.
+- `/wep` requires ACE `lsrp.dev.wep`.
+- `/veh` requires ACE `lsrp.dev.veh`.
 - `/ids` requires ACE `lsrp.dev.ids`.
+- `/devveh` requires ACE `lsrp.dev.devveh`.

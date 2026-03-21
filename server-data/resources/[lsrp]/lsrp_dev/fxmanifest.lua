@@ -4,7 +4,11 @@ game 'gta5'
 author 'Eddy Appels'
 description 'LSRP Dev'
 
-dependency 'lsrp_spawner'
+dependencies {
+    'lsrp_spawner',
+    'oxmysql',
+    'lsrp_vehicleparking'
+}
 
 client_scripts {
     'client/client.lua',
@@ -12,5 +16,6 @@ client_scripts {
 }
 
 server_scripts {
+    '@oxmysql/lib/MySQL.lua',
     'server/server.lua'
 }
