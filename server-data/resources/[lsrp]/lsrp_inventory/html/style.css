@@ -126,9 +126,65 @@ body.drag-active {
 
 .target-controls {
 	display: grid;
-	grid-template-columns: 1fr auto;
+	grid-template-columns: 1fr;
 	gap: 10px;
 	align-items: stretch;
+}
+
+.target-id-row,
+.nearby-header-row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 10px;
+	align-items: center;
+}
+
+.nearby-label {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--muted);
+}
+
+.nearby-players-list {
+	min-height: 52px;
+	max-height: 124px;
+	overflow: auto;
+	display: grid;
+	gap: 8px;
+	padding-right: 2px;
+}
+
+.nearby-player {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 10px;
+	align-items: center;
+	padding: 8px 10px;
+	border: 1px solid var(--line);
+	border-radius: 10px;
+	background: var(--panel);
+}
+
+.nearby-player-name {
+	font-size: 13px;
+	font-weight: 600;
+	line-height: 1.2;
+}
+
+.nearby-player-meta {
+	font-size: 11px;
+	color: var(--muted);
+	line-height: 1.2;
+}
+
+.nearby-empty {
+	padding: 10px;
+	border: 1px dashed var(--line);
+	border-radius: 10px;
+	color: var(--muted);
+	font-size: 12px;
+	text-align: center;
 }
 
 .target-controls input,

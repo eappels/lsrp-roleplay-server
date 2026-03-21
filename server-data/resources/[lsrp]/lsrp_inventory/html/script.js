@@ -6,6 +6,7 @@ const state = {
 	visible: false,
 	inventory: { slots: 0, maxWeight: 0, items: [] },
 	target: null,
+	nearbyPlayers: [],
 	drag: null
 };
 
@@ -19,6 +20,8 @@ const targetPanel = document.getElementById('target-panel');
 const targetPanelTitle = document.getElementById('target-panel-title');
 const targetInput = document.getElementById('transfer-target-id');
 const openTargetButton = document.getElementById('open-target-btn');
+const refreshNearbyButton = document.getElementById('refresh-nearby-btn');
+const nearbyPlayersElement = document.getElementById('nearby-players');
 const statusText = document.getElementById('status-text');
 const amountModal = document.getElementById('amount-modal');
 const amountTitle = document.getElementById('amount-modal-title');
@@ -96,6 +99,55 @@ function setVisible(visible) {
 
 function setStatus(message) {
 	statusText.textContent = String(message || '');
+}
+
+function renderNearbyPlayers() {
+	if (!nearbyPlayersElement) {
+		return;
+	}
+
+	nearbyPlayersElement.innerHTML = '';
+	const players = Array.isArray(state.nearbyPlayers) ? state.nearbyPlayers : [];
+	if (players.length === 0) {
+		const empty = document.createElement('div');
+		empty.className = 'nearby-empty';
+		empty.textContent = 'No nearby players in transfer range.';
+		nearbyPlayersElement.appendChild(empty);
+		return;
+	}
+
+	for (const player of players) {
+		const row = document.createElement('div');
+		row.className = 'nearby-player';
+
+		const info = document.createElement('div');
+		const name = document.createElement('div');
+		name.className = 'nearby-player-name';
+		name.textContent = `${player.targetName || 'Player'} (${toInteger(player.targetId, 0)})`;
+		info.appendChild(name);
+
+		const meta = document.createElement('div');
+		meta.className = 'nearby-player-meta';
+		meta.textContent = `${Number(player.distance || 0).toFixed(1)}m away`;
+		info.appendChild(meta);
+
+		const button = document.createElement('button');
+		button.type = 'button';
+		button.textContent = 'Open';
+		button.addEventListener('click', async () => {
+			targetInput.value = String(toInteger(player.targetId, 0));
+			const response = await postNui('requestTransferTargetInventory', { targetId: player.targetId });
+			if (!response || response.ok !== true) {
+				setStatus('Could not open target inventory.');
+				return;
+			}
+			setStatus(`Requested inventory for ID ${player.targetId}.`);
+		});
+
+		row.appendChild(info);
+		row.appendChild(button);
+		nearbyPlayersElement.appendChild(row);
+	}
 }
 
 function clearDropHighlights() {
@@ -316,6 +368,7 @@ function renderInventoryPanels() {
 
 	if (!state.target) {
 		targetPanel.classList.add('panel-hidden');
+		renderNearbyPlayers();
 		return;
 	}
 
@@ -327,6 +380,8 @@ function renderInventoryPanels() {
 	for (let slot = 1; slot <= targetInventory.slots; slot += 1) {
 		targetGrid.appendChild(buildSlot(slot, targetItemsBySlot[slot] || null, 'target'));
 	}
+
+	renderNearbyPlayers();
 }
 
 async function handleDropAction(target) {
@@ -447,6 +502,17 @@ openTargetButton.addEventListener('click', async () => {
 	setStatus(`Requested inventory for ID ${targetId}.`);
 });
 
+if (refreshNearbyButton) {
+	refreshNearbyButton.addEventListener('click', async () => {
+		const response = await postNui('requestNearbyPlayers');
+		if (!response || response.ok !== true) {
+			setStatus('Could not refresh nearby players.');
+			return;
+		}
+		setStatus('Nearby players refreshed.');
+	});
+}
+
 window.addEventListener('keydown', (event) => {
 	if (event.key === 'Escape') {
 		if (!amountModal.classList.contains('hidden')) {
@@ -486,6 +552,12 @@ window.addEventListener('message', (event) => {
 	if (payload.action === 'setTransferTarget') {
 		state.target = normalizeTarget(payload.target);
 		renderInventoryPanels();
+		return;
+	}
+
+	if (payload.action === 'setNearbyPlayers') {
+		state.nearbyPlayers = Array.isArray(payload.players) ? payload.players : [];
+		renderNearbyPlayers();
 		return;
 	}
 

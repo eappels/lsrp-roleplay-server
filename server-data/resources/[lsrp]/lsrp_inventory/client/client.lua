@@ -6,6 +6,7 @@ local latestInventory = {
 }
 local latestTarget = nil
 local worldDrops = {}
+local latestNearbyPlayers = {}
 
 local function normalizeInventoryPayload(raw)
 	raw = type(raw) == 'table' and raw or {}
@@ -14,6 +15,53 @@ local function normalizeInventoryPayload(raw)
 		maxWeight = math.max(0, math.floor(tonumber(raw.maxWeight) or 0)),
 		items = type(raw.items) == 'table' and raw.items or {}
 	}
+end
+
+local function getTransferRange()
+	return math.max(1.0, tonumber(Config and Config.Inventory and Config.Inventory.transferRange) or 4.0)
+end
+
+local function buildNearbyPlayersPayload()
+	local payload = {}
+	local playerPed = PlayerPedId()
+	if playerPed == 0 then
+		return payload
+	end
+
+	local playerCoords = GetEntityCoords(playerPed)
+	for _, playerId in ipairs(GetActivePlayers()) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed ~= 0 then
+				local targetCoords = GetEntityCoords(targetPed)
+				local distance = #(playerCoords - targetCoords)
+				if distance <= getTransferRange() then
+					payload[#payload + 1] = {
+						targetId = GetPlayerServerId(playerId),
+						targetName = GetPlayerName(playerId) or ('ID ' .. tostring(GetPlayerServerId(playerId))),
+						distance = math.floor((distance * 10.0) + 0.5) / 10.0
+					}
+				end
+			end
+		end
+	end
+
+	table.sort(payload, function(left, right)
+		if left.distance == right.distance then
+			return left.targetId < right.targetId
+		end
+		return left.distance < right.distance
+	end)
+
+	return payload
+end
+
+local function refreshNearbyPlayers()
+	latestNearbyPlayers = buildNearbyPlayersPayload()
+	if uiOpen then
+		SendNUIMessage({ action = 'setNearbyPlayers', players = latestNearbyPlayers })
+	end
+	return latestNearbyPlayers
 end
 
 local function setUiOpen(shouldOpen)
@@ -28,6 +76,7 @@ local function setUiOpen(shouldOpen)
 	if shouldOpen then
 		SendNUIMessage({ action = 'setInventoryData', inventory = latestInventory })
 		SendNUIMessage({ action = 'setTransferTarget', target = latestTarget })
+		SendNUIMessage({ action = 'setNearbyPlayers', players = latestNearbyPlayers })
 	else
 		latestTarget = nil
 		SendNUIMessage({ action = 'clearTransferTarget' })
@@ -35,6 +84,7 @@ local function setUiOpen(shouldOpen)
 end
 
 local function requestOpenInventory()
+	refreshNearbyPlayers()
 	TriggerServerEvent('lsrp_inventory:server:requestOpen')
 end
 
@@ -83,6 +133,13 @@ RegisterNetEvent('lsrp_inventory:client:removeWorldDrop', function(dropId)
 	worldDrops[tonumber(dropId)] = nil
 end)
 
+RegisterNetEvent('lsrp_inventory:client:setNearbyPlayers', function(players)
+	latestNearbyPlayers = type(players) == 'table' and players or {}
+	if uiOpen then
+		SendNUIMessage({ action = 'setNearbyPlayers', players = latestNearbyPlayers })
+	end
+end)
+
 RegisterNUICallback('closeInventory', function(_, cb)
 	setUiOpen(false)
 	cb({ ok = true })
@@ -100,6 +157,11 @@ RegisterNUICallback('requestTransferTargetInventory', function(data, cb)
 		return
 	end
 	TriggerServerEvent('lsrp_inventory:server:requestTransferTargetInventory', targetId)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('requestNearbyPlayers', function(_, cb)
+	refreshNearbyPlayers()
 	cb({ ok = true })
 end)
 
@@ -160,6 +222,17 @@ RegisterCommand('-openInventory', function()
 end, false)
 
 RegisterKeyMapping('+openInventory', 'Open inventory', 'keyboard', 'I')
+
+Citizen.CreateThread(function()
+	while true do
+		if uiOpen then
+			refreshNearbyPlayers()
+			Citizen.Wait(750)
+		else
+			Citizen.Wait(250)
+		end
+	end
+end)
 
 Citizen.CreateThread(function()
 	TriggerServerEvent('lsrp_inventory:server:requestWorldDrops')

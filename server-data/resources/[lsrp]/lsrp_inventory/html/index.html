@@ -27,8 +27,15 @@
 					<strong id="weight-text">0 / 0</strong>
 				</div>
 				<div class="target-controls">
-					<input id="transfer-target-id" type="number" min="1" step="1" placeholder="Target ID">
-					<button id="open-target-btn" type="button">Open Target</button>
+					<div class="target-id-row">
+						<input id="transfer-target-id" type="number" min="1" step="1" placeholder="Target ID">
+						<button id="open-target-btn" type="button">Open Target</button>
+					</div>
+					<div class="nearby-header-row">
+						<span class="nearby-label">Nearby Players</span>
+						<button id="refresh-nearby-btn" type="button">Refresh</button>
+					</div>
+					<div id="nearby-players" class="nearby-players-list"></div>
 				</div>
 			</section>
 
