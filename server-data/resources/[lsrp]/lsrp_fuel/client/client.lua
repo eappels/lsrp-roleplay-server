@@ -7,6 +7,8 @@ local hudState = {
     fuelLevel = 0.0,
     tankCapacity = 0.0,
     fuelPercent = 0.0,
+    speedKmh = 0,
+    gearLabel = 'N',
     vehicleName = '',
     isLow = false,
     isCritical = false
@@ -366,6 +368,8 @@ local function buildHudSnapshot(payload)
         ('%.1f'):format(tonumber(payload.fuelLevel) or 0.0),
         ('%.1f'):format(tonumber(payload.tankCapacity) or 0.0),
         ('%.1f'):format(tonumber(payload.fuelPercent) or 0.0),
+        tostring(math.max(0, math.floor((tonumber(payload.speedKmh) or 0) + 0.5))),
+        tostring(payload.gearLabel or 'N'),
         payload.isLow and '1' or '0',
         payload.isCritical and '1' or '0'
     }, '|')
@@ -377,6 +381,8 @@ local function sendFuelHud(payload)
         fuelLevel = 0.0,
         tankCapacity = 0.0,
         fuelPercent = 0.0,
+        speedKmh = 0,
+        gearLabel = 'N',
         vehicleName = '',
         isLow = false,
         isCritical = false
@@ -392,6 +398,8 @@ local function sendFuelHud(payload)
     hudState.fuelLevel = roundFuelValue(message.fuelLevel)
     hudState.tankCapacity = roundFuelValue(message.tankCapacity)
     hudState.fuelPercent = roundFuelValue(message.fuelPercent)
+    hudState.speedKmh = math.max(0, math.floor((tonumber(message.speedKmh) or 0) + 0.5))
+    hudState.gearLabel = tostring(message.gearLabel or 'N')
     hudState.vehicleName = tostring(message.vehicleName or '')
     hudState.isLow = message.isLow == true
     hudState.isCritical = message.isCritical == true
@@ -399,6 +407,32 @@ end
 
 local function hideFuelHud()
     sendFuelHud(nil)
+end
+
+local function getHudVehicleSpeedKmh(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return 0
+    end
+
+    return math.max(0, math.floor((GetEntitySpeed(vehicle) * 3.6) + 0.5))
+end
+
+local function getHudVehicleGearLabel(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return 'N'
+    end
+
+    local speedVector = GetEntitySpeedVector(vehicle, true)
+    if speedVector and speedVector.y < -0.1 and GetEntitySpeed(vehicle) > 0.15 then
+        return 'R'
+    end
+
+    local currentGear = tonumber(GetVehicleCurrentGear(vehicle)) or 0
+    if currentGear <= 0 then
+        return 'N'
+    end
+
+    return tostring(math.floor(currentGear))
 end
 
 local function getFuelHudPalette()
@@ -450,20 +484,20 @@ local function drawFuelHud()
     local safeZone = GetSafeZoneSize()
     local safeZoneOffset = (1.0 - safeZone) * 0.5
     local cardWidth = 0.132
-    local cardHeight = 0.082
+    local cardHeight = 0.101
     local cardX = 1.0 - safeZoneOffset - (cardWidth * 0.5) - 0.018
-    local cardY = 1.0 - safeZoneOffset - (cardHeight * 0.5) - 0.115
+    local cardY = 1.0 - safeZoneOffset - (cardHeight * 0.5) - 0.106
     local accentRed, accentGreen, accentBlue = getFuelHudPalette()
     local fuelPercent = math.max(0.0, math.min(100.0, tonumber(hudState.fuelPercent) or 0.0))
     local fillFraction = fuelPercent / 100.0
     local barWidth = cardWidth - 0.024
     local barHeight = 0.010
     local barX = cardX
-    local barY = cardY + 0.018
+    local barY = cardY + 0.027
     local fillWidth = barWidth * fillFraction
 
     drawFuelHudRect(cardX, cardY, cardWidth, cardHeight, 10, 14, 20, 178)
-    drawFuelHudRect(cardX, cardY - 0.028, cardWidth, 0.0032, accentRed, accentGreen, accentBlue, 240)
+    drawFuelHudRect(cardX, cardY - 0.0375, cardWidth, 0.0032, accentRed, accentGreen, accentBlue, 240)
     drawFuelHudRect(barX, barY, barWidth, barHeight, 28, 35, 46, 220)
 
     if fillWidth > 0.0005 then
@@ -471,16 +505,18 @@ local function drawFuelHud()
         drawFuelHudRect(fillX, barY, fillWidth, barHeight * 0.72, accentRed, accentGreen, accentBlue, 235)
     end
 
-    drawFuelHudText(cardX - 0.05, cardY - 0.031, hudState.vehicleName, 0.31, 244, 241, 236, 220, false)
-    drawFuelHudText(cardX + 0.034, cardY - 0.031, ('%d%%'):format(math.floor(fuelPercent + 0.5)), 0.31, accentRed, accentGreen, accentBlue, 240, false)
-    drawFuelHudText(cardX - 0.05, cardY - 0.002, ('%.1f / %.1fL'):format(hudState.fuelLevel, hudState.tankCapacity), 0.26, 235, 238, 241, 210, false)
+    drawFuelHudText(cardX - 0.05, cardY - 0.041, hudState.vehicleName, 0.31, 244, 241, 236, 220, false)
+    drawFuelHudText(cardX + 0.034, cardY - 0.041, ('%d%%'):format(math.floor(fuelPercent + 0.5)), 0.31, accentRed, accentGreen, accentBlue, 240, false)
+    drawFuelHudText(cardX - 0.05, cardY - 0.015, ('%d km/h'):format(hudState.speedKmh), 0.25, 235, 238, 241, 215, false)
+    drawFuelHudText(cardX + 0.022, cardY - 0.015, ('GEAR %s'):format(hudState.gearLabel), 0.25, 214, 221, 228, 215, false)
+    drawFuelHudText(cardX - 0.05, cardY + 0.007, ('%.1f / %.1fL'):format(hudState.fuelLevel, hudState.tankCapacity), 0.26, 235, 238, 241, 210, false)
 
     if hudState.isCritical then
-        drawFuelHudText(cardX - 0.05, cardY + 0.023, 'CRITICAL RESERVE', 0.24, accentRed, accentGreen, accentBlue, 230, false)
+        drawFuelHudText(cardX - 0.05, cardY + 0.034, 'CRITICAL RESERVE', 0.24, accentRed, accentGreen, accentBlue, 230, false)
     elseif hudState.isLow then
-        drawFuelHudText(cardX - 0.05, cardY + 0.023, 'LOW RESERVE', 0.24, accentRed, accentGreen, accentBlue, 220, false)
+        drawFuelHudText(cardX - 0.05, cardY + 0.034, 'LOW RESERVE', 0.24, accentRed, accentGreen, accentBlue, 220, false)
     else
-        drawFuelHudText(cardX - 0.05, cardY + 0.023, 'FUEL STABLE', 0.24, 190, 198, 207, 190, false)
+        drawFuelHudText(cardX - 0.05, cardY + 0.034, 'FUEL STABLE', 0.24, 190, 198, 207, 190, false)
     end
 end
 
@@ -612,6 +648,8 @@ local function updateFuelHud(vehicle)
         fuelLevel = fuelLevel,
         tankCapacity = tankCapacity,
         fuelPercent = fuelPercent,
+        speedKmh = getHudVehicleSpeedKmh(vehicle),
+        gearLabel = getHudVehicleGearLabel(vehicle),
         vehicleName = getVehicleDisplayName(vehicle),
         isLow = fuelPercent <= lowFuelPercent,
         isCritical = fuelPercent <= criticalFuelPercent
@@ -983,6 +1021,8 @@ AddEventHandler('onResourceStop', function(resourceName)
         fuelLevel = 0.0,
         tankCapacity = 0.0,
         fuelPercent = 0.0,
+        speedKmh = 0,
+        gearLabel = 'N',
         vehicleName = '',
         isLow = false,
         isCritical = false
