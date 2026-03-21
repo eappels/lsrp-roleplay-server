@@ -65,6 +65,34 @@ local function roundFuelValue(value)
     return math.floor((numericValue * 10.0) + 0.5) / 10.0
 end
 
+local function requestVehicleControl(vehicle, timeoutMs)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    if not NetworkGetEntityIsNetworked(vehicle) then
+        return true
+    end
+
+    if NetworkHasControlOfEntity(vehicle) then
+        return true
+    end
+
+    local timeoutAt = GetGameTimer() + (timeoutMs or 500)
+    NetworkRequestControlOfEntity(vehicle)
+
+    while GetGameTimer() < timeoutAt do
+        if NetworkHasControlOfEntity(vehicle) then
+            return true
+        end
+
+        Wait(0)
+        NetworkRequestControlOfEntity(vehicle)
+    end
+
+    return NetworkHasControlOfEntity(vehicle)
+end
+
 local function requestAnimDictLoaded(animDict)
     local normalizedAnimDict = trimString(animDict)
     if not normalizedAnimDict then
@@ -221,7 +249,7 @@ local function getStateFuel(vehicle)
     local stateFuel = entityState and entityState.lsrpFuelLevel
 
     if type(stateFuel) == 'number' then
-        return snapFuelLevelToCapacity(stateFuel, getVehicleTankCapacity(vehicle))
+        return clampFuelLevel(stateFuel, getVehicleTankCapacity(vehicle))
     end
 
     return nil
@@ -233,7 +261,14 @@ local function setVehicleFuelLevelSafe(vehicle, fuelLevel, replicate)
     end
 
     local tankCapacity = getVehicleTankCapacity(vehicle)
-    local clampedFuel = snapFuelLevelToCapacity(fuelLevel, tankCapacity)
+    local currentFuel = clampFuelLevel(GetVehicleFuelLevel(vehicle), tankCapacity)
+    local clampedFuel = clampFuelLevel(fuelLevel, tankCapacity)
+
+    if clampedFuel >= currentFuel then
+        clampedFuel = snapFuelLevelToCapacity(clampedFuel, tankCapacity)
+    end
+
+    requestVehicleControl(vehicle, 500)
     SetVehicleFuelLevel(vehicle, clampedFuel)
 
     local entityState = Entity(vehicle).state
@@ -261,16 +296,18 @@ local function getVehicleFuelLevelSafe(vehicle)
 
     local tankCapacity = getVehicleTankCapacity(vehicle)
     local stateFuel = getStateFuel(vehicle)
-    local nativeFuel = snapFuelLevelToCapacity(GetVehicleFuelLevel(vehicle), tankCapacity)
+    local nativeFuel = clampFuelLevel(GetVehicleFuelLevel(vehicle), tankCapacity)
     if stateFuel ~= nil then
         local tolerance = tonumber(Config.SyncTolerance) or 0.2
 
-        -- Let small local decreases accumulate between replicated sync updates.
-        if nativeFuel < stateFuel and (stateFuel - nativeFuel) <= tolerance then
+        -- Prefer the local native value while fuel is decreasing so stale replicated
+        -- state does not snap the tank back up between sync updates.
+        if nativeFuel < stateFuel then
             return nativeFuel
         end
 
         if math.abs(nativeFuel - stateFuel) > tolerance then
+            requestVehicleControl(vehicle, 500)
             SetVehicleFuelLevel(vehicle, stateFuel)
             nativeFuel = stateFuel
         end
