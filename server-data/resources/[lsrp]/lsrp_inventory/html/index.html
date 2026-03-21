@@ -1,67 +1,72 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LSRP Inventory</title>
-    <link rel="stylesheet" href="style.css">
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>LSRP Inventory</title>
+	<link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="app" class="hidden">
-        <div class="inventory-shell">
-            <header class="inventory-header">
-                <div>
-                    <p class="eyebrow">LSRP</p>
-                    <h1>Inventory</h1>
-                    <p class="layout-tag">3x3 Grid Layout</p>
-                </div>
-                <button id="close-btn" type="button" class="close-btn">Close</button>
-            </header>
+	<div id="app" class="hidden">
+		<div class="inventory-shell">
+			<header class="topbar">
+				<div>
+					<p class="eyebrow">LSRP</p>
+					<h1>Inventory</h1>
+				</div>
+				<button id="close-btn" type="button">Close</button>
+			</header>
 
-            <section class="inventory-summary">
-                <div class="summary-card">
-                    <span class="summary-label">Slots Used</span>
-                    <strong id="slots-text">0 / 0</strong>
-                </div>
-                <div class="summary-card">
-                    <span class="summary-label">Carry Weight</span>
-                    <strong id="weight-text">0 / 0</strong>
-                </div>
-            </section>
+			<section class="summary-row">
+				<div class="summary-box">
+					<span>Slots</span>
+					<strong id="slots-text">0 / 0</strong>
+				</div>
+				<div class="summary-box">
+					<span>Weight</span>
+					<strong id="weight-text">0 / 0</strong>
+				</div>
+				<div class="target-controls">
+					<input id="transfer-target-id" type="number" min="1" step="1" placeholder="Target ID">
+					<button id="open-target-btn" type="button">Open Target</button>
+				</div>
+			</section>
 
-            <section class="inventory-transfer">
-                <div class="transfer-field">
-                    <label for="transfer-target-id">Target ID</label>
-                    <input id="transfer-target-id" type="number" min="1" step="1" placeholder="Server ID">
-                </div>
+			<section class="panels" id="inventory-panels">
+				<section class="panel">
+					<header class="panel-header">
+						<h2>Your Inventory</h2>
+					</header>
+					<div class="slot-grid" id="self-grid"></div>
+				</section>
 
-                <button id="open-target-btn" type="button" class="transfer-btn">Open Target Inventory</button>
-            </section>
+				<section class="panel panel-hidden" id="target-panel">
+					<header class="panel-header">
+						<h2 id="target-panel-title">Target Inventory</h2>
+					</header>
+					<div class="slot-grid" id="target-grid"></div>
+				</section>
+			</section>
 
-            <section class="inventory-body">
-                <div class="inventory-panels" id="inventory-panels">
-                    <section class="inventory-panel">
-                        <header class="panel-header">
-                            <h2>Your Inventory</h2>
-                        </header>
-                        <div id="self-grid" class="slot-grid"></div>
-                    </section>
+			<footer class="actionbar">
+				<div class="drop-zone" id="ground-drop-zone">Drag Here To Drop</div>
+				<p id="status-text">Drag items between your slots, drag to the right panel to give, or drag to ground to drop.</p>
+			</footer>
+		</div>
+	</div>
 
-                    <section class="inventory-panel" id="target-panel">
-                        <header class="panel-header">
-                            <h2 id="target-panel-title">Target Inventory</h2>
-                        </header>
-                        <div id="target-grid" class="slot-grid"></div>
-                    </section>
-                </div>
-            </section>
+	<div id="amount-modal" class="hidden modal-root" role="dialog" aria-modal="true">
+		<div class="modal-backdrop"></div>
+		<div class="modal-panel">
+			<h3 id="amount-modal-title">Select Amount</h3>
+			<input id="amount-input" type="number" min="1" value="1">
+			<div class="modal-actions">
+				<button id="amount-cancel" type="button">Cancel</button>
+				<button id="amount-confirm" type="button">Confirm</button>
+			</div>
+		</div>
+	</div>
 
-            <footer class="inventory-footer">
-                <p id="status-text">Press ESC to close.</p>
-            </footer>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
+	<script src="script.js"></script>
 </body>
 </html>

@@ -2,7 +2,21 @@ function updateTime() {
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
-    document.getElementById('phone-time').innerText = hours + ':' + minutes;
+    const timeElement = document.getElementById('phone-time');
+    const dayElement = document.getElementById('phone-day');
+    const homeDateElement = document.getElementById('home-date-label');
+
+    if (timeElement) {
+        timeElement.innerText = hours + ':' + minutes;
+    }
+
+    if (dayElement) {
+        dayElement.innerText = formatCalendarLabel(now, false);
+    }
+
+    if (homeDateElement) {
+        homeDateElement.innerText = formatCalendarLabel(now, true);
+    }
 }
 
 const appScreens = ['balance-app', 'parking-app', 'calls-app', 'phonebook-app', 'messages-app'];
@@ -37,6 +51,167 @@ const messagesState = {
 
 const MAX_PHONE_DIGITS = 7;
 const MAX_MESSAGE_LENGTH = 280;
+
+function formatCalendarLabel(date, includeWeekday = false) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    return date.toLocaleDateString([], {
+        weekday: includeWeekday ? 'long' : undefined,
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+function truncateInlineText(value, maxLength) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    if (!text) {
+        return '';
+    }
+
+    if (text.length <= maxLength) {
+        return text;
+    }
+
+    return `${text.slice(0, Math.max(0, maxLength - 1)).trimEnd()}...`;
+}
+
+function getIdentityLabel(value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+        return '--';
+    }
+
+    const digitsOnly = raw.replace(/\D/g, '');
+    if (digitsOnly.length >= 2 && !/[A-Za-z]/.test(raw)) {
+        return digitsOnly.slice(-2);
+    }
+
+    const normalized = raw.replace(/[^A-Za-z0-9]+/g, ' ').trim();
+    if (!normalized) {
+        return raw.slice(0, 2).toUpperCase();
+    }
+
+    const parts = normalized.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+        return parts[0].slice(0, 2).toUpperCase();
+    }
+
+    return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
+}
+
+function createIdentityOrb(label, extraClass = '') {
+    const orb = document.createElement('span');
+    orb.className = extraClass ? `identity-orb ${extraClass}` : 'identity-orb';
+    orb.innerText = getIdentityLabel(label);
+    return orb;
+}
+
+function recalculateUnreadTotal() {
+    return messagesState.conversations.reduce((total, conversation) => {
+        return total + Math.max(0, Number(conversation && conversation.unreadCount) || 0);
+    }, 0);
+}
+
+function setPhoneSurfaceState(appName) {
+    const container = document.getElementById('phone-container');
+    if (!container) {
+        return;
+    }
+
+    container.dataset.app = appName || 'home';
+}
+
+function renderHomeDashboard() {
+    const homePhoneLabel = document.getElementById('home-phone-label');
+    const homeBalanceValue = document.getElementById('home-balance-value');
+    const homeBalanceStatus = document.getElementById('home-balance-status');
+    const homeMessagesUnread = document.getElementById('home-messages-unread');
+    const homeMessagesSummary = document.getElementById('home-messages-summary');
+    const homeCallHeading = document.getElementById('home-call-heading');
+    const homeCallSummary = document.getElementById('home-call-summary');
+    const homePhonebookTotal = document.getElementById('home-phonebook-total');
+    const homePhonebookSummary = document.getElementById('home-phonebook-summary');
+
+    const latestConversation = Array.isArray(messagesState.conversations) && messagesState.conversations.length
+        ? messagesState.conversations[0]
+        : null;
+    const phonebookEntries = Array.isArray(callState.phonebookEntries)
+        ? callState.phonebookEntries.filter((entry) => entry && entry.phoneNumber)
+        : [];
+    const onlineContacts = phonebookEntries.filter((entry) => entry.online === true).length;
+
+    if (homePhoneLabel) {
+        homePhoneLabel.innerText = callState.myNumber
+            ? `Assigned line ${callState.myNumber}`
+            : 'Assigning your city line...';
+    }
+
+    if (homeBalanceValue) {
+        homeBalanceValue.innerText = balanceState.formattedBalance || 'LS$0';
+    }
+
+    if (homeBalanceStatus) {
+        if (!balanceState.updatedAt) {
+            homeBalanceStatus.innerText = 'Syncing account...';
+        } else if (!balanceState.available) {
+            homeBalanceStatus.innerText = 'Economy service unavailable';
+        } else {
+            homeBalanceStatus.innerText = formatBalanceTimestamp(balanceState.updatedAt);
+        }
+    }
+
+    if (homeMessagesUnread) {
+        if (messagesState.unreadTotal <= 0) {
+            homeMessagesUnread.innerText = 'No unread';
+        } else if (messagesState.unreadTotal === 1) {
+            homeMessagesUnread.innerText = '1 unread';
+        } else {
+            homeMessagesUnread.innerText = `${messagesState.unreadTotal} unread`;
+        }
+    }
+
+    if (homeMessagesSummary) {
+        if (!latestConversation) {
+            homeMessagesSummary.innerText = 'Your latest conversation will show up here.';
+        } else {
+            const preview = truncateInlineText(latestConversation.lastMessage || 'No messages yet.', 56);
+            const label = latestConversation.displayName || latestConversation.phoneNumber || 'Latest';
+            homeMessagesSummary.innerText = `${label}: ${preview}`;
+        }
+    }
+
+    if (homeCallHeading && homeCallSummary) {
+        if (callState.incomingFrom) {
+            homeCallHeading.innerText = 'Incoming call';
+            homeCallSummary.innerText = `${callState.incomingFrom} is waiting to connect.`;
+        } else if (callState.inCall) {
+            homeCallHeading.innerText = 'Connected';
+            homeCallSummary.innerText = `Live with ${callState.otherParty || 'your caller'}.`;
+        } else if (callState.ringingTarget) {
+            homeCallHeading.innerText = 'Calling...';
+            homeCallSummary.innerText = `Ringing ${callState.ringingTarget}.`;
+        } else {
+            homeCallHeading.innerText = 'Dialer ready';
+            homeCallSummary.innerText = 'No active call.';
+        }
+    }
+
+    if (homePhonebookTotal) {
+        homePhonebookTotal.innerText = `${phonebookEntries.length} ${phonebookEntries.length === 1 ? 'contact' : 'contacts'}`;
+    }
+
+    if (homePhonebookSummary) {
+        if (!phonebookEntries.length) {
+            homePhonebookSummary.innerText = 'Refresh to sync your phonebook.';
+        } else if (onlineContacts > 0) {
+            homePhonebookSummary.innerText = `${onlineContacts} online right now.`;
+        } else {
+            homePhonebookSummary.innerText = 'Everyone is currently offline.';
+        }
+    }
+}
 
 function postNui(endpoint, payload = {}) {
     return fetch(`https://${GetParentResourceName()}/${endpoint}`, {
@@ -104,6 +279,8 @@ function setBalance(balance, formattedBalance, available) {
     if (balanceMeta) {
         balanceMeta.innerText = formatBalanceTimestamp(balanceState.updatedAt);
     }
+
+    renderHomeDashboard();
 }
 
 function hideAllApps() {
@@ -128,13 +305,16 @@ function openApp(appName) {
 
     if (!appScreen) {
         uiState.currentApp = null;
+        setPhoneSurfaceState('home');
         if (homeScreen) {
             homeScreen.style.display = 'block';
         }
+        renderHomeDashboard();
         return;
     }
 
     uiState.currentApp = appName;
+    setPhoneSurfaceState(appName);
     appScreen.style.display = 'flex';
 
     if (appName === 'parking') {
@@ -163,11 +343,14 @@ function openApp(appName) {
 function closeApp() {
     hideAllApps();
     uiState.currentApp = null;
+    setPhoneSurfaceState('home');
 
     const homeScreen = document.getElementById('home-screen');
     if (homeScreen) {
         homeScreen.style.display = 'block';
     }
+
+    renderHomeDashboard();
 }
 
 function loadParkedVehicles() {
@@ -355,6 +538,7 @@ function setMyPhoneNumber(phoneNumber) {
     }
 
     renderPhonebook();
+    renderHomeDashboard();
 }
 
 function normalizePhoneNumber(value) {
@@ -526,6 +710,10 @@ function renderPhonebook() {
             callPhonebookEntry(entry.phoneNumber);
         });
 
+        const identity = createIdentityOrb(entry.displayName || entry.phoneNumber);
+        const copy = document.createElement('div');
+        copy.className = 'phonebook-entry-copy';
+
         const name = document.createElement('span');
         name.className = 'phonebook-entry-name';
         name.innerText = entry.phoneNumber === callState.myNumber
@@ -536,16 +724,24 @@ function renderPhonebook() {
         details.className = 'phonebook-entry-details';
 
         const number = document.createElement('span');
+        number.className = 'phonebook-number';
         number.innerText = entry.phoneNumber;
 
         const status = document.createElement('span');
         status.className = `phonebook-status ${entry.online ? 'online' : 'offline'}`;
         status.innerText = entry.online ? 'Online' : 'Offline';
 
+        const actionLabel = document.createElement('span');
+        actionLabel.className = 'phonebook-entry-action';
+        actionLabel.innerText = 'Call';
+
         details.appendChild(number);
         details.appendChild(status);
-        mainButton.appendChild(name);
-        mainButton.appendChild(details);
+        copy.appendChild(name);
+        copy.appendChild(details);
+        mainButton.appendChild(identity);
+        mainButton.appendChild(copy);
+        mainButton.appendChild(actionLabel);
         row.appendChild(mainButton);
         phonebookList.appendChild(row);
     });
@@ -561,12 +757,15 @@ function renderPhonebook() {
 function displayPhonebook(entries) {
     callState.phonebookEntries = Array.isArray(entries) ? entries : [];
     renderPhonebook();
+    renderHomeDashboard();
 }
 
 function updateCallUI() {
     const callsContent = document.querySelector('.calls-content');
     const incomingPanel = document.getElementById('incoming-call');
     const incomingText = document.getElementById('incoming-call-text');
+    const incomingSubtitle = document.getElementById('incoming-call-subtitle');
+    const incomingAvatar = document.getElementById('incoming-call-avatar');
     const endButton = document.getElementById('end-call-btn');
     const startButton = document.getElementById('start-call-btn');
     const targetInput = document.getElementById('call-target-id');
@@ -579,8 +778,16 @@ function updateCallUI() {
     callsContent.classList.toggle('incoming-mode', incomingMode);
 
     if (incomingMode) {
-        incomingPanel.style.display = 'block';
-        incomingText.innerText = `Incoming call from ${callState.incomingFrom}`;
+        incomingPanel.style.display = 'grid';
+        incomingText.innerText = callState.incomingFrom || 'Unknown';
+
+        if (incomingSubtitle) {
+            incomingSubtitle.innerText = 'Press F4 or accept below.';
+        }
+
+        if (incomingAvatar) {
+            incomingAvatar.innerText = getIdentityLabel(callState.incomingFrom);
+        }
     } else {
         incomingPanel.style.display = 'none';
     }
@@ -599,6 +806,7 @@ function updateCallUI() {
 
     updatePhonebookButtonStates();
     updateIncomingToast();
+    renderHomeDashboard();
 }
 
 function startCall(prefilledNumber) {
@@ -793,6 +1001,7 @@ function setMessageThreadHeader(contact) {
     const titleElement = document.getElementById('messages-thread-title');
     const subtitleElement = document.getElementById('messages-thread-subtitle');
     const presenceElement = document.getElementById('messages-thread-presence');
+    const avatarElement = document.getElementById('messages-thread-avatar');
 
     const displayName = contact && contact.displayName ? contact.displayName : 'Unknown';
     const phoneNumber = contact && contact.phoneNumber ? contact.phoneNumber : 'Unknown';
@@ -804,6 +1013,10 @@ function setMessageThreadHeader(contact) {
 
     if (subtitleElement) {
         subtitleElement.innerText = phoneNumber;
+    }
+
+    if (avatarElement) {
+        avatarElement.innerText = getIdentityLabel(displayName || phoneNumber);
     }
 
     if (presenceElement) {
@@ -876,6 +1089,10 @@ function renderMessageConversations() {
             openMessageThread(conversation.phoneNumber);
         });
 
+        const identity = createIdentityOrb(conversation.displayName || conversation.phoneNumber);
+        const body = document.createElement('div');
+        body.className = 'messages-conversation-body';
+
         const top = document.createElement('div');
         top.className = 'messages-conversation-top';
 
@@ -920,9 +1137,11 @@ function renderMessageConversations() {
             bottom.appendChild(unread);
         }
 
-        button.appendChild(top);
-        button.appendChild(preview);
-        button.appendChild(bottom);
+        body.appendChild(top);
+        body.appendChild(preview);
+        body.appendChild(bottom);
+        button.appendChild(identity);
+        button.appendChild(body);
         list.appendChild(button);
     });
 
@@ -955,6 +1174,8 @@ function displayMessageConversations(conversations, unreadTotal) {
     if (!messagesState.conversations.length && !messagesState.activeThread) {
         setMessagesStatus('No conversations yet. Send the first text.', false);
     }
+
+    renderHomeDashboard();
 }
 
 function setMessageThreadLoading(phoneNumber) {
@@ -1037,6 +1258,26 @@ function displayMessageThread(thread) {
         messages: Array.isArray(thread.messages) ? thread.messages : []
     };
 
+    const activeConversation = findConversationEntry(thread.phoneNumber);
+    const latestMessage = messagesState.activeThread.messages.length
+        ? messagesState.activeThread.messages[messagesState.activeThread.messages.length - 1]
+        : null;
+
+    if (activeConversation) {
+        activeConversation.unreadCount = 0;
+
+        if (latestMessage) {
+            activeConversation.lastMessage = latestMessage.body || activeConversation.lastMessage;
+            activeConversation.lastMessageAt = latestMessage.sentAt || activeConversation.lastMessageAt;
+            activeConversation.lastMessageFromSelf = latestMessage.mine === true;
+        }
+
+        messagesState.unreadTotal = recalculateUnreadTotal();
+        renderMessageConversations();
+        updateMessagesUnreadSummary();
+        updateMessagesBadge();
+    }
+
     setMessageTargetInput(thread.phoneNumber);
 
     if (uiState.currentApp === 'messages') {
@@ -1048,6 +1289,8 @@ function displayMessageThread(thread) {
     if (!messagesState.activeThread.messages.length) {
         setMessagesStatus('No messages yet. Send the first text.', false);
     }
+
+    renderHomeDashboard();
 }
 
 function openMessageThread(phoneNumber) {
@@ -1115,6 +1358,46 @@ function sendThreadReply() {
     }
 }
 
+function applyIncomingConversationPreview(phoneNumber, preview) {
+    const normalized = normalizePhoneNumber(phoneNumber);
+    if (!normalized) {
+        return;
+    }
+
+    const previewText = truncateInlineText(preview || 'New message', 64) || 'New message';
+    const now = Math.floor(Date.now() / 1000);
+    const existing = findConversationEntry(normalized);
+
+    if (existing) {
+        existing.lastMessage = previewText;
+        existing.lastMessageAt = now;
+        existing.lastMessageFromSelf = false;
+        existing.unreadCount = Math.max(0, Number(existing.unreadCount) || 0) + 1;
+    } else {
+        const phonebookEntry = callState.phonebookEntries.find((entry) => entry && entry.phoneNumber === normalized) || null;
+
+        messagesState.conversations.unshift({
+            phoneNumber: normalized,
+            displayName: phonebookEntry && phonebookEntry.displayName ? phonebookEntry.displayName : normalized,
+            lastMessage: previewText,
+            lastMessageAt: now,
+            lastMessageFromSelf: false,
+            unreadCount: 1,
+            online: phonebookEntry ? phonebookEntry.online === true : false
+        });
+    }
+
+    messagesState.conversations.sort((left, right) => {
+        return Number((right && right.lastMessageAt) || 0) - Number((left && left.lastMessageAt) || 0);
+    });
+
+    messagesState.unreadTotal = recalculateUnreadTotal();
+    renderMessageConversations();
+    updateMessagesUnreadSummary();
+    updateMessagesBadge();
+    renderHomeDashboard();
+}
+
 function handleMessageIncoming(phoneNumber, preview) {
     const normalized = normalizePhoneNumber(phoneNumber);
     if (!normalized) {
@@ -1129,6 +1412,8 @@ function handleMessageIncoming(phoneNumber, preview) {
         return;
     }
 
+    applyIncomingConversationPreview(normalized, preview);
+
     const previewText = String(preview || '').trim();
     setMessagesStatus(
         previewText ? `New message from ${label}: ${previewText}` : `New message from ${label}.`,
@@ -1140,9 +1425,11 @@ setInterval(updateTime, 60000);
 updateTime();
 setupDialInput();
 setupPhoneNumberInput('message-target-id');
+setPhoneSurfaceState('home');
 updateCallUI();
 updateMessagesUnreadSummary();
 updateMessagesBadge();
+renderHomeDashboard();
 
 window.addEventListener('message', (event) => {
     const data = event.data;

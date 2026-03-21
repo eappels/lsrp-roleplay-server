@@ -2,8 +2,8 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'LSRP'
-description 'LSRP Inventory'
-version '1.0.0'
+description 'LSRP Inventory rebuilt from scratch'
+version '2.0.0'
 
 lua54 'yes'
 
@@ -26,8 +26,4 @@ client_scripts {
 
 server_scripts {
 	'server/server.lua'
-}
-
-dependencies {
-	'lsrp_core'
 }

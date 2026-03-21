@@ -7,188 +7,317 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="phone-container" class="phone">
-        <div class="phone-header">
-            <span class="phone-time" id="phone-time">10:30</span>
-            <span class="phone-signal">●●●●●</span>
+    <div id="phone-container" class="phone" data-app="home">
+            <div class="phone-screen">
+                <div class="phone-screen-glow phone-screen-glow-a"></div>
+                <div class="phone-screen-glow phone-screen-glow-b"></div>
+                <div class="phone-island" aria-hidden="true">
+                    <span class="phone-island-speaker"></span>
+                    <span class="phone-island-camera"></span>
+                </div>
+
+                <div class="phone-header">
+                    <div class="status-copy">
+                        <span class="phone-time" id="phone-time">10:30</span>
+                        <span class="phone-day" id="phone-day">Mar 20</span>
+                    </div>
+                    <div class="status-icons" aria-hidden="true">
+                        <span class="status-network">CITY</span>
+                        <span class="status-signal">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </span>
+                        <span class="status-battery">
+                            <span>84%</span>
+                            <span class="status-battery-level"></span>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="phone-content" id="phone-content">
+                <div id="home-screen" class="home-screen">
+                    <div class="home-topline">
+                        <div class="home-topline-copy">
+                            <p id="home-date-label" class="home-date-label">Friday, Mar 20</p>
+                            <h2>LSRP Connect</h2>
+                            <p id="home-phone-label" class="home-phone-label">Assigning your city line...</p>
+                        </div>
+                        <div class="home-topline-pill">
+                            <span class="pill-label">Network</span>
+                            <span class="pill-value">City 5G</span>
+                        </div>
+                    </div>
+
+                    <div class="home-widgets">
+                        <button type="button" class="home-widget home-widget-balance" onclick="openApp('balance')">
+                            <span class="widget-kicker">Wallet</span>
+                            <strong id="home-balance-value">LS$0</strong>
+                            <span id="home-balance-status">Syncing account...</span>
+                        </button>
+
+                        <button type="button" class="home-widget home-widget-messages" onclick="openApp('messages')">
+                            <span class="widget-kicker">Messages</span>
+                            <strong id="home-messages-unread">No unread</strong>
+                            <span id="home-messages-summary">Your latest conversation will show up here.</span>
+                        </button>
+
+                        <button type="button" class="home-widget home-widget-calls" onclick="openApp('calls')">
+                            <span class="widget-kicker">Calls</span>
+                            <strong id="home-call-heading">Dialer ready</strong>
+                            <span id="home-call-summary">No active call.</span>
+                        </button>
+
+                        <button type="button" class="home-widget home-widget-phonebook" onclick="openApp('phonebook')">
+                            <span class="widget-kicker">Contacts</span>
+                            <strong id="home-phonebook-total">0 contacts</strong>
+                            <span id="home-phonebook-summary">Refresh to sync your phonebook.</span>
+                        </button>
+                    </div>
+
+                    <div class="home-apps-header">
+                        <span class="home-apps-title">Applications</span>
+                        <span class="home-apps-caption">Daily tools</span>
+                    </div>
+
+                    <div class="app-grid">
+                        <button type="button" class="app-icon app-icon-balance" onclick="openApp('balance')">
+                            <span class="icon">💵</span>
+                            <span>Balance</span>
+                        </button>
+                        <button type="button" class="app-icon app-icon-messages" onclick="openApp('messages')">
+                            <span class="icon">💬</span>
+                            <span>Messages</span>
+                            <span id="messages-badge" class="app-badge" style="display: none;">0</span>
+                        </button>
+                        <button type="button" class="app-icon app-icon-parking" onclick="openApp('parking')">
+                            <span class="icon">🚗</span>
+                            <span>Parking</span>
+                        </button>
+                        <button type="button" class="app-icon app-icon-calls" onclick="openApp('calls')">
+                            <span class="icon">📞</span>
+                            <span>Calls</span>
+                        </button>
+                        <button type="button" class="app-icon app-icon-phonebook" onclick="openApp('phonebook')">
+                            <span class="icon">📇</span>
+                            <span>Phonebook</span>
+                        </button>
+                    </div>
+
+                    <div class="home-dock">
+                        <button type="button" class="dock-app" onclick="openApp('messages')">
+                            <span class="dock-icon">💬</span>
+                            <span class="dock-label">Texts</span>
+                        </button>
+                        <button type="button" class="dock-app" onclick="openApp('calls')">
+                            <span class="dock-icon">📞</span>
+                            <span class="dock-label">Dial</span>
+                        </button>
+                        <button type="button" class="dock-app" onclick="openApp('phonebook')">
+                            <span class="dock-icon">📇</span>
+                            <span class="dock-label">People</span>
+                        </button>
+                    </div>
+                </div>
+
+                <section id="balance-app" class="app-screen" style="display: none;">
+                    <div class="app-header">
+                        <button type="button" class="back-btn" onclick="closeApp()">Back</button>
+                        <div class="app-header-copy">
+                            <p class="app-kicker">Finance</p>
+                            <h3>Balance</h3>
+                        </div>
+                        <div class="app-accent">LS</div>
+                    </div>
+
+                    <div class="balance-app-content">
+                        <div class="balance-card">
+                            <p class="balance-label">Available LS$</p>
+                            <h2 id="balance-value" class="balance-value">LS$0</h2>
+                            <p id="balance-status" class="balance-status">Checking your account...</p>
+                        </div>
+
+                        <div class="balance-actions">
+                            <button type="button" class="btn" onclick="loadBalance()">Refresh</button>
+                        </div>
+
+                        <p id="balance-meta" class="balance-meta">Not synced yet.</p>
+                    </div>
+                </section>
+
+                <section id="messages-app" class="app-screen" style="display: none;">
+                    <div class="app-header">
+                        <button type="button" class="back-btn" onclick="closeApp()">Back</button>
+                        <div class="app-header-copy">
+                            <p class="app-kicker">Communication</p>
+                            <h3>Messages</h3>
+                        </div>
+                        <div class="app-accent">SMS</div>
+                    </div>
+
+                    <div id="messages-overview" class="messages-overview">
+                        <div class="messages-compose-card">
+                            <label class="field-label" for="message-target-id">Phone Number</label>
+                            <input id="message-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
+
+                            <label class="field-label" for="message-body">Message</label>
+                            <textarea id="message-body" maxlength="280" placeholder="Write a text message..."></textarea>
+
+                            <div class="messages-compose-actions">
+                                <button type="button" class="btn" onclick="sendNewMessage()">Send</button>
+                                <button type="button" class="phonebook-refresh" onclick="loadMessageConversations()">Refresh</button>
+                            </div>
+
+                            <p id="messages-status" class="messages-status">Your conversations will appear here.</p>
+                        </div>
+
+                        <div class="messages-list-header">
+                            <h4>Conversations</h4>
+                            <span id="messages-unread-summary" class="messages-unread-summary">No unread messages</span>
+                        </div>
+
+                        <div id="messages-thread-list" class="messages-thread-list">
+                            <p class="loading">Loading conversations...</p>
+                        </div>
+                    </div>
+
+                    <div id="messages-thread-view" class="messages-thread-view" style="display: none;">
+                        <div class="messages-thread-header">
+                            <button type="button" class="back-btn" onclick="closeMessagesThread()">Back</button>
+                            <div class="messages-thread-contact">
+                                <span id="messages-thread-avatar" class="identity-orb messages-thread-avatar">--</span>
+                                <div class="messages-thread-meta">
+                                    <h4 id="messages-thread-title">Conversation</h4>
+                                    <p id="messages-thread-subtitle">Select a conversation</p>
+                                </div>
+                            </div>
+                            <span id="messages-thread-presence" class="phonebook-status offline">Offline</span>
+                        </div>
+
+                        <div id="messages-thread-messages" class="messages-thread-messages">
+                            <p class="messages-empty">No messages yet.</p>
+                        </div>
+
+                        <div class="messages-reply-box">
+                            <textarea id="message-reply-body" maxlength="280" placeholder="Write a reply..."></textarea>
+                            <div class="messages-reply-actions">
+                                <button type="button" class="btn" onclick="sendThreadReply()">Send</button>
+                            </div>
+                            <p id="messages-thread-status" class="messages-status">Open a conversation to reply.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="parking-app" class="app-screen" style="display: none;">
+                    <div class="app-header">
+                        <button type="button" class="back-btn" onclick="closeApp()">Back</button>
+                        <div class="app-header-copy">
+                            <p class="app-kicker">Navigation</p>
+                            <h3>My Vehicles</h3>
+                        </div>
+                        <div class="app-accent">GPS</div>
+                    </div>
+
+                    <p id="parking-status" class="parking-status">Tap a parked vehicle to set GPS.</p>
+
+                    <div id="vehicle-list" class="vehicle-list">
+                        <p class="loading">Loading vehicles...</p>
+                    </div>
+                </section>
+
+                <section id="phonebook-app" class="app-screen" style="display: none;">
+                    <div class="app-header">
+                        <button type="button" class="back-btn" onclick="closeApp()">Back</button>
+                        <div class="app-header-copy">
+                            <p class="app-kicker">Directory</p>
+                            <h3>Phonebook</h3>
+                        </div>
+                        <div class="app-accent">PB</div>
+                    </div>
+
+                    <div class="phonebook-section phonebook-app-content">
+                        <div class="phonebook-header">
+                            <h4>Contacts</h4>
+                            <button type="button" class="phonebook-refresh" onclick="loadPhonebook()">Refresh</button>
+                        </div>
+
+                        <div id="phonebook-list" class="phonebook-list">
+                            <p class="loading">Loading contacts...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="calls-app" class="app-screen" style="display: none;">
+                    <div class="app-header">
+                        <button type="button" class="back-btn" onclick="closeApp()">Back</button>
+                        <div class="app-header-copy">
+                            <p class="app-kicker">Voice</p>
+                            <h3>Calls</h3>
+                        </div>
+                        <div class="app-accent">TEL</div>
+                    </div>
+
+                    <div class="calls-content">
+                        <div class="calls-hero">
+                            <label class="field-label" for="call-target-id">Direct Dial</label>
+                            <input id="call-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
+                            <p id="my-phone-number" class="call-meta">Your number: Assigning...</p>
+                        </div>
+
+                        <div class="dial-pad" aria-label="Phone dial pad">
+                            <button type="button" class="dial-key" onclick="dialPadPress('1')">1</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('2')">2</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('3')">3</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('4')">4</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('5')">5</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('6')">6</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('7')">7</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('8')">8</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('9')">9</button>
+                            <button type="button" class="dial-key dial-key-control" onclick="dialPadClear()">C</button>
+                            <button type="button" class="dial-key" onclick="dialPadPress('0')">0</button>
+                            <button type="button" class="dial-key dial-key-control" onclick="dialPadBackspace()">⌫</button>
+                        </div>
+
+                        <div class="call-actions">
+                            <button id="start-call-btn" type="button" class="btn" onclick="startCall()">Call</button>
+                            <button id="end-call-btn" type="button" class="btn btn-danger" onclick="endCall()" style="display: none;">Hang Up</button>
+                        </div>
+
+                        <div id="incoming-call" class="incoming-call" style="display: none;">
+                            <span id="incoming-call-avatar" class="identity-orb incoming-call-avatar">--</span>
+                            <div class="incoming-call-copy">
+                                <p class="incoming-call-eyebrow">Incoming call</p>
+                                <h4 id="incoming-call-text">Incoming call...</h4>
+                                <p id="incoming-call-subtitle" class="incoming-call-subtitle">Press F4 or accept below.</p>
+                            </div>
+                            <div class="incoming-actions">
+                                <button type="button" class="btn btn-accept" onclick="acceptCall()">Accept</button>
+                                <button type="button" class="btn btn-danger" onclick="declineCall()">Decline</button>
+                            </div>
+                        </div>
+
+                        <p id="call-status" class="call-status">No active call.</p>
+                    </div>
+                </section>
+            </div>
+
+                <div class="phone-footer">
+                    <span class="footer-spacer" aria-hidden="true"></span>
+                    <div class="home-indicator" aria-hidden="true"></div>
+                    <button type="button" class="close-chip" onclick="closePhone()">Close</button>
+                </div>
+            </div>
         </div>
-        <div class="phone-content" id="phone-content">
-            <div id="home-screen">
-                <h2>Apps</h2>
-                <div class="app-grid">
-                    <div class="app-icon" onclick="openApp('balance')">
-                        <div class="icon">💵</div>
-                        <span>Balance</span>
-                    </div>
-                    <div class="app-icon" onclick="openApp('messages')">
-                        <div class="icon">💬</div>
-                        <span>Messages</span>
-                        <span id="messages-badge" class="app-badge" style="display: none;">0</span>
-                    </div>
-                    <div class="app-icon" onclick="openApp('parking')">
-                        <div class="icon">🚗</div>
-                        <span>Parking</span>
-                    </div>
-                    <div class="app-icon" onclick="openApp('calls')">
-                        <div class="icon">📞</div>
-                        <span>Calls</span>
-                    </div>
-                    <div class="app-icon" onclick="openApp('phonebook')">
-                        <div class="icon">📇</div>
-                        <span>Phonebook</span>
-                    </div>
-                </div>
-            </div>
-            <div id="balance-app" class="app-screen" style="display: none;">
-                <div class="app-header">
-                    <button class="back-btn" onclick="closeApp()">← Back</button>
-                    <h3>Balance</h3>
-                </div>
-                <div class="balance-app-content">
-                    <div class="balance-card">
-                        <p class="balance-label">Available LS$</p>
-                        <h2 id="balance-value" class="balance-value">LS$0</h2>
-                        <p id="balance-status" class="balance-status">Checking your account...</p>
-                    </div>
-                    <div class="balance-actions">
-                        <button class="btn" onclick="loadBalance()">Refresh</button>
-                    </div>
-                    <p id="balance-meta" class="balance-meta">Not synced yet.</p>
-                </div>
-            </div>
-            <div id="messages-app" class="app-screen" style="display: none;">
-                <div class="app-header">
-                    <button class="back-btn" onclick="closeApp()">← Back</button>
-                    <h3>Messages</h3>
-                </div>
-                <div id="messages-overview" class="messages-overview">
-                    <div class="messages-compose-card">
-                        <label class="field-label" for="message-target-id">Phone Number</label>
-                        <input id="message-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
-
-                        <label class="field-label" for="message-body">Message</label>
-                        <textarea id="message-body" maxlength="280" placeholder="Write a text message..."></textarea>
-
-                        <div class="messages-compose-actions">
-                            <button class="btn" onclick="sendNewMessage()">Send</button>
-                            <button class="phonebook-refresh" onclick="loadMessageConversations()">Refresh</button>
-                        </div>
-
-                        <p id="messages-status" class="messages-status">Your conversations will appear here.</p>
-                    </div>
-
-                    <div class="messages-list-header">
-                        <h4>Conversations</h4>
-                        <span id="messages-unread-summary" class="messages-unread-summary">No unread messages</span>
-                    </div>
-
-                    <div id="messages-thread-list" class="messages-thread-list">
-                        <p class="loading">Loading conversations...</p>
-                    </div>
-                </div>
-
-                <div id="messages-thread-view" class="messages-thread-view" style="display: none;">
-                    <div class="messages-thread-header">
-                        <button class="back-btn" onclick="closeMessagesThread()">← Back</button>
-                        <div class="messages-thread-meta">
-                            <h4 id="messages-thread-title">Conversation</h4>
-                            <p id="messages-thread-subtitle">Select a conversation</p>
-                        </div>
-                        <span id="messages-thread-presence" class="phonebook-status offline">Offline</span>
-                    </div>
-
-                    <div id="messages-thread-messages" class="messages-thread-messages">
-                        <p class="messages-empty">No messages yet.</p>
-                    </div>
-
-                    <div class="messages-reply-box">
-                        <textarea id="message-reply-body" maxlength="280" placeholder="Write a reply..."></textarea>
-                        <div class="messages-reply-actions">
-                            <button class="btn" onclick="sendThreadReply()">Send</button>
-                        </div>
-                        <p id="messages-thread-status" class="messages-status">Open a conversation to reply.</p>
-                    </div>
-                </div>
-            </div>
-            <div id="parking-app" class="app-screen" style="display: none;">
-                <div class="app-header">
-                    <button class="back-btn" onclick="closeApp()">← Back</button>
-                    <h3>My Vehicles</h3>
-                </div>
-                <p id="parking-status" class="parking-status">Tap a parked vehicle to set GPS.</p>
-                <div id="vehicle-list" class="vehicle-list">
-                    <p class="loading">Loading vehicles...</p>
-                </div>
-            </div>
-            <div id="phonebook-app" class="app-screen" style="display: none;">
-                <div class="app-header">
-                    <button class="back-btn" onclick="closeApp()">← Back</button>
-                    <h3>Phonebook</h3>
-                </div>
-                <div class="phonebook-section phonebook-app-content">
-                    <div class="phonebook-header">
-                        <h4>Contacts</h4>
-                        <button class="phonebook-refresh" onclick="loadPhonebook()">Refresh</button>
-                    </div>
-                    <div id="phonebook-list" class="phonebook-list">
-                        <p class="loading">Loading contacts...</p>
-                    </div>
-                </div>
-            </div>
-            <div id="calls-app" class="app-screen" style="display: none;">
-                <div class="app-header">
-                    <button class="back-btn" onclick="closeApp()">← Back</button>
-                    <h3>Calls</h3>
-                </div>
-                <div class="calls-content">
-                    <label class="field-label" for="call-target-id">Phone Number</label>
-                    <input id="call-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
-                    <p id="my-phone-number" class="call-meta">Your number: Assigning...</p>
-
-                    <div class="dial-pad" aria-label="Phone dial pad">
-                        <button class="dial-key" onclick="dialPadPress('1')">1</button>
-                        <button class="dial-key" onclick="dialPadPress('2')">2</button>
-                        <button class="dial-key" onclick="dialPadPress('3')">3</button>
-                        <button class="dial-key" onclick="dialPadPress('4')">4</button>
-                        <button class="dial-key" onclick="dialPadPress('5')">5</button>
-                        <button class="dial-key" onclick="dialPadPress('6')">6</button>
-                        <button class="dial-key" onclick="dialPadPress('7')">7</button>
-                        <button class="dial-key" onclick="dialPadPress('8')">8</button>
-                        <button class="dial-key" onclick="dialPadPress('9')">9</button>
-                        <button class="dial-key dial-key-control" onclick="dialPadClear()">C</button>
-                        <button class="dial-key" onclick="dialPadPress('0')">0</button>
-                        <button class="dial-key dial-key-control" onclick="dialPadBackspace()">⌫</button>
-                    </div>
-
-                    <div class="call-actions">
-                        <button id="start-call-btn" class="btn" onclick="startCall()">Call</button>
-                        <button id="end-call-btn" class="btn btn-danger" onclick="endCall()" style="display: none;">Hang Up</button>
-                    </div>
-
-                    <div id="incoming-call" class="incoming-call" style="display: none;">
-                        <p id="incoming-call-text">Incoming call...</p>
-                        <div class="incoming-actions">
-                            <button class="btn btn-accept" onclick="acceptCall()">Accept</button>
-                            <button class="btn btn-danger" onclick="declineCall()">Decline</button>
-                        </div>
-                    </div>
-
-                    <p id="call-status" class="call-status">No active call.</p>
-                </div>
-            </div>
-        </div>
-        <div class="phone-footer">
-            <button class="btn" onclick="closePhone()">Close</button>
-        </div>
-    </div>
 
     <div id="incoming-toast" class="incoming-toast" aria-live="polite">
-        <div class="incoming-toast-indicator"></div>
-        <div class="incoming-toast-copy">
-            <p class="incoming-toast-label">Incoming call</p>
-            <h4 id="incoming-toast-number" class="incoming-toast-number">Unknown</h4>
-            <p class="incoming-toast-hint">Press F4 to answer</p>
-        </div>
+            <div class="incoming-toast-indicator"></div>
+            <div class="incoming-toast-copy">
+                <p class="incoming-toast-label">Incoming call</p>
+                <h4 id="incoming-toast-number" class="incoming-toast-number">Unknown</h4>
+                <p class="incoming-toast-hint">Press F4 to answer</p>
+            </div>
     </div>
 
     <script src="script.js"></script>

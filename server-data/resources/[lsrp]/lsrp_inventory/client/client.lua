@@ -4,45 +4,16 @@ local latestInventory = {
 	maxWeight = 0,
 	items = {}
 }
-local latestTransferTarget = nil
+local latestTarget = nil
+local worldDrops = {}
 
 local function normalizeInventoryPayload(raw)
 	raw = type(raw) == 'table' and raw or {}
-
-	local slots = math.max(1, math.floor(tonumber(raw.slots) or 6))
-	local maxWeight = math.max(0, math.floor(tonumber(raw.maxWeight) or 0))
-	local items = type(raw.items) == 'table' and raw.items or {}
-
 	return {
-		slots = slots,
-		maxWeight = maxWeight,
-		items = items
+		slots = math.max(1, math.floor(tonumber(raw.slots) or 1)),
+		maxWeight = math.max(0, math.floor(tonumber(raw.maxWeight) or 0)),
+		items = type(raw.items) == 'table' and raw.items or {}
 	}
-end
-
-local function sendInventoryToNui(inventory)
-	SendNUIMessage({
-		action = 'setInventoryData',
-		inventory = normalizeInventoryPayload(inventory)
-	})
-end
-
-local function sendTransferTargetToNui(targetPayload)
-	if type(targetPayload) ~= 'table' then
-		SendNUIMessage({
-			action = 'clearTransferTarget'
-		})
-		return
-	end
-
-	SendNUIMessage({
-		action = 'setTransferTarget',
-		target = {
-			targetId = math.floor(tonumber(targetPayload.targetId) or 0),
-			targetName = tostring(targetPayload.targetName or 'Player'),
-			targetInventory = normalizeInventoryPayload(targetPayload.targetInventory)
-		}
-	})
 end
 
 local function setUiOpen(shouldOpen)
@@ -52,18 +23,14 @@ local function setUiOpen(shouldOpen)
 
 	uiOpen = shouldOpen
 	SetNuiFocus(shouldOpen, shouldOpen)
-
-	SendNUIMessage({
-		action = 'setVisible',
-		visible = shouldOpen
-	})
+	SendNUIMessage({ action = 'setVisible', visible = shouldOpen })
 
 	if shouldOpen then
-		sendInventoryToNui(latestInventory)
-		sendTransferTargetToNui(latestTransferTarget)
+		SendNUIMessage({ action = 'setInventoryData', inventory = latestInventory })
+		SendNUIMessage({ action = 'setTransferTarget', target = latestTarget })
 	else
-		latestTransferTarget = nil
-		sendTransferTargetToNui(nil)
+		latestTarget = nil
+		SendNUIMessage({ action = 'clearTransferTarget' })
 	end
 end
 
@@ -71,54 +38,49 @@ local function requestOpenInventory()
 	TriggerServerEvent('lsrp_inventory:server:requestOpen')
 end
 
-local function toggleInventory()
-	if uiOpen then
-		setUiOpen(false)
-		return
-	end
-
-	requestOpenInventory()
-end
-
 RegisterNetEvent('lsrp_inventory:client:receiveInventory', function(inventory)
 	latestInventory = normalizeInventoryPayload(inventory)
-	latestTransferTarget = nil
-
 	if uiOpen then
-		sendInventoryToNui(latestInventory)
-		sendTransferTargetToNui(nil)
-		return
+		SendNUIMessage({ action = 'setInventoryData', inventory = latestInventory })
+	else
+		setUiOpen(true)
 	end
-
-	setUiOpen(true)
 end)
 
 RegisterNetEvent('lsrp_inventory:client:syncInventory', function(inventory)
 	latestInventory = normalizeInventoryPayload(inventory)
-
 	if uiOpen then
-		sendInventoryToNui(latestInventory)
+		SendNUIMessage({ action = 'setInventoryData', inventory = latestInventory })
 	end
 end)
 
 RegisterNetEvent('lsrp_inventory:client:syncTransferTarget', function(targetPayload)
-	if type(targetPayload) ~= 'table' then
-		latestTransferTarget = nil
-		if uiOpen then
-			sendTransferTargetToNui(nil)
+	latestTarget = type(targetPayload) == 'table' and targetPayload or nil
+	if uiOpen then
+		if latestTarget then
+			SendNUIMessage({ action = 'setTransferTarget', target = latestTarget })
+		else
+			SendNUIMessage({ action = 'clearTransferTarget' })
 		end
+	end
+end)
+
+RegisterNetEvent('lsrp_inventory:client:setWorldDrops', function(drops)
+	worldDrops = {}
+	for _, drop in ipairs(type(drops) == 'table' and drops or {}) do
+		worldDrops[tonumber(drop.id)] = drop
+	end
+end)
+
+RegisterNetEvent('lsrp_inventory:client:addWorldDrop', function(drop)
+	if type(drop) ~= 'table' or not drop.id then
 		return
 	end
+	worldDrops[tonumber(drop.id)] = drop
+end)
 
-	latestTransferTarget = {
-		targetId = math.floor(tonumber(targetPayload.targetId) or 0),
-		targetName = tostring(targetPayload.targetName or 'Player'),
-		targetInventory = normalizeInventoryPayload(targetPayload.targetInventory or {})
-	}
-
-	if uiOpen then
-		sendTransferTargetToNui(latestTransferTarget)
-	end
+RegisterNetEvent('lsrp_inventory:client:removeWorldDrop', function(dropId)
+	worldDrops[tonumber(dropId)] = nil
 end)
 
 RegisterNUICallback('closeInventory', function(_, cb)
@@ -132,66 +94,103 @@ RegisterNUICallback('requestInventory', function(_, cb)
 end)
 
 RegisterNUICallback('requestTransferTargetInventory', function(data, cb)
-	if type(data) ~= 'table' then
-		cb({ ok = false, error = 'invalid_payload' })
-		return
-	end
-
-	local targetId = math.floor(tonumber(data.targetId) or 0)
+	local targetId = math.floor(tonumber(data and data.targetId) or 0)
 	if targetId < 1 then
 		cb({ ok = false, error = 'invalid_target' })
 		return
 	end
-
 	TriggerServerEvent('lsrp_inventory:server:requestTransferTargetInventory', targetId)
 	cb({ ok = true })
 end)
 
-RegisterNUICallback('transferItem', function(data, cb)
-	if type(data) ~= 'table' then
-		cb({ ok = false, error = 'invalid_payload' })
+RegisterNUICallback('moveItem', function(data, cb)
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	local toSlot = math.floor(tonumber(data and data.toSlot) or 0)
+	local amount = math.floor(tonumber(data and data.amount) or 1)
+	if fromSlot < 1 or toSlot < 1 then
+		cb({ ok = false, error = 'invalid_slots' })
 		return
 	end
+	TriggerServerEvent('lsrp_inventory:server:moveItem', fromSlot, toSlot, amount)
+	cb({ ok = true })
+end)
 
-	local targetId = math.floor(tonumber(data.targetId) or 0)
-	local fromSlot = math.floor(tonumber(data.fromSlot) or 0)
-	local amount = math.floor(tonumber(data.amount) or 1)
-
+RegisterNUICallback('giveItem', function(data, cb)
+	local targetId = math.floor(tonumber(data and data.targetId) or 0)
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	local toSlot = math.floor(tonumber(data and data.toSlot) or 0)
+	local amount = math.floor(tonumber(data and data.amount) or 1)
 	if targetId < 1 or fromSlot < 1 then
 		cb({ ok = false, error = 'invalid_params' })
 		return
 	end
+	TriggerServerEvent('lsrp_inventory:server:giveItem', targetId, fromSlot, toSlot, amount)
+	cb({ ok = true })
+end)
 
-	if amount < 1 then
-		amount = 1
+RegisterNUICallback('dropItem', function(data, cb)
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	local amount = math.floor(tonumber(data and data.amount) or 1)
+	if fromSlot < 1 then
+		cb({ ok = false, error = 'invalid_slot' })
+		return
 	end
-
-	TriggerServerEvent('lsrp_inventory:server:transferItemToPlayer', targetId, fromSlot, amount)
+	TriggerServerEvent('lsrp_inventory:server:dropItem', fromSlot, amount)
 	cb({ ok = true })
 end)
 
 RegisterCommand('inventory', function()
-	toggleInventory()
+	if uiOpen then
+		setUiOpen(false)
+	else
+		requestOpenInventory()
+	end
 end, false)
 
 RegisterCommand('+openInventory', function()
-	toggleInventory()
+	if uiOpen then
+		setUiOpen(false)
+	else
+		requestOpenInventory()
+	end
 end, false)
 
 RegisterCommand('-openInventory', function()
-	-- Required by RegisterKeyMapping (+/- command pair).
+	-- Required for RegisterKeyMapping.
 end, false)
 
 RegisterKeyMapping('+openInventory', 'Open inventory', 'keyboard', 'I')
+
+Citizen.CreateThread(function()
+	TriggerServerEvent('lsrp_inventory:server:requestWorldDrops')
+	while true do
+		Citizen.Wait(0)
+		local ped = PlayerPedId()
+		local coords = GetEntityCoords(ped)
+		for dropId, drop in pairs(worldDrops) do
+			local position = drop.position or {}
+			local dropCoords = vector3(position.x or 0.0, position.y or 0.0, position.z or 0.0)
+			local distance = #(coords - dropCoords)
+			if distance < 35.0 then
+				DrawMarker(2, dropCoords.x, dropCoords.y, dropCoords.z + 0.15, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.18, 0.18, 0.18, 233, 196, 106, 180, false, false, 2, true, nil, nil, false)
+			end
+			if distance < 1.6 then
+				SetTextComponentFormat('STRING')
+				AddTextComponentString(('Press ~INPUT_CONTEXT~ to pick up %s x%d'):format(tostring((drop.item and (drop.item.label or drop.item.name)) or 'Item'), math.floor(tonumber(drop.item and drop.item.count) or 1)))
+				DisplayHelpTextFromStringLabel(0, 0, 1, -1)
+				if IsControlJustReleased(0, 38) then
+					TriggerServerEvent('lsrp_inventory:server:pickupWorldDrop', dropId)
+				end
+			end
+		end
+	end
+end)
 
 AddEventHandler('onResourceStop', function(resourceName)
 	if resourceName ~= GetCurrentResourceName() then
 		return
 	end
-
-	if uiOpen then
-		SetNuiFocus(false, false)
-	end
+	SetNuiFocus(false, false)
 end)
 
-print('[lsrp_inventory] Client script loaded')
+print('[lsrp_inventory] Rebuilt client loaded')
