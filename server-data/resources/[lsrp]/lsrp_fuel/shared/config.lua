@@ -12,6 +12,7 @@ Config.PumpVehicleDistance = 6.0
 Config.FullRefuelDurationMs = 60000
 Config.MinRefuelDurationMs = 1500
 Config.RefuelCostPerUnit = 2
+Config.FuelRevenueLicense = 'business:fuel'
 Config.RefuelAnimationMode = 'anim'
 Config.RefuelAnimationDict = 'amb@world_human_security_shine_torch@male@base'
 Config.RefuelAnimationName = 'base'

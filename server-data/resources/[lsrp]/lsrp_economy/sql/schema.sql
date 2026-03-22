@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS `lsrp_economy_balances` (
 CREATE TABLE IF NOT EXISTS `lsrp_economy_accounts` (
     `account_id` int unsigned NOT NULL AUTO_INCREMENT,
     `license` varchar(64) NOT NULL,
+    `balance` bigint unsigned NOT NULL DEFAULT 0,
     `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`account_id`),
     UNIQUE KEY `uniq_license` (`license`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

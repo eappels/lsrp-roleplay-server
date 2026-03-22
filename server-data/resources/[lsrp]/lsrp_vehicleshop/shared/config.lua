@@ -6,6 +6,7 @@ Config.AutoCloseDistance = 9.0
 Config.PurchaseCooldownMs = 1750
 Config.AdminCustomPurchaseAce = 'lsrp.vehicleshop.admin'
 Config.AdminCustomUnlistedPrice = 0
+Config.VehicleSalesRevenueLicense = 'business:vehiclesales'
 
 Config.Marker = {
     enabled = true,
