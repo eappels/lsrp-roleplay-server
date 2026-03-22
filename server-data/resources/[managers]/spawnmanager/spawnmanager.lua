@@ -234,7 +234,7 @@ function spawnPlayer(spawnIdx, cb)
         end
 
         if not spawn.skipFade then
-            DoScreenFadeOut(500)
+            DoScreenFadeOut(0)
 
             while not IsScreenFadedOut() do
                 Citizen.Wait(0)

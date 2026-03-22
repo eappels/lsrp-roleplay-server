@@ -202,7 +202,7 @@ local function spawnPlayerDirect(spawn)
 	spawn.heading = spawnHeading
 
 	if not spawn.skipFade then
-		DoScreenFadeOut(500)
+		DoScreenFadeOut(0)
 
 		while not IsScreenFadedOut() do
 			Wait(0)

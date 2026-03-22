@@ -5,14 +5,14 @@ author 'Eddy Appels'
 description 'LSRP Loadscreen'
 
 loadscreen_manual_shutdown 'yes'
-loadscreen 'index.html'
+loadscreen 'loadscreen.html'
 
 client_scripts {
     'client/client.lua'
 }
 
 files {
-    'index.html',
+    'loadscreen.html',
     'style.css',
     'image-generator.png'
 }

@@ -39,14 +39,6 @@ body {
     transition: width 0.18s linear;
 }
 
-#loading-percent {
-    margin-top: 8px;
-    text-align: right;
-    color: #f5f5f5;
-    font-size: 14px;
-    letter-spacing: 0.08em;
-}
-
 #loading-status {
     margin-top: 6px;
     color: rgba(245, 245, 245, 0.75);

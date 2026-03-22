@@ -434,7 +434,7 @@ local function teleportPlayer(point)
 		return false
 	end
 
-	DoScreenFadeOut(250)
+	DoScreenFadeOut(0)
 	while not IsScreenFadedOut() do
 		Wait(0)
 	end
@@ -553,7 +553,13 @@ local function leaveApartment(locationIndexOverride)
 	local destination = location and (location.exteriorSpawn or location.entry) or nil
 	TriggerServerEvent('lsrp_housing:setBucket', 0)
 	if destination then
-		teleportPlayer(destination)
+		local exteriorDestination = {
+			x = destination.x,
+			y = destination.y,
+			z = destination.z,
+			w = 113.82
+		}
+		teleportPlayer(exteriorDestination)
 	end
 	currentApartment = nil
 end
