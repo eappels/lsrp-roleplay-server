@@ -67,6 +67,26 @@ body.drag-active {
 	align-items: center;
 }
 
+.topbar-meta {
+	margin-top: 4px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+}
+
+.topbar-meta span {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+	color: var(--muted);
+}
+
+.topbar-meta strong {
+	font-size: 14px;
+	color: var(--text);
+}
+
 .eyebrow {
 	font-size: 11px;
 	letter-spacing: 0.18em;
@@ -99,32 +119,7 @@ body.drag-active {
 	background: #1a2a3f;
 }
 
-.summary-row {
-	display: grid;
-	grid-template-columns: 170px 170px;
-	gap: 12px;
-}
-
-.summary-box {
-	background: var(--panel);
-	border: 1px solid var(--line);
-	border-radius: 12px;
-	padding: 12px 14px;
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.summary-box span {
-	font-size: 12px;
-	text-transform: uppercase;
-	letter-spacing: 0.08em;
-	color: var(--muted);
-}
-
-.summary-box strong {
-	font-size: 18px;
-}
+/* summary-row removed; weight moved into header */
 
 .nearby-players-list {
 	min-height: 52px;
@@ -277,7 +272,7 @@ body.drag-active {
 	border-radius: 12px;
 	padding: 10px;
 	display: grid;
-	grid-template-rows: auto 1fr auto;
+	grid-template-rows: 1fr auto;
 	gap: 8px;
 	position: relative;
 	transition: background 0.12s ease, border-color 0.12s ease;
@@ -302,14 +297,6 @@ body.drag-active {
 .drop-zone.drop-target {
 	border-color: var(--accent);
 	box-shadow: 0 0 0 1px rgba(217, 168, 74, 0.35) inset;
-}
-
-.slot-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	font-size: 11px;
-	color: var(--muted);
 }
 
 .item-visual {

@@ -883,6 +883,53 @@ CreateThread(function()
             end
         end
 
+        -- Also consume fuel for any nearby/streamed vehicles whose engine is running
+        -- even if the player is not currently seated in them. This ensures engines
+        -- continue to consume while left running.
+        local processed = {}
+        if ped ~= 0 and DoesEntityExist(ped) and IsPedInAnyVehicle(ped, false) then
+            local pveh = GetVehiclePedIsIn(ped, false)
+            if pveh ~= 0 then
+                processed[pveh] = true
+            end
+        end
+
+        for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+            if vehicle ~= 0 and DoesEntityExist(vehicle) and not processed[vehicle] and isFuelManagedVehicle(vehicle) and GetIsVehicleEngineRunning(vehicle) then
+                local fuelLevel = getVehicleFuelLevelSafe(vehicle)
+                if fuelLevel ~= nil then
+                    local speedKmh = math.max(0.0, GetEntitySpeed(vehicle) * 3.6)
+                    local baseUsagePerSecond = tonumber(Config.BaseUsagePerSecond) or 0.12
+                    local classMultiplier = getConsumptionMultiplier(vehicle)
+                    local idleSpeedThresholdKmh = math.max(0.0, tonumber(Config.IdleSpeedThresholdKmh) or 1.0)
+                    local delta = 0.0
+
+                    if speedKmh <= idleSpeedThresholdKmh then
+                        delta = baseUsagePerSecond
+                            * math.max(0.0, tonumber(Config.IdleUsageMultiplier) or 0.1)
+                            * classMultiplier
+                            * (waitMs / 1000.0)
+                    else
+                        local rpm = math.max(0.2, tonumber(GetVehicleCurrentRpm(vehicle)) or 0.0)
+                        local speedMultiplier = 1.0
+                            + math.min(speedKmh / 140.0, 1.0)
+                            * (tonumber(Config.SpeedUsageMultiplier) or 0.35)
+
+                        delta = baseUsagePerSecond
+                            * rpm
+                            * speedMultiplier
+                            * classMultiplier
+                            * (waitMs / 1000.0)
+                    end
+
+                    local nextFuelLevel = setVehicleFuelLevelSafe(vehicle, fuelLevel - delta, true)
+                    if nextFuelLevel and nextFuelLevel <= (tonumber(Config.EmptyFuelThreshold) or 0.1) then
+                        stopVehicleWhenOutOfFuel(vehicle)
+                    end
+                end
+            end
+        end
+
         Wait(waitMs)
     end
 end)
@@ -1039,6 +1086,19 @@ end)
 
 exports('getFuel', function(vehicle)
     return getVehicleFuelLevelSafe(vehicle)
+end)
+
+exports('getEmptyFuelThreshold', function()
+    return tonumber(Config.EmptyFuelThreshold) or 0.1
+end)
+
+exports('isOutOfFuel', function(vehicle)
+    local fuelLevel = getVehicleFuelLevelSafe(vehicle)
+    if fuelLevel == nil then
+        return nil
+    end
+
+    return fuelLevel <= (tonumber(Config.EmptyFuelThreshold) or 0.1)
 end)
 
 exports('setFuel', function(vehicle, fuelLevel)

@@ -12,7 +12,6 @@ const state = {
 
 const appElement = document.getElementById('app');
 const closeButton = document.getElementById('close-btn');
-const slotsText = document.getElementById('slots-text');
 const weightText = document.getElementById('weight-text');
 const selfGrid = document.getElementById('self-grid');
 const targetGrid = document.getElementById('target-grid');
@@ -92,6 +91,10 @@ function resolveItemImage(item) {
 		return null;
 	}
 	return `https://cfx-nui-${resourceName}/html/images/${encodeURIComponent(image)}`;
+}
+
+function isTransientInventoryItem(item) {
+	return Boolean(item && item.metadata && item.metadata.transient === true);
 }
 
 function setVisible(visible) {
@@ -313,7 +316,8 @@ function beginDrag(event, slotIndex, item, sourceElement) {
 		slot: slotIndex,
 		item,
 		sourceElement,
-		previewElement: createDragPreview(item)
+		previewElement: createDragPreview(item),
+		ctrl: Boolean(event.ctrlKey || event.metaKey)
 	};
 	document.body.classList.add('drag-active');
 	sourceElement.classList.add('dragging');
@@ -329,11 +333,6 @@ function buildSlot(slotIndex, item, panel) {
 	if (!item) {
 		slot.classList.add('empty');
 	}
-
-	const header = document.createElement('div');
-	header.className = 'slot-header';
-	header.innerHTML = `<span>Slot ${slotIndex}</span>`;
-	slot.appendChild(header);
 
 	const visual = document.createElement('div');
 	visual.className = 'item-visual';
@@ -359,7 +358,9 @@ function buildSlot(slotIndex, item, panel) {
 
 		const meta = document.createElement('div');
 		meta.className = 'item-meta';
-		meta.textContent = `${toInteger(item.totalWeight, 0)}g • stack ${toInteger(item.maxStack, 1)}`;
+		meta.textContent = isTransientInventoryItem(item)
+			? `${toInteger(item.totalWeight, 0)}g • key item`
+			: `${toInteger(item.totalWeight, 0)}g`;
 		info.appendChild(meta);
 
 		if (toInteger(item.count, 1) > 1) {
@@ -368,11 +369,6 @@ function buildSlot(slotIndex, item, panel) {
 			count.textContent = `x${toInteger(item.count, 1)}`;
 			slot.appendChild(count);
 		}
-	} else {
-		const empty = document.createElement('div');
-		empty.className = 'item-meta';
-		empty.textContent = 'Empty';
-		info.appendChild(empty);
 	}
 	slot.appendChild(info);
 
@@ -389,7 +385,6 @@ function renderInventoryPanels() {
 	const usedSlots = Object.keys(itemsBySlot).length;
 	const usedWeight = getInventoryWeight(inventory);
 
-	slotsText.textContent = `${usedSlots} / ${inventory.slots}`;
 	weightText.textContent = `${usedWeight} / ${inventory.maxWeight}`;
 
 	selfGrid.innerHTML = '';
@@ -447,6 +442,11 @@ async function handleDropAction(target) {
 	}
 
 	if (target.type === 'use') {
+		if (isTransientInventoryItem(sourceItem)) {
+			setStatus('Key items cannot be used here.');
+			return;
+		}
+
 		if (!sourceItem.use || typeof sourceItem.use !== 'object') {
 			setStatus('That item cannot be used.');
 			return;
@@ -469,10 +469,20 @@ async function handleDropAction(target) {
 	}
 
 	if (target.type === 'ground') {
-		const amount = await resolveDragAmount(sourceItem, 'Drop');
-		if (amount === null) {
-			setStatus('Drop cancelled.');
+		if (isTransientInventoryItem(sourceItem)) {
+			setStatus('Key items cannot be dropped.');
 			return;
+		}
+
+		let amount;
+		if (state.drag && state.drag.ctrl) {
+			amount = await resolveDragAmount(sourceItem, 'Drop');
+			if (amount === null) {
+				setStatus('Drop cancelled.');
+				return;
+			}
+		} else {
+			amount = Math.max(1, toInteger(sourceItem.count, 1));
 		}
 		const response = await postNui('dropItem', { fromSlot: sourceSlot, amount });
 		if (!response || response.ok !== true) {
@@ -488,10 +498,15 @@ async function handleDropAction(target) {
 			setStatus('Drag cancelled.');
 			return;
 		}
-		const amount = await resolveDragAmount(sourceItem, 'Move');
-		if (amount === null) {
-			setStatus('Move cancelled.');
-			return;
+		let amount;
+		if (state.drag && state.drag.ctrl) {
+			amount = await resolveDragAmount(sourceItem, 'Move');
+			if (amount === null) {
+				setStatus('Move cancelled.');
+				return;
+			}
+		} else {
+			amount = Math.max(1, toInteger(sourceItem.count, 1));
 		}
 		const response = await postNui('moveItem', { fromSlot: sourceSlot, toSlot: target.slot, amount });
 		if (!response || response.ok !== true) {
@@ -503,14 +518,24 @@ async function handleDropAction(target) {
 	}
 
 	if (target.type === 'slot' && target.panel === 'target') {
+		if (isTransientInventoryItem(sourceItem)) {
+			setStatus('Key items cannot be transferred.');
+			return;
+		}
+
 		if (!state.target || !state.target.targetId) {
 			setStatus('Open a target inventory first.');
 			return;
 		}
-		const amount = await resolveDragAmount(sourceItem, 'Give');
-		if (amount === null) {
-			setStatus('Transfer cancelled.');
-			return;
+		let amount;
+		if (state.drag && state.drag.ctrl) {
+			amount = await resolveDragAmount(sourceItem, 'Give');
+			if (amount === null) {
+				setStatus('Transfer cancelled.');
+				return;
+			}
+		} else {
+			amount = Math.max(1, toInteger(sourceItem.count, 1));
 		}
 		const response = await postNui('giveItem', {
 			targetId: state.target.targetId,

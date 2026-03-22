@@ -26,6 +26,7 @@ local lockedEntryAttemptStartedAt = 0
 local lockedEntryAttemptBlockedUntil = 0
 local playerLicenseIdentifier = nil
 local lockToggleRequestInFlight = false
+local failedIgnitionAttemptUntilByVehicle = {}
 
 local function getVehicleBehaviourConfig()
 	return Config and Config.VehicleBehaviour or nil
@@ -45,6 +46,74 @@ local function notify(message)
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, true)
+end
+
+local function setFailedIgnitionAttemptActive(vehicle, durationMs)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	failedIgnitionAttemptUntilByVehicle[vehicle] = GetGameTimer() + math.max(100, math.floor(tonumber(durationMs) or 0))
+	CreateThread(function()
+		Wait(math.max(100, math.floor(tonumber(durationMs) or 0)) + 50)
+		if failedIgnitionAttemptUntilByVehicle[vehicle] and failedIgnitionAttemptUntilByVehicle[vehicle] <= GetGameTimer() then
+			failedIgnitionAttemptUntilByVehicle[vehicle] = nil
+		end
+	end)
+end
+
+local function isFailedIgnitionAttemptActive(vehicle)
+	if vehicle == 0 then
+		return false
+	end
+
+	local activeUntil = tonumber(failedIgnitionAttemptUntilByVehicle[vehicle])
+	if not activeUntil then
+		return false
+	end
+
+	if activeUntil <= GetGameTimer() then
+		failedIgnitionAttemptUntilByVehicle[vehicle] = nil
+		return false
+	end
+
+	return true
+end
+
+local function isVehicleOutOfFuel(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	if GetResourceState('lsrp_fuel') ~= 'started' then
+		return false
+	end
+
+	local ok, isOutOfFuel = pcall(function()
+		return exports['lsrp_fuel']:isOutOfFuel(vehicle)
+	end)
+
+	return ok and isOutOfFuel == true
+end
+
+local function playFailedIgnitionAttempt(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	setFailedIgnitionAttemptActive(vehicle, 350)
+	SetVehicleNeedsToBeHotwired(vehicle, false)
+	SetVehicleUndriveable(vehicle, true)
+	SetVehicleEngineOn(vehicle, true, false, true)
+
+	CreateThread(function()
+		Wait(350)
+		if vehicle ~= 0 and DoesEntityExist(vehicle) then
+			SetVehicleEngineOn(vehicle, false, true, true)
+			SetVehicleUndriveable(vehicle, true)
+			failedIgnitionAttemptUntilByVehicle[vehicle] = nil
+		end
+	end)
 end
 
 local function normalizeKeyAccessMode(accessMode)
@@ -904,6 +973,11 @@ local function toggleIgnition()
 		end
 	end
 
+	if newIgnitionState == true and isVehicleOutOfFuel(vehicle) then
+		playFailedIgnitionAttempt(vehicle)
+		return
+	end
+
 	setVehicleIgnitionState(vehicle, newIgnitionState)
 
 	if ignitionConfig.notify ~= false then
@@ -1051,9 +1125,13 @@ CreateThread(function()
 					local ignitionState = ensureVehicleIgnitionState(vehicle)
 
 					if ignitionState ~= true then
-						SetVehicleUndriveable(vehicle, true)
-						SetVehicleEngineOn(vehicle, false, true, true)
-						DisableControlAction(0, 71, true)
+						if isFailedIgnitionAttemptActive(vehicle) then
+							DisableControlAction(0, 71, true)
+						else
+							SetVehicleUndriveable(vehicle, true)
+							SetVehicleEngineOn(vehicle, false, true, true)
+							DisableControlAction(0, 71, true)
+						end
 					else
 						SetVehicleUndriveable(vehicle, false)
 					end

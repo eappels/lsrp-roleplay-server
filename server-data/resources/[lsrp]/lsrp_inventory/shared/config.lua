@@ -2,18 +2,13 @@ Config = Config or {}
 
 Config.Inventory = {
 	enabled = true,
-	defaultSlots = 12,
+	defaultSlots = 15,
 	maxWeight = 25000,
 	maxStack = 10,
 	transferRange = 4.0,
 	pickupRange = 2.0,
 	dropLifetimeSeconds = 900,
-	starterItems = {
-		{ name = 'phone', amount = 1 },
-		{ name = 'burger', amount = 2 },
-		{ name = 'cola', amount = 2 },
-		{ name = 'bandage', amount = 3 }
-	}
+	starterItems = {}
 }
 
 Config.Items = {
