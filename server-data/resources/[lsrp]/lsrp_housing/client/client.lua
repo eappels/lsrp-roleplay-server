@@ -478,6 +478,14 @@ local function getInteriorExitPoints(location)
 	return exitPoints
 end
 
+local function getInteriorStoragePoint(location)
+	if type(location) ~= 'table' or type(location.interiorStorage) ~= 'table' then
+		return nil
+	end
+
+	return location.interiorStorage
+end
+
 local function isPlayerInsideApartmentShell(playerCoords, location)
 	if type(location) ~= 'table' then
 		return false
@@ -887,6 +895,8 @@ CreateThread(function()
 			local promptDistance = tonumber(Config and Config.PromptDistance) or 1.6
 			local markerDistance = tonumber(Config and Config.MarkerDistance) or 15.0
 			local nearestExitDistance = nil
+			local storagePoint = getInteriorStoragePoint(activeLocation)
+			local storageDistance = nil
 			for _, exitPoint in ipairs(getInteriorExitPoints(activeLocation)) do
 				local exitCoords = toVector3(exitPoint)
 				if exitCoords then
@@ -901,7 +911,24 @@ CreateThread(function()
 				end
 			end
 
-			if nearestExitDistance then
+			local storageCoords = toVector3(storagePoint)
+			if currentApartment and storageCoords then
+				local distance = #(playerCoords - storageCoords)
+				if distance <= markerDistance then
+					waitMs = 0
+					drawInteractionMarker(storagePoint)
+				end
+				if distance <= promptDistance then
+					storageDistance = distance
+				end
+			end
+
+			if storageDistance and (not nearestExitDistance or storageDistance <= nearestExitDistance) then
+				showHelpText((Config and Config.Text and Config.Text.storagePrompt) or 'Press ~INPUT_CONTEXT~ to open apartment storage')
+				if isInteractControlJustPressed() then
+					TriggerServerEvent('lsrp_housing:requestStorageAccess', currentApartment.apartment_number)
+				end
+			elseif nearestExitDistance then
 				showHelpText((Config and Config.Text and Config.Text.exitPrompt) or 'Press ~INPUT_CONTEXT~ to leave your apartment')
 				if isInteractControlJustPressed() then
 					leaveApartment(activeApartment.location_index)

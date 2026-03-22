@@ -81,6 +81,49 @@ Config.Items = {
 		image = 'lockpick-BY_OMax9.png',
 		description = 'Useful when a key is missing.'
 	},
+	gascan = {
+		label = 'Gas Can',
+		weight = 2500,
+		maxStack = 1,
+		image = 'gasoline-D7lxSjl8.png',
+		description = 'A portable gasoline can for emergency refueling.',
+		use = {
+			label = 'Refuel Vehicle',
+			mode = 'anim',
+			animDict = 'amb@world_human_security_shine_torch@male@base',
+			animName = 'base',
+			flag = 1,
+			durationMs = 10000,
+			consumeAmount = 1,
+			requireOnFoot = true,
+			effect = {
+				type = 'vehicle_refuel_amount',
+				amount = 20.0,
+				maxDistance = 5.5
+			}
+		}
+	},
+	repairkit = {
+		label = 'Repair Kit',
+		weight = 1800,
+		maxStack = 2,
+		image = 'repairkit-CuvccWdB.png',
+		description = 'Basic tools and parts for quick roadside repairs.',
+		use = {
+			label = 'Repair Vehicle',
+			mode = 'anim',
+			animDict = 'mp_car_bomb',
+			animName = 'car_bomb_mechanic',
+			flag = 49,
+			durationMs = 10000,
+			consumeAmount = 1,
+			requireOnFoot = true,
+			effect = {
+				type = 'vehicle_repair_full',
+				maxDistance = 4.0
+			}
+		}
+	},
 	joint = {
 		label = 'Joint',
 		weight = 50,

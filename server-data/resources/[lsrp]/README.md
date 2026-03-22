@@ -15,6 +15,7 @@ This index covers the custom `lsrp_*` resources.
 - [lsrp_mapedits](lsrp_mapedits/README.md): Client-side map edits, barrier removal, and prop hiding.
 - [lsrp_pededitor](lsrp_pededitor/README.md): Character appearance editor and outfit persistence.
 - [lsrp_phones](lsrp_phones/README.md): Phone UI, phonebook, and call flow.
+- [lsrp_shops](lsrp_shops/README.md): 24/7 convenience stores and item purchases.
 - [lsrp_scroot](lsrp_scroot/README.md): Placeholder resource.
 - [lsrp_spawner](lsrp_spawner/README.md): Player spawn and respawn flow.
 - [lsrp_testing](lsrp_testing/README.md): Sandbox and test resource.

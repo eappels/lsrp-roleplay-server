@@ -67,6 +67,24 @@ local function roundFuelValue(value)
     return math.floor((numericValue * 10.0) + 0.5) / 10.0
 end
 
+local function getNativeDriveFuelFloor(tankCapacity)
+    local normalizedTankCapacity = clampTankCapacity(tankCapacity)
+    local floorPercent = math.max(0.0, tonumber(Config.NativeFuelDriveFloorPercent) or 10.0)
+    local floorAbsolute = math.max(0.0, tonumber(Config.NativeFuelDriveFloorAbsolute) or 0.0)
+    local floorByPercent = normalizedTankCapacity * (floorPercent / 100.0)
+    return math.min(normalizedTankCapacity, math.max(floorAbsolute, floorByPercent))
+end
+
+local function getNativeFuelLevelForVehicle(logicalFuelLevel, tankCapacity)
+    local normalizedTankCapacity = clampTankCapacity(tankCapacity)
+    local logicalFuel = clampFuelLevel(logicalFuelLevel, normalizedTankCapacity)
+    if logicalFuel <= 0.0 then
+        return 0.0
+    end
+
+    return math.max(logicalFuel, getNativeDriveFuelFloor(normalizedTankCapacity))
+end
+
 local function requestVehicleControl(vehicle, timeoutMs)
     if vehicle == 0 or not DoesEntityExist(vehicle) then
         return false
@@ -263,15 +281,17 @@ local function setVehicleFuelLevelSafe(vehicle, fuelLevel, replicate)
     end
 
     local tankCapacity = getVehicleTankCapacity(vehicle)
-    local currentFuel = clampFuelLevel(GetVehicleFuelLevel(vehicle), tankCapacity)
+    local currentFuel = getStateFuel(vehicle) or clampFuelLevel(GetVehicleFuelLevel(vehicle), tankCapacity)
     local clampedFuel = clampFuelLevel(fuelLevel, tankCapacity)
+    local nativeFuelLevel = getNativeFuelLevelForVehicle(clampedFuel, tankCapacity)
 
     if clampedFuel >= currentFuel then
         clampedFuel = snapFuelLevelToCapacity(clampedFuel, tankCapacity)
+        nativeFuelLevel = getNativeFuelLevelForVehicle(clampedFuel, tankCapacity)
     end
 
     requestVehicleControl(vehicle, 500)
-    SetVehicleFuelLevel(vehicle, clampedFuel)
+    SetVehicleFuelLevel(vehicle, nativeFuelLevel)
 
     local entityState = Entity(vehicle).state
     if entityState then
@@ -301,20 +321,21 @@ local function getVehicleFuelLevelSafe(vehicle)
     local nativeFuel = clampFuelLevel(GetVehicleFuelLevel(vehicle), tankCapacity)
     if stateFuel ~= nil then
         local tolerance = tonumber(Config.SyncTolerance) or 0.2
+        local nativeDriveFuelFloor = getNativeDriveFuelFloor(tankCapacity)
+        local desiredNativeFuel = getNativeFuelLevelForVehicle(stateFuel, tankCapacity)
 
         -- Prefer the local native value while fuel is decreasing so stale replicated
         -- state does not snap the tank back up between sync updates.
-        if nativeFuel < stateFuel then
+        if nativeFuel > (nativeDriveFuelFloor + tolerance) and nativeFuel < stateFuel then
             return nativeFuel
         end
 
-        if math.abs(nativeFuel - stateFuel) > tolerance then
+        if math.abs(nativeFuel - desiredNativeFuel) > tolerance then
             requestVehicleControl(vehicle, 500)
-            SetVehicleFuelLevel(vehicle, stateFuel)
-            nativeFuel = stateFuel
+            SetVehicleFuelLevel(vehicle, desiredNativeFuel)
         end
 
-        return nativeFuel
+        return stateFuel
     end
 
     return setVehicleFuelLevelSafe(vehicle, nativeFuel, true)
@@ -325,15 +346,15 @@ local function stopVehicleWhenOutOfFuel(vehicle)
         return
     end
 
-    SetVehicleEngineOn(vehicle, false, true, true)
-    SetVehicleUndriveable(vehicle, true)
+    if not GetIsVehicleEngineRunning(vehicle) then
+        return
+    end
 
-    CreateThread(function()
-        Wait(150)
-        if DoesEntityExist(vehicle) then
-            SetVehicleUndriveable(vehicle, false)
-        end
-    end)
+    SetVehicleEngineOn(vehicle, false, true, true)
+end
+
+local function isFuelExhausted(fuelLevel)
+    return (tonumber(fuelLevel) or 0.0) <= 0.0
 end
 
 local function getConsumptionMultiplier(vehicle)
@@ -876,7 +897,7 @@ CreateThread(function()
                     end
 
                     local nextFuelLevel = setVehicleFuelLevelSafe(vehicle, fuelLevel - delta, true)
-                    if nextFuelLevel and nextFuelLevel <= (tonumber(Config.EmptyFuelThreshold) or 0.1) then
+                    if isFuelExhausted(nextFuelLevel) then
                         stopVehicleWhenOutOfFuel(vehicle)
                     end
                 end
@@ -923,7 +944,7 @@ CreateThread(function()
                     end
 
                     local nextFuelLevel = setVehicleFuelLevelSafe(vehicle, fuelLevel - delta, true)
-                    if nextFuelLevel and nextFuelLevel <= (tonumber(Config.EmptyFuelThreshold) or 0.1) then
+                    if isFuelExhausted(nextFuelLevel) then
                         stopVehicleWhenOutOfFuel(vehicle)
                     end
                 end
@@ -1086,6 +1107,14 @@ end)
 
 exports('getFuel', function(vehicle)
     return getVehicleFuelLevelSafe(vehicle)
+end)
+
+exports('getTankCapacity', function(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) or not isFuelManagedVehicle(vehicle) then
+        return nil
+    end
+
+    return getVehicleTankCapacity(vehicle)
 end)
 
 exports('getEmptyFuelThreshold', function()

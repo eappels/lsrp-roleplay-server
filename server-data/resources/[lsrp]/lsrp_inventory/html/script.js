@@ -5,10 +5,15 @@ const resourceName = typeof window.GetParentResourceName === 'function'
 const state = {
 	visible: false,
 	inventory: { slots: 0, maxWeight: 0, items: [] },
-	target: null,
+	transferTarget: null,
+	stashTarget: null,
 	nearbyPlayers: [],
 	drag: null
 };
+
+function getActiveTarget() {
+	return state.stashTarget || state.transferTarget;
+}
 
 const appElement = document.getElementById('app');
 const closeButton = document.getElementById('close-btn');
@@ -63,11 +68,22 @@ function normalizeTarget(raw) {
 	if (!raw || typeof raw !== 'object') {
 		return null;
 	}
+	const rawTargetId = raw.targetId;
+	const normalizedTargetId = typeof rawTargetId === 'string'
+		? rawTargetId
+		: Math.max(1, toInteger(rawTargetId, 0));
 	return {
-		targetId: Math.max(1, toInteger(raw.targetId, 0)),
+		targetId: normalizedTargetId,
 		targetName: String(raw.targetName || 'Player'),
-		targetInventory: normalizeInventory(raw.targetInventory || {})
+		targetKind: String(raw.targetKind || 'player'),
+		targetInventory: normalizeInventory(raw.targetInventory || {}),
+		targetMeta: raw.targetMeta && typeof raw.targetMeta === 'object' ? raw.targetMeta : null
 	};
+}
+
+function isStashTarget() {
+	const activeTarget = getActiveTarget();
+	return Boolean(activeTarget && activeTarget.targetKind === 'stash');
 }
 
 function getItemsBySlot(inventory) {
@@ -304,7 +320,7 @@ async function resolveDragAmount(item, verb) {
 	return showAmountModal(`${verb} how many ${item.label || item.name}?`, maximum);
 }
 
-function beginDrag(event, slotIndex, item, sourceElement) {
+function beginDrag(event, slotIndex, item, sourceElement, panel) {
 	if (event.button !== 0 || !state.visible || !amountModal.classList.contains('hidden')) {
 		return;
 	}
@@ -312,7 +328,7 @@ function beginDrag(event, slotIndex, item, sourceElement) {
 	event.preventDefault();
 	resetDragState();
 	state.drag = {
-		panel: 'self',
+		panel: panel,
 		slot: slotIndex,
 		item,
 		sourceElement,
@@ -372,8 +388,8 @@ function buildSlot(slotIndex, item, panel) {
 	}
 	slot.appendChild(info);
 
-	if (panel === 'self' && item) {
-		slot.addEventListener('mousedown', (event) => beginDrag(event, slotIndex, item, slot));
+	if ((panel === 'self' && item) || (panel === 'target' && item && isStashTarget())) {
+		slot.addEventListener('mousedown', (event) => beginDrag(event, slotIndex, item, slot, panel));
 	}
 
 	return slot;
@@ -392,7 +408,8 @@ function renderInventoryPanels() {
 		selfGrid.appendChild(buildSlot(slot, itemsBySlot[slot] || null, 'self'));
 	}
 
-	if (!state.target) {
+	const activeTarget = getActiveTarget();
+	if (!activeTarget) {
 		targetPanelTitle.textContent = 'Nearby Players';
 		targetGrid.classList.add('panel-hidden');
 		if (nearbyPanel) {
@@ -409,7 +426,9 @@ function renderInventoryPanels() {
 		return;
 	}
 
-	targetPanelTitle.textContent = `${state.target.targetName} (${state.target.targetId})`;
+	targetPanelTitle.textContent = isStashTarget()
+		? activeTarget.targetName
+		: `${activeTarget.targetName} (${activeTarget.targetId})`;
 	targetGrid.classList.remove('panel-hidden');
 	if (nearbyPanel) {
 		nearbyPanel.classList.add('panel-hidden');
@@ -421,7 +440,7 @@ function renderInventoryPanels() {
 		refreshNearbyButton.disabled = true;
 	}
 	targetGrid.innerHTML = '';
-	const targetInventory = normalizeInventory(state.target.targetInventory);
+	const targetInventory = normalizeInventory(activeTarget.targetInventory);
 	const targetItemsBySlot = getItemsBySlot(targetInventory);
 	for (let slot = 1; slot <= targetInventory.slots; slot += 1) {
 		targetGrid.appendChild(buildSlot(slot, targetItemsBySlot[slot] || null, 'target'));
@@ -429,12 +448,14 @@ function renderInventoryPanels() {
 }
 
 async function handleDropAction(target) {
-	if (!state.drag || state.drag.panel !== 'self') {
+	if (!state.drag) {
 		return;
 	}
 
 	const sourceItem = state.drag.item;
 	const sourceSlot = state.drag.slot;
+	const isSelfDrag = state.drag.panel === 'self';
+	const isTargetDrag = state.drag.panel === 'target';
 
 	if (!target) {
 		setStatus('Drag cancelled.');
@@ -442,6 +463,11 @@ async function handleDropAction(target) {
 	}
 
 	if (target.type === 'use') {
+		if (!isSelfDrag) {
+			setStatus('Only your own inventory items can be used here.');
+			return;
+		}
+
 		if (isTransientInventoryItem(sourceItem)) {
 			setStatus('Key items cannot be used here.');
 			return;
@@ -469,6 +495,11 @@ async function handleDropAction(target) {
 	}
 
 	if (target.type === 'ground') {
+		if (!isSelfDrag) {
+			setStatus('Storage items cannot be dropped directly to the ground.');
+			return;
+		}
+
 		if (isTransientInventoryItem(sourceItem)) {
 			setStatus('Key items cannot be dropped.');
 			return;
@@ -493,7 +524,7 @@ async function handleDropAction(target) {
 		return;
 	}
 
-	if (target.type === 'slot' && target.panel === 'self') {
+	if (target.type === 'slot' && target.panel === 'self' && isSelfDrag) {
 		if (target.slot < 1 || target.slot === sourceSlot) {
 			setStatus('Drag cancelled.');
 			return;
@@ -517,13 +548,14 @@ async function handleDropAction(target) {
 		return;
 	}
 
-	if (target.type === 'slot' && target.panel === 'target') {
+	if (target.type === 'slot' && target.panel === 'target' && isSelfDrag) {
 		if (isTransientInventoryItem(sourceItem)) {
 			setStatus('Key items cannot be transferred.');
 			return;
 		}
 
-		if (!state.target || !state.target.targetId) {
+		const activeTarget = getActiveTarget();
+		if (!activeTarget || !activeTarget.targetId) {
 			setStatus('Open a target inventory first.');
 			return;
 		}
@@ -537,17 +569,86 @@ async function handleDropAction(target) {
 		} else {
 			amount = Math.max(1, toInteger(sourceItem.count, 1));
 		}
-		const response = await postNui('giveItem', {
-			targetId: state.target.targetId,
+		let response;
+		if (isStashTarget()) {
+			response = await postNui('storeItemInStash', {
+				stashId: activeTarget.targetId,
+				fromSlot: sourceSlot,
+				toSlot: target.slot,
+				amount
+			});
+		} else {
+			response = await postNui('giveItem', {
+				targetId: activeTarget.targetId,
+				fromSlot: sourceSlot,
+				toSlot: target.slot,
+				amount
+			});
+		}
+		if (!response || response.ok !== true) {
+			setStatus(isStashTarget() ? 'Could not store item.' : 'Could not give item.');
+			return;
+		}
+		setStatus(isStashTarget()
+			? `Stored ${sourceItem.label || sourceItem.name} x${amount}.`
+			: `Gave ${sourceItem.label || sourceItem.name} x${amount}.`);
+		return;
+	}
+
+	if (isTargetDrag && isStashTarget() && target.type === 'slot' && target.panel === 'self') {
+		let amount;
+		if (state.drag && state.drag.ctrl) {
+			amount = await resolveDragAmount(sourceItem, 'Retrieve');
+			if (amount === null) {
+				setStatus('Retrieve cancelled.');
+				return;
+			}
+		} else {
+			amount = Math.max(1, toInteger(sourceItem.count, 1));
+		}
+
+		const response = await postNui('takeItemFromStash', {
+			stashId: getActiveTarget().targetId,
 			fromSlot: sourceSlot,
 			toSlot: target.slot,
 			amount
 		});
 		if (!response || response.ok !== true) {
-			setStatus('Could not give item.');
+			setStatus('Could not retrieve item.');
 			return;
 		}
-		setStatus(`Gave ${sourceItem.label || sourceItem.name} x${amount}.`);
+		setStatus(`Retrieved ${sourceItem.label || sourceItem.name} x${amount}.`);
+		return;
+	}
+
+	if (isTargetDrag && isStashTarget() && target.type === 'slot' && target.panel === 'target') {
+		if (target.slot < 1 || target.slot === sourceSlot) {
+			setStatus('Drag cancelled.');
+			return;
+		}
+
+		let amount;
+		if (state.drag && state.drag.ctrl) {
+			amount = await resolveDragAmount(sourceItem, 'Move');
+			if (amount === null) {
+				setStatus('Move cancelled.');
+				return;
+			}
+		} else {
+			amount = Math.max(1, toInteger(sourceItem.count, 1));
+		}
+
+		const response = await postNui('moveItemInStash', {
+			stashId: getActiveTarget().targetId,
+			fromSlot: sourceSlot,
+			toSlot: target.slot,
+			amount
+		});
+		if (!response || response.ok !== true) {
+			setStatus('Could not move storage item.');
+			return;
+		}
+		setStatus('Storage item moved.');
 	}
 }
 
@@ -577,7 +678,9 @@ closeButton.addEventListener('click', () => {
 
 if (closeTargetButton) {
 	closeTargetButton.addEventListener('click', () => {
-		state.target = null;
+		postNui('closeTargetContext');
+			state.transferTarget = null;
+			state.stashTarget = null;
 		renderInventoryPanels();
 		setStatus('Target panel closed.');
 	});
@@ -630,22 +733,40 @@ window.addEventListener('message', (event) => {
 		return;
 	}
 
-	if (payload.action === 'setTransferTarget') {
-		state.target = normalizeTarget(payload.target);
-		renderInventoryPanels();
-		return;
-	}
-
 	if (payload.action === 'setNearbyPlayers') {
 		state.nearbyPlayers = Array.isArray(payload.players) ? payload.players : [];
-		if (!state.target) {
+		if (!getActiveTarget()) {
 			renderNearbyPlayers();
 		}
 		return;
 	}
 
+	if (payload.action === 'setSecondaryTarget') {
+		const normalizedTarget = normalizeTarget(payload.target);
+		if (normalizedTarget && normalizedTarget.targetKind === 'stash') {
+			state.stashTarget = normalizedTarget;
+		} else {
+			state.transferTarget = normalizedTarget;
+		}
+		renderInventoryPanels();
+		return;
+	}
+
+	if (payload.action === 'clearSecondaryTarget') {
+		state.transferTarget = null;
+		state.stashTarget = null;
+		renderInventoryPanels();
+		return;
+	}
+
 	if (payload.action === 'clearTransferTarget') {
-		state.target = null;
+		state.transferTarget = null;
+		renderInventoryPanels();
+		return;
+	}
+
+	if (payload.action === 'clearStashTarget') {
+		state.stashTarget = null;
 		renderInventoryPanels();
 	}
 });

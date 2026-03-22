@@ -42,7 +42,8 @@ Config.Text = {
 	catalogPrompt = 'Press ~INPUT_CONTEXT~ to manage apartments',
 	kioskPrompt = 'Press ~INPUT_CONTEXT~ to manage rent',
 	exitPrompt = 'Press ~INPUT_CONTEXT~ to leave your apartment',
-	exitFallbackPrompt = 'Press ~INPUT_CONTEXT~ to leave the apartment'
+	exitFallbackPrompt = 'Press ~INPUT_CONTEXT~ to leave the apartment',
+	storagePrompt = 'Press ~INPUT_CONTEXT~ to open apartment storage'
 }
 
 Config.DefaultApartments = {
@@ -65,6 +66,15 @@ Config.Locations = {
 		catalog = { x = -260.39, y = -965.37, z = 31.22, w = 68.0 },
 		exteriorSpawn = { x = -263.59, y = -959.94, z = 31.22, w = 248.0 },
 		interiorSpawn = { x = 266.08, y = -1007.52, z = -101.01, w = 356.0 },
-		interiorExit = { x = 266.08, y = -1007.51, z = -101.01, w = 182.0 }
+		interiorExit = { x = 266.08, y = -1007.51, z = -101.01, w = 182.0 },
+		interiorStorage = {
+			x = 260.02,
+			y = -1004.05,
+			z = -99.01,
+			w = 0.0,
+			label = 'Apartment Storage',
+			slots = 40,
+			maxWeight = 75000
+		}
 	}
 }

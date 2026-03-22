@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSRP Shops</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div id="app" class="hidden">
+        <div class="backdrop"></div>
+        <main class="panel">
+            <header class="panel-header">
+                <div>
+                    <p id="catalog-label" class="eyebrow">24/7 Essentials</p>
+                    <h1 id="shop-name">24/7 Supermarket</h1>
+                    <p id="shop-subtitle" class="subtitle">Quick essentials.</p>
+                </div>
+                <div class="header-actions">
+                    <div class="balance-card">
+                        <span class="balance-label">Available</span>
+                        <strong id="balance-text">LS$0</strong>
+                    </div>
+                    <button id="close-btn" class="close-btn" type="button" aria-label="Close">Close</button>
+                </div>
+            </header>
+
+            <section class="panel-meta">
+                <p>Walk-up purchases for quick RP essentials. Inventory limits still apply.</p>
+            </section>
+
+            <section id="item-grid" class="item-grid"></section>
+        </main>
+
+        <div id="toast" class="toast hidden"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

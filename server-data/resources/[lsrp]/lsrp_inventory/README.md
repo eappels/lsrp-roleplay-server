@@ -11,6 +11,8 @@ Rebuilt from scratch as a simple slot-based inventory resource.
 - Split stacks with an amount modal.
 - Drag to a ground drop zone to drop items.
 - World pickup markers for dropped items.
+- Player inventory persistence through `oxmysql`.
+- Persistent named storage stashes.
 - Server exports for adding and removing items.
 
 ## Controls
@@ -38,7 +40,6 @@ Edit `shared/config.lua` to change:
 
 ## Suggested next improvements
 
-- Database persistence for player inventories
 - Named stashes / trunks / gloveboxes
 - Item use callbacks and durability
 - Nearby player list instead of typing target ID

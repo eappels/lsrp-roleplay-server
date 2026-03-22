@@ -977,8 +977,9 @@ body.show-phone .phone {
 .calls-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    overflow: hidden;
+    gap: 10px;
+    overflow-y: auto;
+    padding-bottom: 18px;
 }
 
 .calls-hero,
@@ -1041,11 +1042,11 @@ body.show-phone .phone {
 .dial-pad {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+    gap: 10px;
 }
 
 .dial-key {
-    height: 60px;
+    height: 54px;
     border-radius: 20px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     background: rgba(255, 255, 255, 0.07);

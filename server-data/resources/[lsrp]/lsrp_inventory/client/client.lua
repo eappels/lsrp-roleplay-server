@@ -4,11 +4,17 @@ local latestInventory = {
 	maxWeight = 0,
 	items = {}
 }
-local latestTarget = nil
+local latestTransferTarget = nil
+local latestStashTarget = nil
 local worldDrops = {}
 local latestNearbyPlayers = {}
 local useInProgress = false
 local activeUseToken = nil
+local activeUseContext = nil
+
+local function getActiveTarget()
+	return latestStashTarget or latestTransferTarget
+end
 
 local function notifyLocal(message)
 	if not message or message == '' then
@@ -121,14 +127,190 @@ local function finishUseAnimation()
 	activeUseToken = nil
 end
 
-local function applyUseEffect(effect)
+local function requestVehicleControl(vehicle, timeoutMs)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	if not NetworkGetEntityIsNetworked(vehicle) or NetworkHasControlOfEntity(vehicle) then
+		return true
+	end
+
+	local timeoutAt = GetGameTimer() + math.max(0, math.floor(tonumber(timeoutMs) or 500))
+	NetworkRequestControlOfEntity(vehicle)
+	while GetGameTimer() < timeoutAt do
+		if NetworkHasControlOfEntity(vehicle) then
+			return true
+		end
+		Wait(0)
+		NetworkRequestControlOfEntity(vehicle)
+	end
+
+	return NetworkHasControlOfEntity(vehicle)
+end
+
+local function findClosestVehicle(maxDistance, predicate)
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) then
+		return 0, nil
+	end
+
+	local playerCoords = GetEntityCoords(ped)
+	local searchRadius = math.max(0.0, tonumber(maxDistance) or 4.0)
+	local closestVehicle = 0
+	local closestValue = nil
+	local closestDistance = searchRadius + 0.001
+
+	local nativeClosestVehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, searchRadius + 0.0, 0, 71)
+	if nativeClosestVehicle ~= 0 and DoesEntityExist(nativeClosestVehicle) then
+		local matches, value = predicate(nativeClosestVehicle)
+		if matches == true then
+			return nativeClosestVehicle, value
+		end
+	end
+
+	for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+		if vehicle ~= 0 and DoesEntityExist(vehicle) then
+			local distance = #(playerCoords - GetEntityCoords(vehicle))
+			if distance <= searchRadius and distance < closestDistance then
+				local matches, value = predicate(vehicle)
+				if matches == true then
+					closestVehicle = vehicle
+					closestValue = value
+					closestDistance = distance
+				end
+			end
+		end
+	end
+
+	return closestVehicle, closestValue
+end
+
+local function getClosestRefuelableVehicle(maxDistance)
+	if GetResourceState('lsrp_fuel') ~= 'started' then
+		return 0, nil
+	end
+
+	return findClosestVehicle(maxDistance, function(vehicle)
+		local okFuel, currentFuel = pcall(function()
+			return exports['lsrp_fuel']:getFuel(vehicle)
+		end)
+		local okCapacity, tankCapacity = pcall(function()
+			return exports['lsrp_fuel']:getTankCapacity(vehicle)
+		end)
+		if okFuel and type(currentFuel) == 'number' and okCapacity and type(tankCapacity) == 'number' then
+			return true, {
+				currentFuel = currentFuel,
+				tankCapacity = tankCapacity
+			}
+		end
+
+		return false, nil
+	end)
+end
+
+local function getClosestRepairableVehicle(maxDistance)
+	return findClosestVehicle(maxDistance, function(vehicle)
+		local engineHealth = tonumber(GetVehicleEngineHealth(vehicle)) or 1000.0
+		local bodyHealth = tonumber(GetVehicleBodyHealth(vehicle)) or 1000.0
+		local petrolTankHealth = tonumber(GetVehiclePetrolTankHealth(vehicle)) or 1000.0
+		local isDriveable = IsVehicleDriveable(vehicle, false)
+		local needsRepair = engineHealth < 990.0 or bodyHealth < 990.0 or petrolTankHealth < 990.0 or not isDriveable
+		if needsRepair then
+			return true, {
+				engineHealth = engineHealth,
+				bodyHealth = bodyHealth,
+				petrolTankHealth = petrolTankHealth
+			}
+		end
+
+		return false, nil
+	end)
+end
+
+local function buildUseEffectContext(effect)
 	if type(effect) ~= 'table' then
-		return
+		return nil, nil
+	end
+
+	local effectType = tostring(effect.type or '')
+	if effectType == 'vehicle_refuel_amount' or effectType == 'vehicle_refuel_full' then
+		local maxDistance = math.max(1.0, tonumber(effect.maxDistance) or 4.0)
+		local vehicle, fuelData = getClosestRefuelableVehicle(maxDistance)
+		if vehicle == 0 or type(fuelData) ~= 'table' then
+			return nil, 'Stand next to a vehicle to use the gas can.'
+		end
+
+		local networkId = NetworkGetEntityIsNetworked(vehicle) and NetworkGetNetworkIdFromEntity(vehicle) or nil
+		return {
+			effectType = effectType,
+			vehicle = vehicle,
+			networkId = networkId,
+			maxDistance = maxDistance,
+			fuelData = {
+				currentFuel = fuelData.currentFuel,
+				tankCapacity = fuelData.tankCapacity
+			}
+		}, nil
+	end
+
+	if effectType == 'vehicle_repair_full' then
+		local maxDistance = math.max(1.0, tonumber(effect.maxDistance) or 4.0)
+		local vehicle = getClosestRepairableVehicle(maxDistance)
+		if vehicle == 0 then
+			return nil, 'Stand next to a damaged vehicle to use the repair kit.'
+		end
+
+		local networkId = NetworkGetEntityIsNetworked(vehicle) and NetworkGetNetworkIdFromEntity(vehicle) or nil
+		return {
+			effectType = effectType,
+			vehicle = vehicle,
+			networkId = networkId,
+			maxDistance = maxDistance
+		}, nil
+	end
+
+	return nil, nil
+end
+
+local function getVehicleFromUseContext(effect, context)
+	if type(context) ~= 'table' then
+		return 0, nil
+	end
+
+	local vehicle = tonumber(context.vehicle) or 0
+	if vehicle ~= 0 and DoesEntityExist(vehicle) then
+		return vehicle, type(context.fuelData) == 'table' and context.fuelData or nil
+	end
+
+	local networkId = tonumber(context.networkId) or 0
+	if networkId > 0 and NetworkDoesEntityExistWithNetworkId(networkId) then
+		local networkVehicle = NetworkGetEntityFromNetworkId(networkId)
+		if networkVehicle ~= 0 and DoesEntityExist(networkVehicle) then
+			return networkVehicle, type(context.fuelData) == 'table' and context.fuelData or nil
+		end
+	end
+
+	if type(effect) == 'table' then
+		local effectType = tostring(effect.type or '')
+		if effectType == 'vehicle_refuel_amount' or effectType == 'vehicle_refuel_full' then
+			return getClosestRefuelableVehicle(math.max(1.0, tonumber(context.maxDistance) or tonumber(effect.maxDistance) or 4.0))
+		elseif effectType == 'vehicle_repair_full' then
+			return getClosestRepairableVehicle(math.max(1.0, tonumber(context.maxDistance) or tonumber(effect.maxDistance) or 4.0))
+		end
+	end
+
+	return 0, nil
+end
+
+local function applyUseEffect(effect, context)
+	if type(effect) ~= 'table' then
+		return false
 	end
 
 	local ped = PlayerPedId()
 	if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
-		return
+		return false
 	end
 
 	if tostring(effect.type or '') == 'heal' then
@@ -136,11 +318,179 @@ local function applyUseEffect(effect)
 		local currentHealth = GetEntityHealth(ped)
 		local maxHealth = GetEntityMaxHealth(ped)
 		if currentHealth <= 0 or maxHealth <= 0 then
-			return
+			return false
 		end
 
 		SetEntityHealth(ped, math.min(maxHealth, currentHealth + healAmount))
+		return true
 	end
+
+	if tostring(effect.type or '') == 'vehicle_refuel_amount' then
+		if GetResourceState('lsrp_fuel') ~= 'started' then
+			notifyLocal('Fuel service is unavailable right now.')
+			return false
+		end
+
+		local requestedAmount = math.max(0.1, tonumber(effect.amount) or 20.0)
+		local closestVehicle, fuelData = getVehicleFromUseContext(effect, context)
+
+		if closestVehicle == 0 then
+			notifyLocal('Stand next to a vehicle to use the gas can.')
+			return false
+		end
+
+		if type(fuelData) ~= 'table' then
+			notifyLocal('That vehicle cannot be refueled right now.')
+			return false
+		end
+
+		local fuelNeeded = math.max(0.0, fuelData.tankCapacity - fuelData.currentFuel)
+		if fuelNeeded <= 0.25 then
+			notifyLocal('That vehicle is already full.')
+			return false
+		end
+
+		local amountToAdd = math.min(requestedAmount, fuelNeeded)
+		requestVehicleControl(closestVehicle, 1000)
+		local okAddFuel, resultFuel = pcall(function()
+			return exports['lsrp_fuel']:addFuel(closestVehicle, amountToAdd)
+		end)
+		if not okAddFuel or type(resultFuel) ~= 'number' then
+			notifyLocal('Fueling the nearby vehicle failed.')
+			return false
+		end
+
+		local appliedAmount = math.max(0.0, math.floor((math.min(resultFuel, fuelData.tankCapacity) - fuelData.currentFuel) * 10.0 + 0.5) / 10.0)
+		if appliedAmount <= 0.0 then
+			notifyLocal('That vehicle is already full.')
+			return false
+		end
+
+		notifyLocal(('Added %.1f liters to the nearby vehicle.'):format(appliedAmount))
+		return true
+	end
+
+	if tostring(effect.type or '') == 'vehicle_refuel_full' then
+		if GetResourceState('lsrp_fuel') ~= 'started' then
+			notifyLocal('Fuel service is unavailable right now.')
+			return false
+		end
+
+		local maxDistance = math.max(1.0, tonumber(effect.maxDistance) or 4.0)
+        local closestVehicle, fuelData = getClosestRefuelableVehicle(maxDistance)
+
+		if closestVehicle == 0 then
+			notifyLocal('Stand next to a vehicle to use the gas can.')
+			return false
+		end
+
+		if type(fuelData) ~= 'table' then
+			notifyLocal('That vehicle cannot be refueled right now.')
+			return false
+		end
+
+		if fuelData.currentFuel >= (fuelData.tankCapacity - 0.25) then
+			notifyLocal('That vehicle is already full.')
+			return false
+		end
+
+		local okSetFuel, resultFuel = pcall(function()
+			return exports['lsrp_fuel']:setFuel(closestVehicle, fuelData.tankCapacity)
+		end)
+		if not okSetFuel or type(resultFuel) ~= 'number' then
+			notifyLocal('Fueling the nearby vehicle failed.')
+			return false
+		end
+
+		notifyLocal('Filled the nearby vehicle with your gas can.')
+		return true
+	end
+
+	if tostring(effect.type or '') == 'vehicle_repair_full' then
+		local closestVehicle = getVehicleFromUseContext(effect, context)
+		if closestVehicle == 0 then
+			notifyLocal('Stand next to a damaged vehicle to use the repair kit.')
+			return false
+		end
+
+		requestVehicleControl(closestVehicle, 750)
+		SetVehicleFixed(closestVehicle)
+		SetVehicleDeformationFixed(closestVehicle)
+		SetVehicleEngineHealth(closestVehicle, 1000.0)
+		SetVehicleBodyHealth(closestVehicle, 1000.0)
+		SetVehiclePetrolTankHealth(closestVehicle, 1000.0)
+		SetVehicleDirtLevel(closestVehicle, 0.0)
+
+		notifyLocal('Repaired the nearby vehicle with your repair kit.')
+		return true
+	end
+
+	return false
+end
+
+local function canApplyUseEffect(effect, context)
+	if type(effect) ~= 'table' then
+		return true
+	end
+
+	if tostring(effect.type or '') == 'vehicle_refuel_amount' then
+		local ped = PlayerPedId()
+		if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
+			return false, 'You cannot use that right now.'
+		end
+
+		if GetResourceState('lsrp_fuel') ~= 'started' then
+			return false, 'Fuel service is unavailable right now.'
+		end
+
+		local vehicle, fuelData = getVehicleFromUseContext(effect, context)
+		if vehicle ~= 0 and type(fuelData) == 'table' then
+			if fuelData.currentFuel < (fuelData.tankCapacity - 0.25) then
+				return true, nil
+			end
+			return false, 'That vehicle is already full.'
+		end
+
+		return false, 'Stand next to a vehicle to use the gas can.'
+	end
+
+	if tostring(effect.type or '') == 'vehicle_refuel_full' then
+		local ped = PlayerPedId()
+		if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
+			return false, 'You cannot use that right now.'
+		end
+
+		if GetResourceState('lsrp_fuel') ~= 'started' then
+			return false, 'Fuel service is unavailable right now.'
+		end
+
+		local maxDistance = math.max(1.0, tonumber(effect.maxDistance) or 4.0)
+		local vehicle, fuelData = getClosestRefuelableVehicle(maxDistance)
+		if vehicle ~= 0 and type(fuelData) == 'table' then
+			if fuelData.currentFuel < (fuelData.tankCapacity - 0.25) then
+				return true, nil
+			end
+			return false, 'That vehicle is already full.'
+		end
+
+		return false, 'Stand next to a vehicle to use the gas can.'
+	end
+
+	if tostring(effect.type or '') == 'vehicle_repair_full' then
+		local ped = PlayerPedId()
+		if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
+			return false, 'You cannot use that right now.'
+		end
+
+		local vehicle = getVehicleFromUseContext(effect, context)
+		if vehicle ~= 0 then
+			return true, nil
+		end
+
+		return false, 'Stand next to a damaged vehicle to use the repair kit.'
+	end
+
+	return true, nil
 end
 
 local function buildNearbyPlayersPayload()
@@ -197,11 +547,12 @@ local function setUiOpen(shouldOpen)
 
 	if shouldOpen then
 		SendNUIMessage({ action = 'setInventoryData', inventory = latestInventory })
-		SendNUIMessage({ action = 'setTransferTarget', target = latestTarget })
+		SendNUIMessage({ action = 'setSecondaryTarget', target = getActiveTarget() })
 		SendNUIMessage({ action = 'setNearbyPlayers', players = latestNearbyPlayers })
 	else
-		latestTarget = nil
-		SendNUIMessage({ action = 'clearTransferTarget' })
+		latestTransferTarget = nil
+		latestStashTarget = nil
+		SendNUIMessage({ action = 'clearSecondaryTarget' })
 	end
 end
 
@@ -232,13 +583,16 @@ RegisterNetEvent('lsrp_inventory:client:syncInventory', function(inventory)
 end)
 
 RegisterNetEvent('lsrp_inventory:client:syncTransferTarget', function(targetPayload)
-	latestTarget = type(targetPayload) == 'table' and targetPayload or nil
+	latestTransferTarget = type(targetPayload) == 'table' and targetPayload or nil
 	if uiOpen then
-		if latestTarget then
-			SendNUIMessage({ action = 'setTransferTarget', target = latestTarget })
-		else
-			SendNUIMessage({ action = 'clearTransferTarget' })
-		end
+		SendNUIMessage({ action = 'setSecondaryTarget', target = getActiveTarget() })
+	end
+end)
+
+RegisterNetEvent('lsrp_inventory:client:syncStashTarget', function(targetPayload)
+	latestStashTarget = type(targetPayload) == 'table' and targetPayload or nil
+	if uiOpen then
+		SendNUIMessage({ action = 'setSecondaryTarget', target = getActiveTarget() })
 	end
 end)
 
@@ -268,7 +622,13 @@ RegisterNetEvent('lsrp_inventory:client:setNearbyPlayers', function(players)
 end)
 
 RegisterNUICallback('closeInventory', function(_, cb)
+	TriggerServerEvent('lsrp_inventory:server:clearTargetContext')
 	setUiOpen(false)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('closeTargetContext', function(_, cb)
+	TriggerServerEvent('lsrp_inventory:server:clearTargetContext')
 	cb({ ok = true })
 end)
 
@@ -314,6 +674,45 @@ RegisterNUICallback('giveItem', function(data, cb)
 		return
 	end
 	TriggerServerEvent('lsrp_inventory:server:giveItem', targetId, fromSlot, toSlot, amount)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('storeItemInStash', function(data, cb)
+	local stashId = tostring(data and data.stashId or '')
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	local toSlot = math.floor(tonumber(data and data.toSlot) or 0)
+	local amount = math.floor(tonumber(data and data.amount) or 1)
+	if stashId == '' or fromSlot < 1 then
+		cb({ ok = false, error = 'invalid_params' })
+		return
+	end
+	TriggerServerEvent('lsrp_inventory:server:storeItemInStash', stashId, fromSlot, toSlot, amount)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('takeItemFromStash', function(data, cb)
+	local stashId = tostring(data and data.stashId or '')
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	local toSlot = math.floor(tonumber(data and data.toSlot) or 0)
+	local amount = math.floor(tonumber(data and data.amount) or 1)
+	if stashId == '' or fromSlot < 1 or toSlot < 1 then
+		cb({ ok = false, error = 'invalid_params' })
+		return
+	end
+	TriggerServerEvent('lsrp_inventory:server:takeItemFromStash', stashId, fromSlot, toSlot, amount)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('moveItemInStash', function(data, cb)
+	local stashId = tostring(data and data.stashId or '')
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	local toSlot = math.floor(tonumber(data and data.toSlot) or 0)
+	local amount = math.floor(tonumber(data and data.amount) or 1)
+	if stashId == '' or fromSlot < 1 or toSlot < 1 then
+		cb({ ok = false, error = 'invalid_params' })
+		return
+	end
+	TriggerServerEvent('lsrp_inventory:server:moveItemInStash', stashId, fromSlot, toSlot, amount)
 	cb({ ok = true })
 end)
 
@@ -364,11 +763,13 @@ RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
 	local itemLabel = tostring(item.label or item.name or 'item')
 
 	if token == '' or not useData then
+		activeUseContext = nil
 		TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
 		return
 	end
 
 	if useInProgress then
+		activeUseContext = nil
 		TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
 		notifyLocal('You are already using an item.')
 		return
@@ -377,11 +778,22 @@ RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
 	setUiOpen(false)
 	useInProgress = true
 	activeUseToken = token
+	activeUseContext = nil
+
+	local effectContext, effectContextError = buildUseEffectContext(useData.effect)
+	if effectContextError then
+		finishUseAnimation()
+		TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
+		notifyLocal(effectContextError)
+		return
+	end
+	activeUseContext = effectContext
 
 	CreateThread(function()
 		local started, errorCode = playItemUseAnimation(useData)
 		if not started then
 			finishUseAnimation()
+			activeUseContext = nil
 			TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
 			if errorCode == 'in_vehicle' then
 				notifyLocal('Exit your vehicle before using that item.')
@@ -412,8 +824,17 @@ RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
 
 		finishUseAnimation()
 		if cancelled then
+			activeUseContext = nil
 			TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
 			notifyLocal(('Using %s was interrupted.'):format(itemLabel))
+			return
+		end
+
+		local effectAllowed, effectError = canApplyUseEffect(useData.effect, activeUseContext)
+		if effectAllowed ~= true then
+			activeUseContext = nil
+			TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
+			notifyLocal(effectError or ('Could not use %s right now.'):format(itemLabel))
 			return
 		end
 
@@ -422,7 +843,8 @@ RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
 end)
 
 RegisterNetEvent('lsrp_inventory:client:applyUseEffect', function(effect)
-	applyUseEffect(effect)
+	applyUseEffect(effect, activeUseContext)
+	activeUseContext = nil
 end)
 
 RegisterCommand('inventory', function()

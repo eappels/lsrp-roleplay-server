@@ -29,6 +29,10 @@ local ringtoneActive = false
 local ringtoneSoundId = nil
 local ringtoneMode = nil
 local incomingCallAnswering = false
+local phoneOpenRequestPending = false
+
+local playPhoneOpenAnim
+local showPhoneUI
 
 -- Formats an integer balance as a comma-separated LS$ string without relying on
 -- lsrp_economy. Used as a fallback when the economy resource is unavailable.
@@ -200,6 +204,26 @@ local function showPhoneNotification(message)
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, false)
+end
+
+local function openPhoneInterface()
+	if phoneOpen then
+		return
+	end
+
+	phoneOpen = true
+	playPhoneOpenAnim()
+	showPhoneUI()
+	TriggerEvent('lsrp_phones:openPhone')
+end
+
+local function requestPhoneOpen()
+	if phoneOpenRequestPending then
+		return
+	end
+
+	phoneOpenRequestPending = true
+	TriggerServerEvent('lsrp_phones:server:requestOpenPhone')
 end
 
 local function trimString(value)
@@ -415,7 +439,7 @@ local function attachPhoneProp()
 end
 
 -- Play phone open animation
-local function playPhoneOpenAnim()
+playPhoneOpenAnim = function()
 	local ped = PlayerPedId()
 	
 	if loadAnimDict('cellphone@') then
@@ -446,7 +470,7 @@ local function stopPhoneAnim()
 end
 
 -- Show phone UI
-local function showPhoneUI()
+showPhoneUI = function()
 	SendNUIMessage({
 		action = 'openPhone'
 	})
@@ -465,28 +489,21 @@ end
 local function togglePhone()
 	if pendingIncomingCaller then
 		if not phoneOpen then
-			phoneOpen = true
-			playPhoneOpenAnim()
-			showPhoneUI()
-			TriggerEvent('lsrp_phones:openPhone')
+			openPhoneInterface()
 		end
 
 		acceptIncomingCall()
 		return
 	end
 
-	phoneOpen = not phoneOpen
-	
 	if phoneOpen then
-		-- Open phone
-		playPhoneOpenAnim()
-		showPhoneUI()
-		TriggerEvent('lsrp_phones:openPhone')
-	else
 		-- Close phone
+		phoneOpen = false
 		stopPhoneAnim()
 		hidePhoneUI()
 		TriggerEvent('lsrp_phones:closePhone')
+	else
+		requestPhoneOpen()
 	end
 end
 
@@ -648,6 +665,29 @@ RegisterNetEvent('lsrp_phones:client:receivePhonebook')
 AddEventHandler('lsrp_phones:client:receivePhonebook', function(entries)
 	phonebookEntries = type(entries) == 'table' and entries or {}
 	pushPhonebookToNui()
+end)
+
+RegisterNetEvent('lsrp_phones:client:openPhoneAuthorized')
+AddEventHandler('lsrp_phones:client:openPhoneAuthorized', function(phoneNumber)
+	phoneOpenRequestPending = false
+	playerPhoneNumber = phoneNumber and tostring(phoneNumber) or nil
+	pushPhoneNumberToNui()
+	openPhoneInterface()
+end)
+
+RegisterNetEvent('lsrp_phones:client:openPhoneDenied')
+AddEventHandler('lsrp_phones:client:openPhoneDenied', function(message)
+	phoneOpenRequestPending = false
+	playerPhoneNumber = nil
+	phonebookEntries = {}
+	pushPhoneNumberToNui()
+	pushPhonebookToNui()
+	showPhoneNotification(message or 'You need to buy a phone first.')
+	SendNUIMessage({
+		action = 'messageStatus',
+		message = message or 'You need to buy a phone first.',
+		isError = true
+	})
 end)
 
 RegisterNetEvent('lsrp_phones:client:receiveMessageConversations')

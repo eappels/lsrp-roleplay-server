@@ -23,6 +23,7 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 - Phonebook storage.
 - Phone number lookup and assignment.
 - Integration with parking data for vehicle lists.
+- Phone UI, phonebook visibility, and live call or message access now require owning a `phone` inventory item.
 
 ## Integrations
 
@@ -35,4 +36,5 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 ## Notes
 
 - This is a central player-facing UI resource.
+- Players can still use world parking zones without a phone; only the phone app is gated by phone ownership.
 - When debugging calls, check both the phone resource and `pma-voice` state.
