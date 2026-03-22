@@ -24,3 +24,17 @@ Notes:
 - Apartment numbers use the compact original scheme (for example `1001` = location `1`, apartment instance `001`).
 - Player commands accept either the full apartment number (for example `1001`) or a numeric shortcut (for example `1`) when that shortcut resolves to a single apartment.
 - Edit `shared/config.lua` to add real apartment buildings and interior/exterior coordinates for your map.
+
+## Database Schema
+
+- `apartments` table:
+  - `apartment_number`: Unique identifier for each apartment.
+  - `location_index`: Index of the apartment's location.
+  - `bucket`: Instance bucket for the apartment.
+  - `owner_identifier`: Owner's FiveM license.
+  - `price`: Purchase price of the apartment.
+  - `rent_due`: Next rent due date.
+
+## Notes
+
+- Transparent-safe NUI bootstrap path avoids fullscreen black overlay issues.

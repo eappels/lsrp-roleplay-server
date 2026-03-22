@@ -129,6 +129,12 @@ The system stores **all** vehicle properties including:
 - ✅ Xenon lights
 - ✅ Horn type
 
+## Additional Notes
+
+- Transactional retrieval ensures vehicles are marked as `out` only after successful client spawn.
+- Custom/addon vehicles resolve model hash from multiple candidates to handle non-spawnable display names.
+- `owned_vehicles` table tracks vehicle ownership and parking status.
+
 ## File Structure
 
 ```

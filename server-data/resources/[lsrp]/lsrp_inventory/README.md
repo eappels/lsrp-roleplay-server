@@ -38,8 +38,12 @@ Edit `shared/config.lua` to change:
 - Starter items
 - Item definitions
 
-## Suggested next improvements
+## Database Tables
 
-- Named stashes / trunks / gloveboxes
-- Item use callbacks and durability
-- Nearby player list instead of typing target ID
+- `lsrp_inventory_inventories`: Stores player inventories with `slots`, `max_weight`, and `items_json`.
+- `lsrp_inventory_stashes`: Stores persistent named storage stashes.
+
+## Notes
+
+- World drops are runtime-only and not persisted.
+- Suggested improvements: Add named stashes for trunks and gloveboxes.

@@ -25,6 +25,10 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 - Integration with parking data for vehicle lists.
 - Phone UI, phonebook visibility, and live call or message access now require owning a `phone` inventory item.
 
+## Database Tables
+
+- `phonebook_entries`: Stores phonebook data keyed by FiveM license.
+
 ## Integrations
 
 - `pma-voice`: call audio and routing.
@@ -38,3 +42,4 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 - This is a central player-facing UI resource.
 - Players can still use world parking zones without a phone; only the phone app is gated by phone ownership.
 - When debugging calls, check both the phone resource and `pma-voice` state.
+- Balance app integrates with `lsrp_economy` to display live LS$ balance updates.

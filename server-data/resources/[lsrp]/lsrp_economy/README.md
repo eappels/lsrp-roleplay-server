@@ -38,6 +38,11 @@ It is the main money service used by gameplay systems that need to charge, refun
 - `setBalance(playerSrc, amount, reason, metadata)`
 - `transferBalance(fromSrc, toSrc, amount, reason, metadata)`
 
+## Database Tables
+
+- `lsrp_economy_balances`: Stores player balances keyed by FiveM license.
+- `lsrp_economy_transactions`: Logs all transactions with metadata.
+
 ## Integrations
 
 Used by:
@@ -50,3 +55,5 @@ Used by:
 
 - This resource uses `oxmysql`.
 - Admin money commands should stay permission-gated.
+- Ensure runtime cache tables are initialized at startup to avoid nil-index crashes.
+- Common error: Parse error near EOF in `server/server.lua` can occur if `safeQueryAwait` is incomplete.

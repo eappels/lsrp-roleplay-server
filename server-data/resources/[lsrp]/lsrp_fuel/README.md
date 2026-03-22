@@ -35,6 +35,11 @@ Current scope:
 - `addFuel(vehicle, fuelDelta)`
 - `isRefueling()`
 
+## Additional Notes
+
+- Reconciliation logic in `getVehicleFuelLevelSafe` ensures stale state updates do not cause fuel level inconsistencies.
+- Integrated with `lsrp_vehicleparking` to persist fuel levels when vehicles are stored and retrieved.
+
 ## Notes
 
 - World pump objects are used for refueling interactions.
