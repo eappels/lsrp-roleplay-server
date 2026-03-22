@@ -888,6 +888,18 @@ CreateThread(function()
 			inferredLocationIndex, activeLocation = findInteriorLocationByCoords(playerCoords)
 			if inferredLocationIndex and activeLocation then
 				activeApartment = { location_index = inferredLocationIndex }
+
+				-- If we detect the player is inside an interior shell for a location
+				-- and the client knows exactly one owned apartment at that location,
+				-- assume the player spawned inside that apartment and set the
+				-- routing bucket on the server so storage access works immediately.
+				if not currentApartment then
+					local ownedAtLocation = findOwnedApartmentsForLocation(inferredLocationIndex)
+					if type(ownedAtLocation) == 'table' and #ownedAtLocation == 1 then
+						currentApartment = ownedAtLocation[1]
+						TriggerServerEvent('lsrp_housing:setBucket', currentApartment.bucket)
+					end
+				end
 			end
 		end
 
