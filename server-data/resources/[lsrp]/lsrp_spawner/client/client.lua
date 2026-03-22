@@ -156,7 +156,10 @@ local function findGroundZ(x, y, z)
 
 			local found, groundZ = GetGroundZFor_3dCoord(x, y, probeZ, false)
 			if found then
-				return groundZ
+				-- Ensure groundZ is within a reasonable range to avoid rooftops
+				if math.abs(groundZ - z) < MAX_GROUND_DELTA_FOR_CORRECTION then
+					return groundZ
+				end
 			end
 		end
 
@@ -173,7 +176,8 @@ local function getSafeSpawnZ(x, y, z)
 
 	local groundZ = findGroundZ(x, y, z)
 	if not groundZ then
-		return z, false
+		-- Fallback to a default safe Z if ground probing fails
+		return z + GROUND_SPAWN_Z_OFFSET, false
 	end
 
 	local groundDelta = groundZ - z
