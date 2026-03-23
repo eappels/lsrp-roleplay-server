@@ -27,7 +27,7 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 
 ## Database Tables
 
-- `phonebook_entries`: Stores phonebook data keyed by FiveM license.
+- `phonebook_entries`: Stores phonebook data by `state_id` with legacy `license` kept for compatibility.
 
 ## Integrations
 

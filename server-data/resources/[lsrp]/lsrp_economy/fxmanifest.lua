@@ -8,7 +8,8 @@ description 'LSRP Economy System'
 version '1.0.0'
 
 dependencies {
-    'oxmysql'
+    'oxmysql',
+    'lsrp_core'
 }
 
 client_scripts {

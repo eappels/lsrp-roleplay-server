@@ -31,17 +31,33 @@ It is the main money service used by gameplay systems that need to charge, refun
 
 - `getBalance(playerSrc)`
 - `getAccountId(playerSrc)`
+- `getBalanceByAccountId(accountId)`
 - `formatCurrency(amount)`
 - `canAfford(playerSrc, amount)`
 - `addBalance(playerSrc, amount, reason, metadata)`
 - `removeBalance(playerSrc, amount, reason, metadata)`
 - `setBalance(playerSrc, amount, reason, metadata)`
+- `addBalanceByAccountId(accountId, amount, reason, metadata)`
+- `removeBalanceByAccountId(accountId, amount, reason, metadata)`
+- `setBalanceByAccountId(accountId, amount, reason, metadata)`
 - `transferBalance(fromSrc, toSrc, amount, reason, metadata)`
 
 ## Database Tables
 
-- `lsrp_economy_balances`: Stores player balances keyed by FiveM license.
+- `lsrp_economy_balances`: Stores balance rows keyed by legacy license for compatibility.
 - `lsrp_economy_transactions`: Logs all transactions with metadata.
+
+`lsrp_economy` now prefers `lsrp_core` for `account_id` resolution and mirrors those IDs into `lsrp_economy_accounts`. Gameplay-facing account identity should be treated as `account_id`, not raw license.
+
+## Deprecated Compatibility Exports
+
+- `getBalanceByLicense(license)`
+- `addBalanceByLicense(license, amount, reason, metadata)`
+- `removeBalanceByLicense(license, amount, reason, metadata)`
+- `setBalanceByLicense(license, amount, reason, metadata)`
+- `getLicenseByAccountId(accountId)`
+
+These remain supported for older resources and legacy business accounts, but new resource-to-resource integrations should prefer `account_id`-based exports.
 
 ## Integrations
 

@@ -25,7 +25,7 @@ Current scope:
 
 ## Integrations
 
-- `lsrp_economy`: charges LS$ for fuel purchases.
+- `lsrp_economy`: charges LS$ for fuel purchases and credits the fuel business through `account_id`-based balance exports.
 - `lsrp_vehicleparking`: already stores `fuelLevel` in vehicle props, so parked vehicles keep their fuel when they are stored and retrieved.
 
 ## Client Exports

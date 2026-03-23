@@ -62,11 +62,11 @@ Server-side key access works like this:
 
 1. Check whether the vehicle exists in `owned_vehicles`.
 2. For owned vehicles, resolve the current key holder from the latest row for that plate in `vehicle_keys`.
-3. Allow access only if the player's license matches the current key holder license.
+3. Allow access only if the player's `state_id` matches the current key holder state where available.
 4. For ignition and start checks only, unowned vehicles are still allowed.
 5. Otherwise deny access.
 
-The resource also accepts multiple license-style identifiers (`license:` and `license2:`) when validating ownership or shared key access.
+Legacy license identifiers remain for compatibility and migration fallback, but new integrations should pass state-aware owner identities.
 
 ## Integration Points
 
@@ -78,14 +78,29 @@ Relevant state bags:
 
 - `lsrpOwnedVehicleId`
 - `lsrpVehicleOwner`
+- `lsrpVehicleOwnerStateId`
 
-The client uses `lsrpVehicleOwner` as a fallback when confirming local ownership for a live vehicle.
+The client uses `lsrpVehicleOwnerStateId` as the primary live ownership check and keeps `lsrpVehicleOwner` as a compatibility fallback.
 
 ### lsrp_vehicleshop
 
 `lsrp_vehicleshop` registers purchased vehicles through `lsrp_vehicleparking`, which writes them into `owned_vehicles`.
 
 That means dealership purchases automatically participate in the same key and ownership checks as parked vehicles, and the buyer receives a key entry for the purchased plate.
+
+## Preferred Exports
+
+- `grantVehicleKey(ownerIdentity, vehiclePlate, grantedByIdentity)`
+- `grantVehicleKeyToStateId(stateId, vehiclePlate, grantedByStateId)`
+- `getKeyItems(ownerIdentity)`
+- `getKeyItemsForStateId(stateId)`
+
+## Deprecated Compatibility Exports
+
+- `grantVehicleKeyToLicense(...)`
+- `getKeyItemsForLicense(...)`
+
+These legacy export names still work, but new integrations should use the neutral aliases above and pass `state_id`-aware identities whenever possible.
 
 ## Current Limitations
 

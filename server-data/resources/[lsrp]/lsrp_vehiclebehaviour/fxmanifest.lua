@@ -7,6 +7,7 @@ version '1.0.0'
 
 lua54 'yes'
 
+dependency 'lsrp_core'
 dependency 'oxmysql'
 
 shared_scripts {

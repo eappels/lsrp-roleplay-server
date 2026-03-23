@@ -19,6 +19,7 @@ local idOverlayEnabled = false
 local idOverlayMaxDistance = 35.0
 local OWNED_VEHICLE_ID_STATE_KEY = 'lsrpOwnedVehicleId'
 local OWNED_VEHICLE_OWNER_STATE_KEY = 'lsrpVehicleOwner'
+local OWNED_VEHICLE_OWNER_STATE_ID_KEY = 'lsrpVehicleOwnerStateId'
 
 local function trimString(value)
     if value == nil then
@@ -54,7 +55,7 @@ local function decodeVehicleProps(rawProps)
     return nil
 end
 
-local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense)
+local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense, ownerStateId)
     if vehicle == 0 or not DoesEntityExist(vehicle) then
         return
     end
@@ -71,6 +72,11 @@ local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense)
 
     if type(ownerLicense) == 'string' and ownerLicense ~= '' then
         entityState:set(OWNED_VEHICLE_OWNER_STATE_KEY, ownerLicense, true)
+    end
+
+    local normalizedOwnerStateId = tonumber(ownerStateId)
+    if normalizedOwnerStateId and normalizedOwnerStateId > 0 then
+        entityState:set(OWNED_VEHICLE_OWNER_STATE_ID_KEY, math.floor(normalizedOwnerStateId), true)
     end
 end
 
@@ -295,7 +301,7 @@ RegisterNetEvent('lsrp_dev:client:spawnOwnedVehicle', function(vehicleData)
     SetEntityAsMissionEntity(vehicle, true, true)
     SetVehicleHasBeenOwnedByPlayer(vehicle, true)
     SetVehicleNeedsToBeHotwired(vehicle, false)
-    setOwnedVehicleState(vehicle, vehicleData.ownedVehicleId, vehicleData.ownerLicense)
+    setOwnedVehicleState(vehicle, vehicleData.ownedVehicleId, vehicleData.ownerLicense, vehicleData.ownerStateId)
     disableVehicleRadio(vehicle)
 
     if type(vehicleData.plate) == 'string' and vehicleData.plate ~= '' then
@@ -333,6 +339,19 @@ end
 
 RegisterNetEvent('lsrp_dev:client:setIdOverlayEnabled', function(enabled)
     idOverlayEnabled = enabled == true
+end)
+
+RegisterNetEvent('lsrp_dev:client:printIdentityAudit', function(lines)
+    if type(lines) ~= 'table' or #lines == 0 then
+        print('[lsrp_dev] Identity audit: no lines received')
+        return
+    end
+
+    print('===== LSRP Identity Audit =====')
+    for _, line in ipairs(lines) do
+        print(tostring(line))
+    end
+    print('===== End Identity Audit =====')
 end)
 
 local function requestIdOverlayToggle()

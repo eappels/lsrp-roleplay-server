@@ -9,7 +9,8 @@ version '1.0.0'
 
 dependencies {
 	'oxmysql',
-	'lsrp_economy'
+	'lsrp_economy',
+	'lsrp_core'
 }
 
 shared_scripts {

@@ -138,7 +138,7 @@ Config.RetrievalFee = 50  -- $50 to retrieve
 ## 💡 Technical Highlights
 
 - **BoxZone Integration**: Uses PolyZone BoxZone for accurate zone detection (same as lsrp_testing)
-- **License-based ownership**: Uses FiveM license identifiers
+- **State-based ownership**: Uses `state_id` as the primary gameplay owner key, with legacy license fallback for older rows
 - **Unique plates**: Prevents duplicate vehicles in database
 - **Zone detection**: Efficient box-based zone system
 - **NUI Integration**: Full HTML/CSS/JS UI with FiveM callbacks
@@ -159,7 +159,7 @@ Config.RetrievalFee = 50  -- $50 to retrieve
 
 ## 🔐 Security
 
-✅ License identifier validation
+✅ Identity validation through `lsrp_core`
 ✅ Ownership checks before retrieval
 ✅ SQL injection protection (prepared statements)
 ✅ Driver seat check before parking
@@ -167,12 +167,13 @@ Config.RetrievalFee = 50  -- $50 to retrieve
 
 ## 📊 Database Schema
 
-Single table: `parked_vehicles`
-- Player license
+Single table: `owned_vehicles`
+- Owner `state_id` (primary gameplay key)
+- Legacy owner license
 - Vehicle model & plate
 - Parking zone name
 - Full vehicle properties (JSON)
-- Timestamp
+- Status and timestamps
 
 ## 🚀 Performance
 

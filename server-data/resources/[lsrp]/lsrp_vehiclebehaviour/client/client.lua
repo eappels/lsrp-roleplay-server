@@ -1,6 +1,7 @@
 local IGNITION_STATE_BAG_KEY = 'lsrpIgnitionOn'
 local LOCK_STATE_BAG_KEY = 'lsrpVehicleLocked'
 local OWNED_VEHICLE_OWNER_STATE_BAG_KEY = 'lsrpVehicleOwner'
+local OWNED_VEHICLE_OWNER_STATE_ID_BAG_KEY = 'lsrpVehicleOwnerStateId'
 local KEY_ACCESS_MODE_DOOR = 'door'
 local KEY_ACCESS_MODE_START = 'start'
 local KEY_REQUEST_TIMEOUT_MS = 2000
@@ -183,6 +184,17 @@ end
 local function isVehicleOwnedByLocalPlayer(vehicle)
 	if vehicle == 0 or not DoesEntityExist(vehicle) then
 		return false
+	end
+
+	local localStateId = tonumber(LocalPlayer and LocalPlayer.state and LocalPlayer.state.state_id)
+	if localStateId and localStateId > 0 then
+		local entityState = Entity(vehicle).state
+		if entityState then
+			local ownerStateId = tonumber(entityState[OWNED_VEHICLE_OWNER_STATE_ID_BAG_KEY])
+			if ownerStateId and ownerStateId > 0 then
+				return ownerStateId == localStateId
+			end
+		end
 	end
 
 	local localLicense = normalizeLicenseIdentifier(playerLicenseIdentifier)

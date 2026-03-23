@@ -6,6 +6,7 @@ local parkedVehicles = {}
 local uiOpen = false
 local OWNED_VEHICLE_ID_STATE_KEY = 'lsrpOwnedVehicleId'
 local OWNED_VEHICLE_OWNER_STATE_KEY = 'lsrpVehicleOwner'
+local OWNED_VEHICLE_OWNER_STATE_ID_KEY = 'lsrpVehicleOwnerStateId'
 
 local function canStoreVehiclesInZone(zoneCfg)
     return type(zoneCfg) == 'table' and zoneCfg.allowStore ~= false
@@ -585,7 +586,7 @@ local function getOwnedVehicleId(vehicle)
     return ownedVehicleId
 end
 
-local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense)
+local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense, ownerStateId)
     if vehicle == 0 or not DoesEntityExist(vehicle) then
         return
     end
@@ -602,6 +603,11 @@ local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense)
 
     if type(ownerLicense) == 'string' and ownerLicense ~= '' then
         entityState:set(OWNED_VEHICLE_OWNER_STATE_KEY, ownerLicense, true)
+    end
+
+    local normalizedOwnerStateId = tonumber(ownerStateId)
+    if normalizedOwnerStateId and normalizedOwnerStateId > 0 then
+        entityState:set(OWNED_VEHICLE_OWNER_STATE_ID_KEY, math.floor(normalizedOwnerStateId), true)
     end
 end
 
@@ -912,7 +918,7 @@ RegisterNetEvent('lsrp_vehicleparking:client:spawnVehicle', function(vehicleData
     SetEntityAsMissionEntity(vehicle, true, true)
     SetVehicleHasBeenOwnedByPlayer(vehicle, true)
     SetVehicleNeedsToBeHotwired(vehicle, false)
-    setOwnedVehicleState(vehicle, vehicleData.id, vehicleData.ownerLicense)
+    setOwnedVehicleState(vehicle, vehicleData.id, vehicleData.ownerLicense, vehicleData.ownerStateId)
     disableVehicleRadio(vehicle)
 
     if vehicleData and type(vehicleData.plate) == 'string' and vehicleData.plate ~= '' then

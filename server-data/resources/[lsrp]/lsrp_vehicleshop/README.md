@@ -30,6 +30,12 @@ It integrates with the economy resource for payment, with vehicle parking for pe
 - `oxmysql`
 - `lsrp_zones` for interaction entry points.
 
+Preferred integration path:
+
+- Ownership registration uses `state_id` through `lsrp_vehicleparking`.
+- Purchased vehicle keys are granted through neutral vehicle-key exports that accept owner identity tables.
+- Dealership revenue is credited and reversed through `account_id`-based `lsrp_economy` exports.
+
 ## Notes
 
 - Demo vehicle placement and stabilization are handled on the client side.

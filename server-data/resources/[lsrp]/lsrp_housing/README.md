@@ -31,10 +31,24 @@ Notes:
   - `apartment_number`: Unique identifier for each apartment.
   - `location_index`: Index of the apartment's location.
   - `bucket`: Instance bucket for the apartment.
-  - `owner_identifier`: Owner's FiveM license.
+  - `owner_identifier`: Legacy owner license kept for compatibility and backfill support.
+  - `owner_state_id`: Authoritative gameplay owner identity.
   - `price`: Purchase price of the apartment.
   - `rent_due`: Next rent due date.
 
 ## Notes
 
 - Transparent-safe NUI bootstrap path avoids fullscreen black overlay issues.
+
+## Preferred Exports
+
+- `getOwned(ownerIdentity)`
+- `getOwnedByStateId(stateId)`
+
+`ownerIdentity` should be a table such as `{ stateId = 123, license = 'license:...' }` when both values are available.
+
+## Deprecated Compatibility Exports
+
+- `getOwnedByLicense(license)`
+
+`getOwnedByLicense` remains available for older resources, but new integrations should use `getOwned(...)` or `getOwnedByStateId(...)`.
