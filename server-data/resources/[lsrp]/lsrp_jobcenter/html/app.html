@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSRP Job Center</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0;
+            min-height: 100vh;
+            background: transparent;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            color: #f3f3f3;
+        }
+        .hidden { display: none !important; }
+        #app {
+            position: fixed;
+            inset: 0;
+            padding: 24px;
+            background: rgba(10, 10, 12, 0.88);
+        }
+        .panel {
+            width: min(960px, 100%);
+            margin: 0 auto;
+            background: #1c1f24;
+            border: 1px solid #343941;
+            border-radius: 16px;
+            padding: 20px;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .status {
+            margin: 16px 0;
+            padding: 12px;
+            background: #252a31;
+            border-radius: 12px;
+        }
+        .jobs {
+            display: grid;
+            gap: 12px;
+        }
+        .job {
+            padding: 14px;
+            background: #252a31;
+            border-radius: 12px;
+            border: 1px solid #343941;
+        }
+        .grades {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        button {
+            border: 0;
+            border-radius: 999px;
+            padding: 10px 14px;
+            cursor: pointer;
+        }
+        .primary { background: #f2c14e; color: #111; }
+        .danger { background: #de6b5e; color: #fff; }
+        .ghost { background: #3a4049; color: #fff; }
+        .muted { color: #b7bcc5; }
+    </style>
+</head>
+<body>
+    <main id="app" class="hidden" hidden>
+        <section class="panel">
+            <div class="row">
+                <div>
+                    <h1>Job Center</h1>
+                    <p id="subtitle" class="muted">Browse public jobs.</p>
+                </div>
+                <button id="closeButton" class="ghost" type="button">Close</button>
+            </div>
+
+            <div class="status">
+                <strong id="employmentTitle">Unemployed</strong>
+                <div id="employmentMeta" class="muted">No active job</div>
+            </div>
+
+            <div class="row" style="margin-bottom: 12px;">
+                <h2 style="margin: 0; font-size: 1.1rem;">Available Jobs</h2>
+                <button id="resignButton" class="danger" type="button">Resign Current Job</button>
+            </div>
+
+            <div id="jobs" class="jobs"></div>
+            <div id="emptyState" class="muted hidden">No public jobs are registered yet.</div>
+        </section>
+    </main>
+
+    <script>
+        var resourceName = typeof window.GetParentResourceName === 'function' ? window.GetParentResourceName() : 'lsrp_jobcenter';
+        var appEl = document.getElementById('app');
+        var subtitleEl = document.getElementById('subtitle');
+        var employmentTitleEl = document.getElementById('employmentTitle');
+        var employmentMetaEl = document.getElementById('employmentMeta');
+        var closeButtonEl = document.getElementById('closeButton');
+        var resignButtonEl = document.getElementById('resignButton');
+        var jobsEl = document.getElementById('jobs');
+        var emptyStateEl = document.getElementById('emptyState');
+
+        function postNui(eventName, payload) {
+            var request = new XMLHttpRequest();
+            request.open('POST', 'https://' + resourceName + '/' + eventName, true);
+            request.setRequestHeader('Content-Type', 'application/json; charset=UTF-8');
+            request.send(JSON.stringify(payload || {}));
+        }
+
+        function closeApp() {
+            appEl.className = 'hidden';
+            appEl.hidden = true;
+        }
+
+        function renderEmployment(currentEmployment) {
+            if (!currentEmployment) {
+                employmentTitleEl.textContent = 'Unemployed';
+                employmentMetaEl.textContent = 'No active job';
+                resignButtonEl.disabled = true;
+                return;
+            }
+
+            employmentTitleEl.textContent = currentEmployment.jobLabel || currentEmployment.jobId || 'Employed';
+            employmentMetaEl.textContent = (currentEmployment.gradeLabel || currentEmployment.gradeId || 'No grade') + (currentEmployment.onDuty ? ' | On Duty' : ' | Off Duty');
+            resignButtonEl.disabled = false;
+        }
+
+        function renderJobs(jobs) {
+            var index;
+            jobsEl.innerHTML = '';
+
+            if (!jobs || !jobs.length) {
+                emptyStateEl.className = 'muted';
+                return;
+            }
+
+            emptyStateEl.className = 'muted hidden';
+
+            for (index = 0; index < jobs.length; index = index + 1) {
+                (function(job) {
+                    var gradeIndex;
+                    var jobEl = document.createElement('article');
+                    var header = document.createElement('div');
+                    var titleWrap = document.createElement('div');
+                    var title = document.createElement('strong');
+                    var meta = document.createElement('div');
+                    var state = document.createElement('span');
+                    var grades = document.createElement('div');
+
+                    jobEl.className = 'job';
+                    header.className = 'row';
+                    meta.className = 'muted';
+                    grades.className = 'grades';
+
+                    title.textContent = job.label || job.id || 'Job';
+                    meta.textContent = job.description || 'No description available.';
+                    state.textContent = job.isCurrent ? 'Current' : (job.canApply ? 'Open' : 'Unavailable');
+
+                    titleWrap.appendChild(title);
+                    titleWrap.appendChild(meta);
+                    header.appendChild(titleWrap);
+                    header.appendChild(state);
+                    jobEl.appendChild(header);
+
+                    for (gradeIndex = 0; gradeIndex < ((job.grades && job.grades.length) || 0); gradeIndex = gradeIndex + 1) {
+                        (function(grade) {
+                            var button = document.createElement('button');
+                            button.className = 'primary';
+                            button.type = 'button';
+                            button.textContent = (grade.label || grade.id || 'Grade') + ' (' + (grade.formattedPay || 'LS$0') + ')';
+                            button.disabled = job.isCurrent === true || job.canApply !== true;
+                            button.onclick = function() {
+                                postNui('apply', { jobId: job.id, gradeId: grade.id });
+                            };
+                            grades.appendChild(button);
+                        }(job.grades[gradeIndex]));
+                    }
+
+                    jobEl.appendChild(grades);
+                    jobsEl.appendChild(jobEl);
+                }(jobs[index]));
+            }
+        }
+
+        function openApp(payload) {
+            appEl.className = '';
+            appEl.hidden = false;
+            subtitleEl.textContent = payload && payload.loading ? 'Loading current employment and available positions...' : 'Browse public jobs.';
+            renderEmployment(payload && payload.currentEmployment);
+            renderJobs(payload && payload.jobs);
+            postNui('uiOpened', {});
+        }
+
+        closeButtonEl.onclick = function() {
+            postNui('close', {});
+        };
+
+        resignButtonEl.onclick = function() {
+            postNui('resign', {});
+        };
+
+        window.onkeydown = function(event) {
+            if (event && event.key === 'Escape') {
+                postNui('close', {});
+            }
+        };
+
+        window.onmessage = function(event) {
+            var payload = event.data;
+            if (!payload || typeof payload !== 'object') {
+                return;
+            }
+
+            if (payload.action === 'open') {
+                openApp(payload.payload || {});
+            }
+
+            if (payload.action === 'close') {
+                closeApp();
+            }
+        };
+
+        closeApp();
+        postNui('uiReady', {});
+    </script>
+</body>
+</html>

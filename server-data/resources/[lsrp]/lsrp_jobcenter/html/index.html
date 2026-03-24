@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSRP Job Center</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="margin: 0; min-height: 100vh; background: transparent; display: none; overflow: hidden;">
+    <main id="app" class="app hidden" hidden>
+        <section class="shell">
+            <header class="hero">
+                <div>
+                    <p class="eyebrow">City Services</p>
+                    <h1>Civilian Work Exchange</h1>
+                    <p id="hero-subtitle" class="hero-copy">Browse open jobs, accept a position, or step away from your current contract.</p>
+                </div>
+                <button id="close-button" class="ghost-button" type="button">Close</button>
+            </header>
+
+            <section class="status-strip">
+                <article class="status-card">
+                    <span class="status-label">Current Employment</span>
+                    <strong id="employment-label">Unemployed</strong>
+                    <span id="employment-grade" class="status-meta">No active contract</span>
+                </article>
+                <article class="status-card">
+                    <span class="status-label">Duty Status</span>
+                    <strong id="employment-duty">Off Duty</strong>
+                    <span id="employment-pay" class="status-meta">No payroll</span>
+                </article>
+                <article class="status-card action-card">
+                    <span class="status-label">Current Action</span>
+                    <button id="resign-button" class="danger-button" type="button">Resign Current Job</button>
+                </article>
+            </section>
+
+            <section class="listing-header">
+                <div>
+                    <p class="eyebrow">Open Positions</p>
+                    <h2>Available Civilian Jobs</h2>
+                </div>
+            </section>
+
+            <section id="jobs-list" class="jobs-grid"></section>
+            <section id="empty-state" class="empty-state hidden">No public jobs are registered yet.</section>
+        </section>
+    </main>
+
+    <template id="job-card-template">
+        <article class="job-card">
+            <div class="job-accent"></div>
+            <div class="job-header">
+                <div>
+                    <p class="job-subtitle"></p>
+                    <h3 class="job-title"></h3>
+                </div>
+                <span class="job-state"></span>
+            </div>
+            <p class="job-description"></p>
+            <div class="pill-row tags-row"></div>
+            <div class="requirements-block">
+                <h4>Requirements</h4>
+                <ul class="requirements-list"></ul>
+            </div>
+            <div class="grades-block"></div>
+        </article>
+    </template>
+
+    <template id="grade-template">
+        <div class="grade-card">
+            <div class="grade-main">
+                <div>
+                    <strong class="grade-label"></strong>
+                    <div class="grade-pay"></div>
+                </div>
+                <button class="apply-button" type="button">Apply</button>
+            </div>
+            <div class="pill-row permissions-row"></div>
+        </div>
+    </template>
+
+    <script src="script.js"></script>
+</body>
+</html>
