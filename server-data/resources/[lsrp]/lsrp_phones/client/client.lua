@@ -34,6 +34,19 @@ local phoneOpenRequestPending = false
 local playPhoneOpenAnim
 local showPhoneUI
 
+local function trimString(value)
+	if value == nil then
+		return nil
+	end
+
+	local trimmed = tostring(value):gsub('^%s+', ''):gsub('%s+$', '')
+	if trimmed == '' then
+		return nil
+	end
+
+	return trimmed
+end
+
 -- Formats an integer balance as a comma-separated LS$ string without relying on
 -- lsrp_economy. Used as a fallback when the economy resource is unavailable.
 local function formatFallbackBalance(balance)
@@ -204,6 +217,22 @@ local function showPhoneNotification(message)
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, false)
+end
+
+local function getStreetLabelFromCoords(coords)
+	if type(coords) ~= 'table' then
+		return nil
+	end
+
+	local streetHash, crossingHash = GetStreetNameAtCoord(coords.x + 0.0, coords.y + 0.0, coords.z + 0.0)
+	local streetName = streetHash ~= 0 and trimString(GetStreetNameFromHashKey(streetHash)) or nil
+	local crossingName = crossingHash ~= 0 and trimString(GetStreetNameFromHashKey(crossingHash)) or nil
+
+	if streetName and crossingName and crossingName ~= streetName then
+		return ('%s / %s'):format(streetName, crossingName)
+	end
+
+	return streetName or crossingName
 end
 
 local function openPhoneInterface()
@@ -568,6 +597,72 @@ RegisterNUICallback('getPhonebook', function(_, cb)
 	cb('ok')
 end)
 
+RegisterNUICallback('getTaxiAppState', function(_, cb)
+	TriggerServerEvent('lsrp_phones:server:requestTaxiAppState')
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('bookTaxiRide', function(data, cb)
+	local playerPed = PlayerPedId()
+	if playerPed == 0 or not DoesEntityExist(playerPed) then
+		cb({ ok = false, error = 'player_unavailable' })
+		return
+	end
+
+	local waypointBlip = GetFirstBlipInfoId(8)
+	if not waypointBlip or waypointBlip == 0 or not DoesBlipExist(waypointBlip) then
+		cb({ ok = false, error = 'missing_waypoint' })
+		return
+	end
+
+	local pickupCoords = GetEntityCoords(playerPed)
+	local destinationCoords = GetBlipInfoIdCoord(waypointBlip)
+	if not destinationCoords then
+		cb({ ok = false, error = 'missing_waypoint' })
+		return
+	end
+
+	TriggerServerEvent('lsrp_phones:server:bookTaxiRide', {
+		pickupCoords = {
+			x = pickupCoords.x,
+			y = pickupCoords.y,
+			z = pickupCoords.z
+		},
+		pickupLabel = getStreetLabelFromCoords({ x = pickupCoords.x, y = pickupCoords.y, z = pickupCoords.z }) or 'Current location',
+		destinationCoords = {
+			x = destinationCoords.x,
+			y = destinationCoords.y,
+			z = destinationCoords.z
+		},
+		destinationLabel = trimString(data and data.destinationLabel) or getStreetLabelFromCoords({ x = destinationCoords.x, y = destinationCoords.y, z = destinationCoords.z }) or 'Waypoint',
+		scheduledFor = trimString(data and data.scheduledFor) or 'ASAP',
+		notes = trimString(data and data.notes)
+	})
+
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('cancelTaxiRide', function(_, cb)
+	TriggerServerEvent('lsrp_phones:server:cancelTaxiRide')
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('claimTaxiRide', function(data, cb)
+	local rideId = tonumber(data and data.rideId)
+	if not rideId or rideId <= 0 then
+		cb({ ok = false, error = 'invalid_ride' })
+		return
+	end
+
+	TriggerServerEvent('lsrp_phones:server:claimTaxiRide', math.floor(rideId))
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('releaseTaxiRide', function(_, cb)
+	TriggerServerEvent('lsrp_phones:server:releaseTaxiRide')
+	cb({ ok = true })
+end)
+
 RegisterNUICallback('getMessageConversations', function(_, cb)
 	TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
 	cb('ok')
@@ -699,6 +794,23 @@ AddEventHandler('lsrp_phones:client:receiveMessageConversations', function(conve
 	})
 end)
 
+RegisterNetEvent('lsrp_phones:client:taxiAppState')
+AddEventHandler('lsrp_phones:client:taxiAppState', function(state)
+	SendNUIMessage({
+		action = 'displayTaxiAppState',
+		state = type(state) == 'table' and state or {}
+	})
+end)
+
+RegisterNetEvent('lsrp_phones:client:taxiAppStatus')
+AddEventHandler('lsrp_phones:client:taxiAppStatus', function(message, isError)
+	SendNUIMessage({
+		action = 'taxiAppStatus',
+		message = message or '',
+		isError = isError == true
+	})
+end)
+
 RegisterNetEvent('lsrp_phones:client:receiveMessageThread')
 AddEventHandler('lsrp_phones:client:receiveMessageThread', function(thread)
 	SendNUIMessage({
@@ -809,6 +921,7 @@ AddEventHandler('lsrp_phones:openPhone', function()
 	TriggerServerEvent('lsrp_phones:server:requestPhoneNumber')
 	TriggerServerEvent('lsrp_phones:server:requestPhonebook')
 	TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
+	TriggerServerEvent('lsrp_phones:server:requestTaxiAppState')
 	pushPhoneNumberToNui()
 	pushPhonebookToNui()
 end)

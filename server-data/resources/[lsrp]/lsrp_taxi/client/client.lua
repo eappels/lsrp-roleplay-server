@@ -1,11 +1,9 @@
-local activeFare = nil
-local activeFareBlip = nil
-local farePassengerPed = nil
-local fareInteractionInProgress = false
-local taxiAvailabilityReported = false
+local activeAssignment = nil
+local activeAssignmentBlip = nil
 local depotBlips = {}
 local spawnedTaxiVehicle = nil
 local pendingAutoSpawnDepotId = nil
+local taxiVehicleSpawnInProgress = false
 
 local function trimString(value)
 	if value == nil then
@@ -29,7 +27,7 @@ end
 local function showHelpPrompt(message)
 	BeginTextCommandDisplayHelp('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
-	EndTextCommandDisplayHelp(0, false, true, -1)
+	EndTextCommandDisplayHelp(0, false, false, -1)
 end
 
 local function isInteractionJustPressed()
@@ -47,176 +45,47 @@ local function isTaxiOnDuty()
 	return playerState and playerState.lsrp_job == Config.JobId and playerState.lsrp_job_duty == true or false
 end
 
-local function setTaxiAvailabilityReported(isAvailable)
-	local desiredState = isAvailable == true
-	if taxiAvailabilityReported == desiredState then
-		return
-	end
-
-	taxiAvailabilityReported = desiredState
-	TriggerServerEvent('lsrp_taxi:server:setTaxiAvailability', desiredState)
-end
-
-local function clearFareBlip()
-	if activeFareBlip then
-		RemoveBlip(activeFareBlip)
-		activeFareBlip = nil
+local function clearAssignmentBlip()
+	if activeAssignmentBlip then
+		RemoveBlip(activeAssignmentBlip)
+		activeAssignmentBlip = nil
 	end
 end
 
-local function clearFarePassenger()
-	if farePassengerPed and DoesEntityExist(farePassengerPed) then
-		SetEntityAsMissionEntity(farePassengerPed, true, true)
-		DeletePed(farePassengerPed)
-	end
-
-	farePassengerPed = nil
-	fareInteractionInProgress = false
-end
-
-local function clearFarePassengerLater(delayMs)
-	if not farePassengerPed or not DoesEntityExist(farePassengerPed) then
-		return
-	end
-
-	local passengerPed = farePassengerPed
-	CreateThread(function()
-		Wait(math.max(0, math.floor(tonumber(delayMs) or 0)))
-		if farePassengerPed == passengerPed then
-			clearFarePassenger()
-		end
-	end)
-end
-
-local function assignFarePassengerWaitingTask(passengerPed)
-	if not passengerPed or passengerPed == 0 or not DoesEntityExist(passengerPed) then
-		return
-	end
-
-	SetBlockingOfNonTemporaryEvents(passengerPed, true)
-	SetEntityInvincible(passengerPed, true)
-	SetPedCanRagdoll(passengerPed, false)
-	ClearPedTasks(passengerPed)
-	ClearPedSecondaryTask(passengerPed)
-	TaskStartScenarioInPlace(passengerPed, tostring(Config.PassengerWaitScenario or 'WORLD_HUMAN_STAND_IMPATIENT'), 0, true)
-end
-
-local function getPassengerBoardingTarget(vehicle, seatIndex)
-	if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
-		return nil
-	end
-
-	if seatIndex == 2 then
-		return GetOffsetFromEntityInWorldCoords(vehicle, 1.2, -2.2, 0.0)
-	end
-
-	if seatIndex == 1 then
-		return GetOffsetFromEntityInWorldCoords(vehicle, -1.2, -2.2, 0.0)
-	end
-
-	return GetOffsetFromEntityInWorldCoords(vehicle, 1.1, 0.8, 0.0)
-end
-
-local function startPassengerBoardingAttempt(passengerPed, vehicle, seatIndex)
-	if not passengerPed or passengerPed == 0 or not DoesEntityExist(passengerPed) or not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
-		return
-	end
-
-	local boardingTarget = getPassengerBoardingTarget(vehicle, seatIndex)
-	SetBlockingOfNonTemporaryEvents(passengerPed, false)
-	SetEntityInvincible(passengerPed, true)
-	SetPedCanRagdoll(passengerPed, false)
-	FreezeEntityPosition(passengerPed, false)
-	ClearPedTasksImmediately(passengerPed)
-	ClearPedSecondaryTask(passengerPed)
-
-	if boardingTarget then
-		TaskGoStraightToCoord(passengerPed, boardingTarget.x, boardingTarget.y, boardingTarget.z, 1.0, 3000, 0.0, 0.0)
-	end
-
-	CreateThread(function()
-		Wait(600)
-		if farePassengerPed ~= passengerPed or not DoesEntityExist(passengerPed) or not DoesEntityExist(vehicle) or IsPedInVehicle(passengerPed, vehicle, false) then
-			return
-		end
-
-		TaskEnterVehicle(passengerPed, vehicle, 8000, seatIndex, 1.0, 1, 0)
-	end)
-end
-
-local function getPassengerWalkAwayTarget(vehicle, passengerPed)
-	if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) or not passengerPed or passengerPed == 0 or not DoesEntityExist(passengerPed) then
-		return nil
-	end
-
-	local passengerCoords = GetEntityCoords(passengerPed)
-	local rightTarget = GetOffsetFromEntityInWorldCoords(vehicle, 5.5, -8.0, 0.0)
-	local leftTarget = GetOffsetFromEntityInWorldCoords(vehicle, -5.5, -8.0, 0.0)
-	local rightDistance = #(passengerCoords - rightTarget)
-	local leftDistance = #(passengerCoords - leftTarget)
-
-	if rightDistance < leftDistance then
-		return rightTarget
-	end
-
-	return leftTarget
-end
-
-local function makeFarePassengerWalkAway(vehicle, passengerPed)
-	if not passengerPed or passengerPed == 0 or not DoesEntityExist(passengerPed) then
-		return
-	end
-
-	local walkTarget = getPassengerWalkAwayTarget(vehicle, passengerPed)
-	ClearPedTasks(passengerPed)
-	SetBlockingOfNonTemporaryEvents(passengerPed, false)
-	SetEntityInvincible(passengerPed, false)
-	SetPedCanRagdoll(passengerPed, true)
-
-	if walkTarget then
-		TaskGoStraightToCoord(passengerPed, walkTarget.x, walkTarget.y, walkTarget.z, 1.0, 8000, 0.0, 0.0)
-		CreateThread(function()
-			Wait(8000)
-			if farePassengerPed == passengerPed and DoesEntityExist(passengerPed) then
-				TaskWanderStandard(passengerPed, 10.0, 10)
-			end
-		end)
-	else
-		TaskWanderStandard(passengerPed, 10.0, 10)
-	end
-end
-
-local function setFareBlip(coords, label)
-	clearFareBlip()
+local function setAssignmentBlip(coords, label)
+	clearAssignmentBlip()
 	if not coords then
 		return
 	end
 
-	activeFareBlip = AddBlipForCoord(coords.x, coords.y, coords.z)
-	SetBlipSprite(activeFareBlip, 280)
-	SetBlipRoute(activeFareBlip, true)
-	SetBlipColour(activeFareBlip, 46)
-	SetBlipScale(activeFareBlip, 0.9)
+	activeAssignmentBlip = AddBlipForCoord(coords.x, coords.y, coords.z)
+	SetBlipSprite(activeAssignmentBlip, 280)
+	SetBlipRoute(activeAssignmentBlip, true)
+	SetBlipColour(activeAssignmentBlip, 46)
+	SetBlipScale(activeAssignmentBlip, 0.9)
 	BeginTextCommandSetBlipName('STRING')
-	AddTextComponentSubstringPlayerName(trimString(label) or 'Taxi Fare')
-	EndTextCommandSetBlipName(activeFareBlip)
+	AddTextComponentSubstringPlayerName(trimString(label) or 'Taxi Assignment')
+	EndTextCommandSetBlipName(activeAssignmentBlip)
 	SetNewWaypoint(coords.x, coords.y)
 end
 
-local function getFareTarget()
-	if type(activeFare) ~= 'table' then
-		return nil
+local function refreshAssignmentBlip()
+	if type(activeAssignment) ~= 'table' then
+		clearAssignmentBlip()
+		return
 	end
 
-	if activeFare.stage == 'pickup' then
-		return activeFare.pickup, tonumber(Config.PickupRadius) or 18.0
+	if activeAssignment.stage == 'dropoff' and activeAssignment.destination and activeAssignment.destination.coords then
+		setAssignmentBlip(activeAssignment.destination.coords, ('Drop-off: %s'):format(tostring(activeAssignment.destination.label or 'Destination')))
+		return
 	end
 
-	if activeFare.stage == 'dropoff' then
-		return activeFare.destination, tonumber(Config.DestinationRadius) or 24.0
+	if activeAssignment.pickup and activeAssignment.pickup.coords then
+		setAssignmentBlip(activeAssignment.pickup.coords, ('Pickup: %s'):format(tostring(activeAssignment.pickup.label or 'Passenger')))
+		return
 	end
 
-	return nil
+	clearAssignmentBlip()
 end
 
 local function destroyDepotBlips()
@@ -254,7 +123,7 @@ local function ensureTaxiVehicleDeleted()
 	end
 
 	spawnedTaxiVehicle = nil
-	setTaxiAvailabilityReported(false)
+	taxiVehicleSpawnInProgress = false
 end
 
 local function loadVehicleModel(modelName)
@@ -274,169 +143,6 @@ local function loadVehicleModel(modelName)
 	end
 
 	return modelHash
-end
-
-local function loadPedModel(modelName)
-	local modelHash = GetHashKey(modelName)
-	if not IsModelInCdimage(modelHash) or not IsModelAPed(modelHash) then
-		return nil
-	end
-
-	RequestModel(modelHash)
-	local timeoutAt = GetGameTimer() + 8000
-	while not HasModelLoaded(modelHash) and GetGameTimer() < timeoutAt do
-		Wait(0)
-	end
-
-	if not HasModelLoaded(modelHash) then
-		return nil
-	end
-
-	return modelHash
-end
-
-local function getPassengerSeat(vehicle)
-	for _, seatIndex in ipairs({ 2, 1, 0 }) do
-		if IsVehicleSeatFree(vehicle, seatIndex) then
-			return seatIndex
-		end
-	end
-
-	return nil
-end
-
-local function ensureFarePassengerSpawned()
-	if farePassengerPed and DoesEntityExist(farePassengerPed) then
-		return farePassengerPed
-	end
-
-	if type(activeFare) ~= 'table' or activeFare.stage ~= 'pickup' or type(activeFare.pickup) ~= 'table' or not activeFare.pickup.coords then
-		return nil
-	end
-
-	local modelHash = loadPedModel(activeFare.passengerModel or 'a_m_m_business_01')
-	if not modelHash then
-		notify('Taxi passenger model could not be loaded.')
-		return nil
-	end
-
-	local pickupCoords = activeFare.pickup.coords
-	local heading = tonumber(activeFare.pickup.heading) or 0.0
-	farePassengerPed = CreatePed(4, modelHash, pickupCoords.x, pickupCoords.y, pickupCoords.z - 1.0, heading, false, false)
-	SetModelAsNoLongerNeeded(modelHash)
-
-	if not farePassengerPed or farePassengerPed == 0 or not DoesEntityExist(farePassengerPed) then
-		farePassengerPed = nil
-		notify('Taxi passenger could not be created at the pickup point.')
-		return nil
-	end
-
-	SetEntityAsMissionEntity(farePassengerPed, true, true)
-	SetEntityHeading(farePassengerPed, heading)
-	SetEntityCoordsNoOffset(farePassengerPed, pickupCoords.x, pickupCoords.y, pickupCoords.z, false, false, false)
-	SetBlockingOfNonTemporaryEvents(farePassengerPed, true)
-	SetPedFleeAttributes(farePassengerPed, 0, false)
-	SetPedCanRagdoll(farePassengerPed, false)
-	SetPedKeepTask(farePassengerPed, true)
-	SetEntityInvincible(farePassengerPed, true)
-	assignFarePassengerWaitingTask(farePassengerPed)
-
-	return farePassengerPed
-end
-
-local function boardFarePassenger()
-	if fareInteractionInProgress or type(activeFare) ~= 'table' or activeFare.stage ~= 'pickup' then
-		return
-	end
-
-	local playerPed = PlayerPedId()
-	local currentVehicle = GetVehiclePedIsIn(playerPed, false)
-	if currentVehicle == 0 or currentVehicle ~= spawnedTaxiVehicle then
-		notify('Pull up in your company taxi to collect the passenger.')
-		return
-	end
-
-	local seatIndex = getPassengerSeat(spawnedTaxiVehicle)
-	if seatIndex == nil then
-		notify('There is no free passenger seat in your taxi.')
-		return
-	end
-
-	local passengerPed = ensureFarePassengerSpawned()
-	if not passengerPed then
-		return
-	end
-
-	fareInteractionInProgress = true
-	startPassengerBoardingAttempt(passengerPed, spawnedTaxiVehicle, seatIndex)
-
-	CreateThread(function()
-		local timeoutAt = GetGameTimer() + 12000
-		local lastRetryAt = GetGameTimer()
-		while farePassengerPed == passengerPed and DoesEntityExist(passengerPed) and GetGameTimer() < timeoutAt do
-			if IsPedInVehicle(passengerPed, spawnedTaxiVehicle, false) then
-				fareInteractionInProgress = false
-				TriggerServerEvent('lsrp_taxi:server:pickupPassenger', activeFare.pickupId)
-				return
-			end
-
-			if GetGameTimer() - lastRetryAt >= 2500 then
-				lastRetryAt = GetGameTimer()
-				startPassengerBoardingAttempt(passengerPed, spawnedTaxiVehicle, seatIndex)
-			end
-
-			Wait(250)
-		end
-
-		fareInteractionInProgress = false
-		if farePassengerPed == passengerPed and DoesEntityExist(passengerPed) and not IsPedInVehicle(passengerPed, spawnedTaxiVehicle, false) then
-			notify('The passenger did not get into your taxi. Reposition the vehicle and try again.')
-			assignFarePassengerWaitingTask(passengerPed)
-		end
-	end)
-end
-
-local function dropOffFarePassenger()
-	if fareInteractionInProgress or type(activeFare) ~= 'table' or activeFare.stage ~= 'dropoff' then
-		return
-	end
-
-	local playerPed = PlayerPedId()
-	local currentVehicle = GetVehiclePedIsIn(playerPed, false)
-	if currentVehicle == 0 or currentVehicle ~= spawnedTaxiVehicle then
-		notify('Use your company taxi to drop off the passenger.')
-		return
-	end
-
-	if not farePassengerPed or not DoesEntityExist(farePassengerPed) or not IsPedInVehicle(farePassengerPed, spawnedTaxiVehicle, false) then
-		notify('The passenger is not in your taxi anymore.')
-		TriggerServerEvent('lsrp_taxi:server:completeFare', activeFare.destinationId)
-		return
-	end
-
-	fareInteractionInProgress = true
-	TaskLeaveVehicle(farePassengerPed, spawnedTaxiVehicle, 0)
-
-	CreateThread(function()
-		local passengerPed = farePassengerPed
-		local timeoutAt = GetGameTimer() + 10000
-		while passengerPed and DoesEntityExist(passengerPed) and GetGameTimer() < timeoutAt do
-			if not IsPedInVehicle(passengerPed, spawnedTaxiVehicle, false) then
-				makeFarePassengerWalkAway(spawnedTaxiVehicle, passengerPed)
-				fareInteractionInProgress = false
-				TriggerServerEvent('lsrp_taxi:server:completeFare', activeFare.destinationId)
-				return
-			end
-
-			Wait(250)
-		end
-
-		fareInteractionInProgress = false
-		TriggerServerEvent('lsrp_taxi:server:completeFare', activeFare.destinationId)
-		if passengerPed and DoesEntityExist(passengerPed) then
-			ClearPedTasks(passengerPed)
-		end
-	end)
 end
 
 local function prepareCompanyTaxiVehicle(vehicle)
@@ -460,7 +166,15 @@ local function prepareCompanyTaxiVehicle(vehicle)
 end
 
 local function spawnTaxiVehicle(depot)
-	if not depot or spawnedTaxiVehicle and DoesEntityExist(spawnedTaxiVehicle) then
+	if not depot then
+		return
+	end
+
+	if taxiVehicleSpawnInProgress then
+		return
+	end
+
+	if spawnedTaxiVehicle and DoesEntityExist(spawnedTaxiVehicle) then
 		notify('Return your current taxi before spawning another one.')
 		return
 	end
@@ -471,38 +185,43 @@ local function spawnTaxiVehicle(depot)
 		return
 	end
 
+	taxiVehicleSpawnInProgress = true
+
 	local modelHash = loadVehicleModel(Config.VehicleModel)
 	if not modelHash then
+		taxiVehicleSpawnInProgress = false
 		notify('Taxi vehicle model could not be loaded.')
 		return
 	end
 
 	local spawn = depot.vehicleSpawn
 	if not spawn or not spawn.coords then
+		taxiVehicleSpawnInProgress = false
 		notify('Taxi depot spawn point is not configured correctly.')
 		SetModelAsNoLongerNeeded(modelHash)
 		return
 	end
 
-	spawnedTaxiVehicle = CreateVehicle(modelHash, spawn.coords.x, spawn.coords.y, spawn.coords.z, spawn.heading or 0.0, true, false)
-	if not spawnedTaxiVehicle or spawnedTaxiVehicle == 0 or not DoesEntityExist(spawnedTaxiVehicle) then
-		spawnedTaxiVehicle = nil
+	local vehicle = CreateVehicle(modelHash, spawn.coords.x, spawn.coords.y, spawn.coords.z, spawn.heading or 0.0, true, false)
+	if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
+		taxiVehicleSpawnInProgress = false
 		SetModelAsNoLongerNeeded(modelHash)
 		notify('Company taxi could not be spawned at the depot. Make sure the spawn bay is clear.')
 		return
 	end
 
+	spawnedTaxiVehicle = vehicle
 	SetVehicleOnGroundProperly(spawnedTaxiVehicle)
 	SetVehicleDirtLevel(spawnedTaxiVehicle, 0.0)
 	SetVehicleColours(spawnedTaxiVehicle, 88, 88)
 	SetVehicleExtraColours(spawnedTaxiVehicle, 0, 0)
-	SetVehicleNumberPlateText(spawnedTaxiVehicle, string.sub((Config.VehiclePlatePrefix or 'TAXI') .. tostring(GetPlayerServerId(PlayerId())), 1, 8))
+	SetVehicleNumberPlateText(spawnedTaxiVehicle, string.sub((Config.VehiclePlatePrefix or 'CAB') .. tostring(GetPlayerServerId(PlayerId())), 1, 8))
 	SetEntityAsMissionEntity(spawnedTaxiVehicle, true, true)
 	prepareCompanyTaxiVehicle(spawnedTaxiVehicle)
 	TaskWarpPedIntoVehicle(playerPed, spawnedTaxiVehicle, -1)
 	SetModelAsNoLongerNeeded(modelHash)
-	setTaxiAvailabilityReported(true)
-	notify('Taxi vehicle ready. Stay available for the next dispatch assignment.')
+	taxiVehicleSpawnInProgress = false
+	notify('Company taxi ready. Claim a ride from the Taxi phone app dispatch board.')
 end
 
 local function findDepotById(depotId)
@@ -522,6 +241,10 @@ end
 
 local function tryAutoSpawnAssignedTaxi()
 	if not pendingAutoSpawnDepotId or not isTaxiOnDuty() then
+		return
+	end
+
+	if taxiVehicleSpawnInProgress then
 		return
 	end
 
@@ -554,21 +277,43 @@ local function returnTaxiVehicle()
 		return
 	end
 
-	clearFareBlip()
-	clearFarePassenger()
-	activeFare = nil
 	ensureTaxiVehicleDeleted()
 	notify('Taxi returned to the depot.')
 end
 
+local function clearAssignment(message)
+	activeAssignment = nil
+	clearAssignmentBlip()
+	if message then
+		notify(message)
+	end
+end
+
+local function getAssignmentTarget()
+	if type(activeAssignment) ~= 'table' then
+		return nil, nil, nil
+	end
+
+	if activeAssignment.stage == 'dropoff' and activeAssignment.destination and activeAssignment.destination.coords then
+		return activeAssignment.destination, tonumber(Config.DestinationRadius) or 24.0, 'dropoff'
+	end
+
+	if activeAssignment.pickup and activeAssignment.pickup.coords then
+		return activeAssignment.pickup, tonumber(Config.PickupRadius) or 18.0, 'pickup'
+	end
+
+	return nil, nil, nil
+end
+
+RegisterNetEvent('lsrp_taxi:client:notify', function(message)
+	notify(message)
+end)
+
 RegisterNetEvent('lsrp_jobs:client:employmentUpdated', function()
 	if not isTaxiEmployee() then
-		activeFare = nil
-		clearFareBlip()
-		clearFarePassenger()
+		clearAssignment()
 		ensureTaxiVehicleDeleted()
 		pendingAutoSpawnDepotId = nil
-		setTaxiAvailabilityReported(false)
 	end
 
 	tryAutoSpawnAssignedTaxi()
@@ -576,7 +321,6 @@ end)
 
 RegisterNetEvent('lsrp_taxi:client:dutyResult', function(payload)
 	payload = type(payload) == 'table' and payload or {}
-
 	if payload.message then
 		notify(payload.message)
 	end
@@ -585,70 +329,48 @@ RegisterNetEvent('lsrp_taxi:client:dutyResult', function(payload)
 		tryAutoSpawnAssignedTaxi()
 	elseif payload.ok == true and payload.onDuty ~= true then
 		pendingAutoSpawnDepotId = nil
-		setTaxiAvailabilityReported(false)
+		clearAssignment()
 	end
 end)
 
-RegisterNetEvent('lsrp_taxi:client:fareAssigned', function(payload)
+RegisterNetEvent('lsrp_taxi:client:assignmentUpdated', function(payload)
 	payload = type(payload) == 'table' and payload or {}
-	clearFarePassenger()
-	activeFare = payload
-	if payload.pickup and payload.pickup.coords then
-		setFareBlip(payload.pickup.coords, ('Pickup: %s'):format(tostring(payload.pickup.label or 'Passenger')))
+	activeAssignment = payload
+	refreshAssignmentBlip()
+
+	if payload.stage == 'dropoff' then
+		notify(('Passenger onboard. Drive to %s.'):format(tostring(payload.destination and payload.destination.label or 'the destination')))
+	else
+		notify(('Dispatch assigned ride #%s. Head to %s.'):format(tostring(payload.id or '?'), tostring(payload.pickup and payload.pickup.label or 'the pickup point')))
 	end
-	ensureFarePassengerSpawned()
-	notify(('Taxi fare assigned: collect a passenger at %s.'):format(tostring(payload.pickup and payload.pickup.label or 'the pickup point')))
 end)
 
-RegisterNetEvent('lsrp_taxi:client:passengerPickedUp', function(payload)
+RegisterNetEvent('lsrp_taxi:client:assignmentCleared', function(payload)
 	payload = type(payload) == 'table' and payload or {}
-	fareInteractionInProgress = false
-	if type(activeFare) ~= 'table' then
-		activeFare = {}
-	end
-
-	activeFare.stage = 'dropoff'
-	activeFare.pickupId = payload.pickupId or activeFare.pickupId
-	activeFare.pickup = payload.pickup or activeFare.pickup
-	activeFare.destinationId = payload.destinationId or activeFare.destinationId
-	activeFare.destination = payload.destination or activeFare.destination
-	activeFare.payout = payload.payout or activeFare.payout
-	activeFare.passengerModel = payload.passengerModel or activeFare.passengerModel
-
-	if activeFare.destination and activeFare.destination.coords then
-		setFareBlip(activeFare.destination.coords, ('Drop-off: %s'):format(tostring(activeFare.destination.label or 'Destination')))
-	end
-
-	notify(('Passenger onboard. Drive to %s.'):format(tostring(activeFare.destination and activeFare.destination.label or 'the destination')))
-end)
-
-RegisterNetEvent('lsrp_taxi:client:fareCleared', function(payload)
-	payload = type(payload) == 'table' and payload or {}
-	activeFare = nil
-	clearFareBlip()
-	clearFarePassenger()
-	if payload.message then
-		notify(payload.message)
-	end
+	clearAssignment(payload.message)
 end)
 
 RegisterNetEvent('lsrp_taxi:client:fareCompleted', function(payload)
 	payload = type(payload) == 'table' and payload or {}
-	activeFare = nil
-	clearFareBlip()
-	clearFarePassengerLater(tonumber(Config.PassengerCleanupDelayMs) or 12000)
+	activeAssignment = nil
+	clearAssignmentBlip()
 	if payload.payoutFailed == true then
-		notify(('Fare completed for %s, but the payout failed. Dispatch will send another ride soon.'):format(tostring(payload.label or 'destination')))
+		if payload.riderChargeError == 'insufficient_funds' then
+			notify(('Ride complete for %s, but the passenger could not pay %s.'):format(tostring(payload.label or 'destination'), tostring(payload.formattedPayout or 'LS$0')))
+		elseif payload.refundIssued == true then
+			notify(('Ride complete for %s, but the %s charge was refunded because payout failed.'):format(tostring(payload.label or 'destination'), tostring(payload.formattedPayout or 'LS$0')))
+		else
+			notify(('Ride complete for %s, but the %s payment could not be settled.'):format(tostring(payload.label or 'destination'), tostring(payload.formattedPayout or 'LS$0')))
+		end
 		return
 	end
 
-	local nextFareDelaySeconds = math.max(0, math.floor(tonumber(payload.nextFareDelaySeconds) or 0))
-	if nextFareDelaySeconds > 0 then
-		notify(('Fare completed: %s earned for %s. Next ride in about %d minute(s).'):format(tostring(payload.formattedPayout or 'LS$0'), tostring(payload.label or 'destination'), math.max(1, math.floor((nextFareDelaySeconds + 59) / 60))))
+	if payload.riderCharged == true then
+		notify(('Ride complete: %s paid by the passenger for %s.'):format(tostring(payload.formattedPayout or 'LS$0'), tostring(payload.label or 'destination')))
 		return
 	end
 
-	notify(('Fare completed: %s earned for %s.'):format(tostring(payload.formattedPayout or 'LS$0'), tostring(payload.label or 'destination')))
+	notify(('Ride complete for %s. No fare was charged.'):format(tostring(payload.label or 'destination')))
 end)
 
 CreateThread(function()
@@ -664,7 +386,6 @@ CreateThread(function()
 			for _, depot in ipairs(Config.Depots or {}) do
 				local drawDistance = tonumber(Config.DrawDistance) or 30.0
 				local interactionDistance = tonumber(Config.InteractionDistance) or 2.5
-
 				local spawnDistance = #(playerCoords - depot.vehicleSpawn.coords)
 				local returnDistance = #(playerCoords - depot.vehicleReturn)
 
@@ -694,9 +415,9 @@ CreateThread(function()
 						Wait(300)
 					end
 				elseif spawnDistance <= interactionDistance then
-					showHelpPrompt('Apply for the taxi job before using the company vehicle bay')
+					showHelpPrompt('Apply for the live taxi job before using the company vehicle bay')
 					if isInteractionJustPressed() then
-						notify('The company taxi bay is only available to Downtown Cab employees.')
+						notify('The company taxi bay is only available to Downtown Cab Live employees.')
 						Wait(300)
 					end
 				elseif isTaxiOnDuty() and returnDistance <= interactionDistance then
@@ -708,45 +429,38 @@ CreateThread(function()
 				end
 			end
 
-			local fareTarget, fareRadius = getFareTarget()
-			if fareTarget and fareTarget.coords then
-				local fareDistance = #(playerCoords - vector3(fareTarget.coords.x, fareTarget.coords.y, fareTarget.coords.z))
-				if fareDistance <= (tonumber(Config.DrawDistance) or 30.0) then
+			local assignmentTarget, assignmentRadius, assignmentStage = getAssignmentTarget()
+			if assignmentTarget and assignmentTarget.coords then
+				local targetCoords = vector3(assignmentTarget.coords.x, assignmentTarget.coords.y, assignmentTarget.coords.z)
+				local assignmentDistance = #(playerCoords - targetCoords)
+				if assignmentDistance <= (tonumber(Config.DrawDistance) or 30.0) then
 					waitMs = 0
-					if activeFare.stage == 'pickup' then
-						DrawMarker(1, fareTarget.coords.x, fareTarget.coords.y, fareTarget.coords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.75, 87, 176, 255, 120, false, false, 2, false, nil, nil, false)
+					if assignmentStage == 'pickup' then
+						DrawMarker(1, assignmentTarget.coords.x, assignmentTarget.coords.y, assignmentTarget.coords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.0, 2.0, 0.75, 87, 176, 255, 120, false, false, 2, false, nil, nil, false)
 					else
-						DrawMarker(1, fareTarget.coords.x, fareTarget.coords.y, fareTarget.coords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.2, 2.2, 0.8, 99, 200, 138, 120, false, false, 2, false, nil, nil, false)
+						DrawMarker(1, assignmentTarget.coords.x, assignmentTarget.coords.y, assignmentTarget.coords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 2.2, 2.2, 0.8, 99, 200, 138, 120, false, false, 2, false, nil, nil, false)
 					end
 
-					if fareDistance <= fareRadius then
+					if assignmentDistance <= assignmentRadius then
 						local currentVehicle = GetVehiclePedIsIn(playerPed, false)
-						if activeFare.stage == 'pickup' then
-							if currentVehicle ~= 0 and currentVehicle == spawnedTaxiVehicle then
-								showHelpPrompt('Press ~INPUT_CONTEXT~ to collect the passenger')
-							elseif currentVehicle == 0 then
-								showHelpPrompt('Pull up in your company taxi to collect the passenger')
+						if currentVehicle ~= 0 and currentVehicle == spawnedTaxiVehicle then
+							if assignmentStage == 'pickup' then
+								showHelpPrompt('Press ~INPUT_CONTEXT~ to confirm the passenger is onboard')
+								if isInteractionJustPressed() then
+									TriggerServerEvent('lsrp_taxi:server:markPassengerPickedUp')
+									Wait(300)
+								end
 							else
-								showHelpPrompt('Collect the passenger using your company taxi')
+								showHelpPrompt('Press ~INPUT_CONTEXT~ to complete the taxi ride')
+								if isInteractionJustPressed() then
+									TriggerServerEvent('lsrp_taxi:server:completeRide')
+									Wait(300)
+								end
 							end
-
-							if currentVehicle ~= 0 and currentVehicle == spawnedTaxiVehicle and isInteractionJustPressed() then
-								boardFarePassenger()
-								Wait(300)
-							end
+						elseif assignmentStage == 'pickup' then
+							showHelpPrompt('Pull up in your company taxi to collect the passenger')
 						else
-							if currentVehicle ~= 0 and currentVehicle == spawnedTaxiVehicle then
-								showHelpPrompt('Press ~INPUT_CONTEXT~ to drop off the passenger')
-							elseif currentVehicle == 0 then
-								showHelpPrompt('Get back in your company taxi to complete the fare')
-							else
-								showHelpPrompt('Complete the fare using your company taxi')
-							end
-
-							if currentVehicle ~= 0 and currentVehicle == spawnedTaxiVehicle and isInteractionJustPressed() then
-								dropOffFarePassenger()
-								Wait(300)
-							end
+							showHelpPrompt('Use your company taxi to complete the ride')
 						end
 					end
 				end
@@ -761,23 +475,20 @@ CreateThread(function()
 	while true do
 		if spawnedTaxiVehicle and not DoesEntityExist(spawnedTaxiVehicle) then
 			spawnedTaxiVehicle = nil
-			setTaxiAvailabilityReported(false)
+			taxiVehicleSpawnInProgress = false
 		end
 
 		if pendingAutoSpawnDepotId then
 			tryAutoSpawnAssignedTaxi()
-			Wait(1000)
-		else
-			Wait(1000)
 		end
+
+		Wait(1000)
 	end
 end)
 
 AddEventHandler('onResourceStop', function(resourceName)
 	if resourceName == GetCurrentResourceName() then
-		setTaxiAvailabilityReported(false)
-		clearFareBlip()
-		clearFarePassenger()
+		clearAssignmentBlip()
 		destroyDepotBlips()
 		ensureTaxiVehicleDeleted()
 	end

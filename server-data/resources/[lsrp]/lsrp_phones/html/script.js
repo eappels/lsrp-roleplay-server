@@ -19,7 +19,7 @@ function updateTime() {
     }
 }
 
-const appScreens = ['balance-app', 'parking-app', 'calls-app', 'phonebook-app', 'messages-app'];
+const appScreens = ['balance-app', 'parking-app', 'taxi-app', 'calls-app', 'phonebook-app', 'messages-app'];
 
 const uiState = {
     currentApp: null
@@ -47,6 +47,19 @@ const messagesState = {
     unreadTotal: 0,
     activeThreadNumber: null,
     activeThread: null
+};
+
+const taxiState = {
+    canBook: true,
+    driverEligible: false,
+    employed: false,
+    onDuty: false,
+    availableDriverCount: 0,
+    myRide: null,
+    activeAssignment: null,
+    openRides: [],
+    unavailable: false,
+    currentView: 'menu'
 };
 
 const MAX_PHONE_DIGITS = 7;
@@ -321,6 +334,10 @@ function openApp(appName) {
         loadParkedVehicles();
     } else if (appName === 'balance') {
         loadBalance();
+    } else if (appName === 'taxi') {
+        taxiState.currentView = 'menu';
+        renderTaxiApp();
+        loadTaxiAppState();
     } else if (appName === 'calls') {
         updateCallUI();
     } else if (appName === 'phonebook') {
@@ -398,6 +415,343 @@ function setParkingWaypoint(parkingZone, vehicleLabel) {
         })
         .catch(() => {
             setParkingStatus('Could not set GPS right now.', true);
+        });
+}
+
+function setTaxiAppStatus(message, isError = false) {
+    const element = document.getElementById('taxi-status');
+    if (!element) {
+        return;
+    }
+
+    element.innerText = message || '';
+    element.classList.toggle('taxi-status-error', Boolean(isError));
+}
+
+function syncTaxiAppStatus() {
+    if (taxiState.unavailable) {
+        setTaxiAppStatus('Taxi dispatch is unavailable right now.', true);
+        return;
+    }
+
+    if (taxiState.myRide) {
+        setTaxiAppStatus(`Ride #${taxiState.myRide.id} is ${String(taxiState.myRide.statusLabel || 'active').toLowerCase()}.`, false);
+        return;
+    }
+
+    if (taxiState.currentView === 'driver') {
+        if (!taxiState.driverEligible) {
+            setTaxiAppStatus('Dispatch access is limited to taxi employees.', true);
+            return;
+        }
+
+        if (taxiState.onDuty) {
+            setTaxiAppStatus('Dispatch synced. Claim a ride when you are ready.', false);
+            return;
+        }
+
+        setTaxiAppStatus('Clock in at the taxi depot to use dispatch.', false);
+        return;
+    }
+
+    if (taxiState.currentView === 'rider') {
+        setTaxiAppStatus('Set a waypoint and request a ride.', false);
+        return;
+    }
+
+    if (taxiState.driverEligible && taxiState.onDuty) {
+        setTaxiAppStatus('Choose passenger booking or driver dispatch.', false);
+        return;
+    }
+
+    setTaxiAppStatus('Choose how you want to use the taxi service.', false);
+}
+
+function setTaxiView(viewName) {
+    if (viewName === 'rider' || viewName === 'driver') {
+        taxiState.currentView = viewName;
+    } else {
+        taxiState.currentView = 'menu';
+    }
+
+    renderTaxiApp();
+    syncTaxiAppStatus();
+}
+
+function loadTaxiAppState() {
+    setTaxiAppStatus('Syncing taxi dispatch...', false);
+    postNui('getTaxiAppState');
+}
+
+function getTaxiImmediateErrorMessage(errorCode) {
+    if (errorCode === 'missing_waypoint') {
+        return 'Set a GPS waypoint before booking a taxi.';
+    }
+
+    if (errorCode === 'invalid_ride') {
+        return 'That ride is no longer available.';
+    }
+
+    if (errorCode === 'player_unavailable') {
+        return 'Your position is unavailable right now. Try again in a moment.';
+    }
+
+    return 'Taxi dispatch is unavailable right now.';
+}
+
+function createTaxiDetailRow(label, value) {
+    const row = document.createElement('div');
+    row.className = 'taxi-detail-row';
+
+    const labelElement = document.createElement('span');
+    labelElement.className = 'taxi-detail-label';
+    labelElement.innerText = label;
+
+    const valueElement = document.createElement('span');
+    valueElement.className = 'taxi-detail-value';
+    valueElement.innerText = value || 'Unknown';
+
+    row.appendChild(labelElement);
+    row.appendChild(valueElement);
+    return row;
+}
+
+function createTaxiRideCard(ride, options = {}) {
+    const card = document.createElement('div');
+    card.className = 'taxi-ride-card';
+
+    const top = document.createElement('div');
+    top.className = 'taxi-ride-top';
+
+    const heading = document.createElement('div');
+    heading.className = 'taxi-ride-heading';
+
+    const title = document.createElement('strong');
+    title.innerText = `Ride #${ride.id}`;
+
+    const subtitle = document.createElement('span');
+    subtitle.className = 'taxi-ride-subtitle';
+    subtitle.innerText = `${ride.pickup && ride.pickup.label ? ride.pickup.label : 'Pickup'} → ${ride.destination && ride.destination.label ? ride.destination.label : 'Destination'}`;
+
+    heading.appendChild(title);
+    heading.appendChild(subtitle);
+
+    const status = document.createElement('span');
+    status.className = `taxi-status-pill taxi-status-${ride.status || 'open'}`;
+    status.innerText = ride.statusLabel || 'Waiting';
+
+    top.appendChild(heading);
+    top.appendChild(status);
+
+    const details = document.createElement('div');
+    details.className = 'taxi-ride-details';
+    details.appendChild(createTaxiDetailRow('Pickup', ride.pickup && ride.pickup.label ? ride.pickup.label : 'Current location'));
+    details.appendChild(createTaxiDetailRow('Destination', ride.destination && ride.destination.label ? ride.destination.label : 'Waypoint'));
+    details.appendChild(createTaxiDetailRow('Schedule', ride.scheduledFor || 'ASAP'));
+    details.appendChild(createTaxiDetailRow('Fare', ride.formattedPayout || 'LS$0'));
+
+    if (ride.driverName) {
+        details.appendChild(createTaxiDetailRow('Driver', ride.driverName));
+    }
+
+    if (ride.riderName && options.showRider === true) {
+        details.appendChild(createTaxiDetailRow('Passenger', ride.riderName));
+    }
+
+    if (ride.notes) {
+        details.appendChild(createTaxiDetailRow('Notes', ride.notes));
+    }
+
+    card.appendChild(top);
+    card.appendChild(details);
+
+    if (options.buttonLabel && typeof options.onButtonClick === 'function') {
+        const actions = document.createElement('div');
+        actions.className = 'taxi-ride-actions';
+
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = options.buttonClassName || 'btn';
+        button.innerText = options.buttonLabel;
+        button.addEventListener('click', options.onButtonClick);
+
+        actions.appendChild(button);
+        card.appendChild(actions);
+    }
+
+    return card;
+}
+
+function renderTaxiApp() {
+    const menuSection = document.getElementById('taxi-mode-menu');
+    const riderPanel = document.getElementById('taxi-rider-panel');
+    const driverPanel = document.getElementById('taxi-driver-panel');
+    const driverCount = document.getElementById('taxi-driver-count');
+    const myRideContainer = document.getElementById('taxi-my-ride');
+    const dispatchPanel = document.getElementById('taxi-dispatch-panel');
+    const dispatchState = document.getElementById('taxi-dispatch-state');
+    const activeAssignmentContainer = document.getElementById('taxi-active-assignment');
+    const openRidesContainer = document.getElementById('taxi-open-rides');
+
+    if (menuSection) {
+        menuSection.style.display = taxiState.currentView === 'menu' ? 'grid' : 'none';
+    }
+
+    if (riderPanel) {
+        riderPanel.style.display = taxiState.currentView === 'rider' ? 'flex' : 'none';
+    }
+
+    if (driverPanel) {
+        driverPanel.style.display = taxiState.currentView === 'driver' ? 'flex' : 'none';
+    }
+
+    if (driverCount) {
+        const count = Number(taxiState.availableDriverCount) || 0;
+        driverCount.innerText = `${count} ${count === 1 ? 'driver' : 'drivers'}`;
+    }
+
+    if (myRideContainer) {
+        myRideContainer.innerHTML = '';
+
+        if (taxiState.myRide) {
+            myRideContainer.appendChild(createTaxiRideCard(taxiState.myRide, {
+                buttonLabel: 'Cancel Ride',
+                buttonClassName: 'btn btn-danger',
+                onButtonClick: () => {
+                    cancelTaxiRide();
+                }
+            }));
+        } else {
+            myRideContainer.innerHTML = '<p class="messages-empty">No active taxi ride.</p>';
+        }
+    }
+
+    if (dispatchPanel) {
+        dispatchPanel.style.display = 'flex';
+    }
+
+    if (dispatchState) {
+        if (!taxiState.driverEligible) {
+            dispatchState.innerText = 'Civilian';
+        } else if (taxiState.onDuty) {
+            dispatchState.innerText = 'On duty';
+        } else {
+            dispatchState.innerText = 'Off duty';
+        }
+    }
+
+    if (activeAssignmentContainer) {
+        activeAssignmentContainer.innerHTML = '';
+
+        if (taxiState.activeAssignment) {
+            const allowRelease = taxiState.activeAssignment.status !== 'picked_up';
+            activeAssignmentContainer.appendChild(createTaxiRideCard(taxiState.activeAssignment, {
+                showRider: true,
+                buttonLabel: allowRelease ? 'Release Ride' : '',
+                buttonClassName: 'btn btn-danger',
+                onButtonClick: allowRelease ? () => {
+                    releaseTaxiRide();
+                } : null
+            }));
+        } else if (taxiState.driverEligible && !taxiState.onDuty) {
+            activeAssignmentContainer.innerHTML = '<p class="messages-empty">Clock in at the taxi depot to claim rides.</p>';
+        } else {
+            activeAssignmentContainer.innerHTML = '<p class="messages-empty">No active assignment.</p>';
+        }
+    }
+
+    if (openRidesContainer) {
+        openRidesContainer.innerHTML = '';
+
+        if (!taxiState.driverEligible) {
+            openRidesContainer.innerHTML = '<p class="messages-empty">Dispatch access is limited to taxi employees.</p>';
+        } else if (!taxiState.onDuty) {
+            openRidesContainer.innerHTML = '<p class="messages-empty">Go on duty to view open ride requests.</p>';
+        } else if (taxiState.activeAssignment) {
+            openRidesContainer.innerHTML = '<p class="messages-empty">Finish or release your current assignment to claim another ride.</p>';
+        } else if (Array.isArray(taxiState.openRides) && taxiState.openRides.length > 0) {
+            taxiState.openRides.forEach((ride) => {
+                openRidesContainer.appendChild(createTaxiRideCard(ride, {
+                    showRider: true,
+                    buttonLabel: 'Claim Ride',
+                    buttonClassName: 'btn',
+                    onButtonClick: () => {
+                        claimTaxiRide(ride.id);
+                    }
+                }));
+            });
+        } else {
+            openRidesContainer.innerHTML = '<p class="messages-empty">No open rides right now.</p>';
+        }
+    }
+}
+
+function displayTaxiAppState(state) {
+    Object.assign(taxiState, {
+        canBook: state && state.canBook !== false,
+        driverEligible: state && state.driverEligible === true,
+        employed: state && state.employed === true,
+        onDuty: state && state.onDuty === true,
+        availableDriverCount: Number(state && state.availableDriverCount) || 0,
+        myRide: state && state.myRide ? state.myRide : null,
+        activeAssignment: state && state.activeAssignment ? state.activeAssignment : null,
+        openRides: Array.isArray(state && state.openRides) ? state.openRides : [],
+        unavailable: state && state.unavailable === true
+    });
+
+    renderTaxiApp();
+    syncTaxiAppStatus();
+}
+
+function bookTaxiRide() {
+    const destinationInput = document.getElementById('taxi-destination-label');
+    const scheduleInput = document.getElementById('taxi-schedule');
+    const notesInput = document.getElementById('taxi-notes');
+
+    setTaxiAppStatus('Sending ride request to dispatch...', false);
+    postNui('bookTaxiRide', {
+        destinationLabel: destinationInput ? destinationInput.value : '',
+        scheduledFor: scheduleInput ? scheduleInput.value : '',
+        notes: notesInput ? notesInput.value : ''
+    })
+        .then((response) => response.json().catch(() => ({ ok: true })))
+        .then((result) => {
+            if (result && result.ok === false) {
+                setTaxiAppStatus(getTaxiImmediateErrorMessage(result.error), true);
+            }
+        })
+        .catch(() => {
+            setTaxiAppStatus('Taxi dispatch is unavailable right now.', true);
+        });
+}
+
+function cancelTaxiRide() {
+    setTaxiAppStatus('Cancelling your taxi request...', false);
+    postNui('cancelTaxiRide')
+        .catch(() => {
+            setTaxiAppStatus('Could not cancel your taxi request right now.', true);
+        });
+}
+
+function claimTaxiRide(rideId) {
+    setTaxiAppStatus(`Claiming ride #${rideId}...`, false);
+    postNui('claimTaxiRide', { rideId })
+        .then((response) => response.json().catch(() => ({ ok: true })))
+        .then((result) => {
+            if (result && result.ok === false) {
+                setTaxiAppStatus(getTaxiImmediateErrorMessage(result.error), true);
+            }
+        })
+        .catch(() => {
+            setTaxiAppStatus('Could not claim that ride right now.', true);
+        });
+}
+
+function releaseTaxiRide() {
+    setTaxiAppStatus('Releasing your active ride...', false);
+    postNui('releaseTaxiRide')
+        .catch(() => {
+            setTaxiAppStatus('Could not release your assignment right now.', true);
         });
 }
 
@@ -1430,6 +1784,7 @@ updateCallUI();
 updateMessagesUnreadSummary();
 updateMessagesBadge();
 renderHomeDashboard();
+renderTaxiApp();
 
 window.addEventListener('message', (event) => {
     const data = event.data;
@@ -1456,6 +1811,10 @@ window.addEventListener('message', (event) => {
         displayMessageConversations(data.conversations, data.unreadTotal);
     } else if (data.action === 'displayMessageThread') {
         displayMessageThread(data.thread);
+    } else if (data.action === 'displayTaxiAppState') {
+        displayTaxiAppState(data.state || {});
+    } else if (data.action === 'taxiAppStatus') {
+        setTaxiAppStatus(data.message || '', data.isError === true);
     } else if (data.action === 'messageIncoming') {
         handleMessageIncoming(data.phoneNumber, data.preview);
     } else if (data.action === 'messageStatus') {

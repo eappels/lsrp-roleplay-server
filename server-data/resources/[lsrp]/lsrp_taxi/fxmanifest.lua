@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'LSRP Development'
-description 'LSRP taxi civilian job'
+description 'LSRP player taxi job and dispatch'
 version '1.0.0'
 
 lua54 'yes'

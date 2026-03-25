@@ -95,6 +95,10 @@
                             <span class="icon">🚗</span>
                             <span>Parking</span>
                         </button>
+                        <button type="button" class="app-icon app-icon-taxi" onclick="openApp('taxi')">
+                            <span class="icon">🚕</span>
+                            <span>Taxi</span>
+                        </button>
                         <button type="button" class="app-icon app-icon-calls" onclick="openApp('calls')">
                             <span class="icon">📞</span>
                             <span>Calls</span>
@@ -223,6 +227,111 @@
 
                     <div id="vehicle-list" class="vehicle-list">
                         <p class="loading">Loading vehicles...</p>
+                    </div>
+                </section>
+
+                <section id="taxi-app" class="app-screen" style="display: none;">
+                    <div class="app-header">
+                        <button type="button" class="back-btn" onclick="closeApp()">Back</button>
+                        <div class="app-header-copy">
+                            <p class="app-kicker">Transport</p>
+                            <h3>Taxi</h3>
+                        </div>
+                        <div class="app-accent">CAB</div>
+                    </div>
+
+                    <div class="taxi-app-content">
+                        <p id="taxi-status" class="taxi-status taxi-status-banner">Choose how you want to use the taxi service.</p>
+
+                        <div id="taxi-mode-menu" class="taxi-mode-menu">
+                            <button type="button" class="taxi-mode-card" onclick="setTaxiView('rider')">
+                                <span class="taxi-mode-kicker">Passenger</span>
+                                <strong>Book a ride</strong>
+                                <span class="taxi-mode-copy">Request pickup from your current location and ride to your waypoint.</span>
+                            </button>
+
+                            <button type="button" class="taxi-mode-card" onclick="setTaxiView('driver')">
+                                <span class="taxi-mode-kicker">Employee</span>
+                                <strong>Taxi driver</strong>
+                                <span class="taxi-mode-copy">Open dispatch, view active assignments, and claim available rides.</span>
+                            </button>
+                        </div>
+
+                        <div id="taxi-rider-panel" class="taxi-panel" style="display: none;">
+                            <div class="taxi-card taxi-book-card">
+                                <div class="taxi-card-header taxi-card-header-with-action">
+                                    <div>
+                                        <h4>Book a ride</h4>
+                                        <p class="taxi-panel-copy">Passenger request form</p>
+                                    </div>
+                                    <button type="button" class="phonebook-refresh" onclick="setTaxiView('menu')">Change</button>
+                                </div>
+
+                                <div class="taxi-inline-meta">
+                                    <span id="taxi-driver-count" class="taxi-driver-count">0 drivers</span>
+                                </div>
+
+                                <p class="taxi-helper">Set your in-game GPS waypoint first. Booking uses your current location as pickup.</p>
+
+                                <label class="field-label" for="taxi-destination-label">Destination label</label>
+                                <input id="taxi-destination-label" type="text" maxlength="48" placeholder="Airport, Legion Square, home...">
+
+                                <label class="field-label" for="taxi-schedule">Requested time</label>
+                                <input id="taxi-schedule" type="text" maxlength="32" placeholder="ASAP or 18:30">
+
+                                <label class="field-label" for="taxi-notes">Driver notes</label>
+                                <textarea id="taxi-notes" maxlength="180" placeholder="Color, landmark, entrance, or other pickup note..."></textarea>
+
+                                <div class="taxi-actions">
+                                    <button type="button" class="btn" onclick="bookTaxiRide()">Book Ride</button>
+                                    <button type="button" class="phonebook-refresh" onclick="loadTaxiAppState()">Refresh</button>
+                                </div>
+                            </div>
+
+                            <div class="taxi-card">
+                                <div class="taxi-card-header">
+                                    <h4>Your ride</h4>
+                                    <span class="taxi-section-tag">Live</span>
+                                </div>
+
+                                <div id="taxi-my-ride" class="taxi-list">
+                                    <p class="messages-empty">No active taxi ride.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="taxi-driver-panel" class="taxi-panel" style="display: none;">
+                            <div class="taxi-card">
+                                <div class="taxi-card-header taxi-card-header-with-action">
+                                    <div>
+                                        <h4>Driver dispatch</h4>
+                                        <p class="taxi-panel-copy">Ride board and active job</p>
+                                    </div>
+                                    <button type="button" class="phonebook-refresh" onclick="setTaxiView('menu')">Change</button>
+                                </div>
+
+                                <div class="taxi-inline-meta">
+                                    <span id="taxi-dispatch-state" class="taxi-section-tag">Off duty</span>
+                                </div>
+
+                                <div id="taxi-active-assignment" class="taxi-list">
+                                    <p class="messages-empty">No active assignment.</p>
+                                </div>
+                            </div>
+
+                            <div id="taxi-dispatch-panel" class="taxi-dispatch-panel">
+                                <div class="taxi-card">
+                                    <div class="taxi-card-header">
+                                        <h4>Open rides</h4>
+                                        <button type="button" class="phonebook-refresh" onclick="loadTaxiAppState()">Refresh</button>
+                                    </div>
+
+                                    <div id="taxi-open-rides" class="taxi-list">
+                                        <p class="messages-empty">No open rides right now.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </section>
 

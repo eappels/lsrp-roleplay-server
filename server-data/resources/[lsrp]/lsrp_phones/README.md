@@ -23,6 +23,7 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 - Phonebook storage.
 - Phone number lookup and assignment.
 - Integration with parking data for vehicle lists.
+- Taxi app for rider booking and driver dispatch claims through `lsrp_taxi`.
 - Phone UI, phonebook visibility, and live call or message access now require owning a `phone` inventory item.
 
 ## Database Tables
@@ -33,6 +34,7 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 
 - `pma-voice`: call audio and routing.
 - `lsrp_economy`: balance display or money-related app features.
+- `lsrp_taxi`: taxi booking and dispatch app integration.
 - `lsrp_vehicleparking`: parked vehicle data for phone apps.
 - `lsrp_core`: shared resource dependency.
 - `oxmysql`: persistence.

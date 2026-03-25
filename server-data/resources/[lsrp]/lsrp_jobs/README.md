@@ -24,5 +24,5 @@ Core employment resource for LSRP.
 ## Notes
 
 - Player employment is persisted in `lsrp_job_employment`.
-- Job definitions are registered by job resources such as `lsrp_taxi`.
+- Job definitions are registered by job resources such as `lsrp_taxiped`.
 - Public jobs are consumed by `lsrp_jobcenter`.

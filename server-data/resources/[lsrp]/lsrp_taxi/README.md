@@ -1,36 +1,22 @@
 # lsrp_taxi
 
-First public civilian job built on top of `lsrp_jobs`.
+Player-booked taxi job built on top of `lsrp_jobs` and `lsrp_phones`.
 
 ## Features
 
-- Registers the `taxi` job in the employment system.
-- Taxi depot with a company vehicle bay and vehicle return point.
-- Automatic dispatch-assigned fares with a pickup point, passenger ped, and drop-off destination.
-- Fare rewards deposited into `lsrp_economy` on completion.
+- Registers the `taxi_player` job in the employment system.
+- Taxi depot with company taxi spawn and return markers.
+- Live player-booked fares claimed from the Taxi phone app dispatch board.
+- Driver payout through `lsrp_economy` when rides are completed.
 
-## Job Grades
+## Phone Integration
 
-- `driver`
-- `senior_driver`
+- Civilians can request a taxi from the Taxi phone app.
+- Booking uses the rider's current position as pickup and the current GPS waypoint as destination.
+- Riders can add a destination label, timing note, and driver notes.
+- On-duty taxi drivers can refresh dispatch, claim open rides, and release unstarted rides.
 
 ## Notes
 
-- Passive payroll comes from `lsrp_jobs` while the employee is on duty.
-- Active fare rewards come from this resource.
-
-## Taxi Flow
-
-1. Apply for `Downtown Cab` at the job center.
-2. Go to the taxi depot.
-3. Press `E` at the vehicle marker to clock in and collect a company taxi.
-4. Once your company taxi is out, dispatch automatically assigns a fare.
-5. Drive to the pickup point and collect the passenger from inside your company taxi.
-6. Drive the passenger to their assigned destination and complete the fare from inside your company taxi.
-7. After each drop-off, wait for dispatch to send the next fare.
-8. Return the taxi to the depot return marker when finished.
-
-## Depot Markers
-
-- Vehicle marker: clock in and collect a taxi, or collect a replacement taxi while already on duty.
-- Return marker: return your current company taxi.
+- Existing NPC taxi fare gameplay remains in `lsrp_taxiped`.
+- This resource uses its own job id so it does not conflict with the older taxi job.
