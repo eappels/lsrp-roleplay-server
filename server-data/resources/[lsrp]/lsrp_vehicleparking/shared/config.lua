@@ -6,13 +6,26 @@ Config.ParkingZones = {
         name = "Legion Square",
         coords = vector3(222, -796.5, 30.7),
         size = vector3(10.0, 20.0, 3.0),
-        rotation = 70.0,
+        rotation = 90.0,
         maxSlots = 10,
         blip = {
             sprite = 357,
             color = 3,
             scale = 0.8,
             label = "Legion Square"
+        }
+    },
+    {
+        name = "Tow recovery unrepaired",
+        coords = vector3(419.88, -1639.62, 29.29),
+        size = vector3(5.0, 10.0, 3.0),
+        rotation = 90.0,
+        maxSlots = 1000,
+        blip = {
+            sprite = 357,
+            color = 7,
+            scale = 0.8,
+            label = "Tow recovery unrepaired"
         }
     },
     {

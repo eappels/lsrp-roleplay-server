@@ -2,6 +2,13 @@ Config = Config or {}
 
 Config.VehicleBehaviour = {
 	enabled = true,
+	doorControl = {
+		enabled = true,
+		commandName = 'vehicledoors',
+		key = 'F2',
+		searchRadius = 6.0,
+		notify = true
+	},
 	ignition = {
 		enabled = true,
 		commandName = 'ignition',

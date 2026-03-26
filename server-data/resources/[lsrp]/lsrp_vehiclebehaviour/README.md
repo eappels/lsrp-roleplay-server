@@ -6,6 +6,7 @@ This resource handles vehicle ignition and vehicle key checks.
 
 Current scope:
 
+- Vehicle door control NUI.
 - Ignition on/off handling.
 - Vehicle lock/unlock handling.
 - Block forced entry into locked vehicles when the local player has valid key access.
@@ -16,6 +17,7 @@ This resource depends on `oxmysql` and uses `lsrp_vehicleparking` as the ownersh
 
 ## Controls
 
+- Vehicle door controls: `F2`
 - Ignition: `Left Alt + Left Ctrl`
 - Lock or unlock vehicle: `X` (within 10 meters)
 - Give a key to another player: `/givekey [server id]`
@@ -113,3 +115,4 @@ These legacy export names still work, but new integrations should use the neutra
 - `client/client.lua`: ignition, lock, keybinds, local key cache, occupant-aware start checks.
 - `server/server.lua`: DB checks, `vehicle_keys` table bootstrap, owner/shared-key validation, purchase key grants, and key sharing.
 - `shared/config.lua`: default keybinds and basic resource configuration.
+- `html/`: vehicle door control NUI.

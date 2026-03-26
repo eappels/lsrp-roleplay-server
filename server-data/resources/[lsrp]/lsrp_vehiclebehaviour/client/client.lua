@@ -28,6 +28,25 @@ local lockedEntryAttemptBlockedUntil = 0
 local playerLicenseIdentifier = nil
 local lockToggleRequestInFlight = false
 local failedIgnitionAttemptUntilByVehicle = {}
+local doorControlUiOpen = false
+local doorControlNuiReady = false
+local doorControlTargetNetId = 0
+local doorControlTargetEntity = 0
+local doorControlTargetPlate = nil
+local pendingDoorControlPayload = nil
+local lastDoorControlPayloadSignature = nil
+local DOOR_CONTROL_OPEN_RATIO_THRESHOLD = 0.05
+local DOOR_CONTROL_REQUEST_TIMEOUT_MS = 750
+local DOOR_CONTROL_REFRESH_INTERVAL_MS = 200
+local DOOR_CONTROL_POST_TOGGLE_REFRESH_DELAY_MS = 150
+local VEHICLE_DOOR_OPTIONS = {
+	{ index = 0, label = 'Front Left' },
+	{ index = 1, label = 'Front Right' },
+	{ index = 2, label = 'Rear Left' },
+	{ index = 3, label = 'Rear Right' },
+	{ index = 4, label = 'Hood' },
+	{ index = 5, label = 'Trunk' }
+}
 
 local function getVehicleBehaviourConfig()
 	return Config and Config.VehicleBehaviour or nil
@@ -36,6 +55,11 @@ end
 local function getIgnitionConfig()
 	local vehicleBehaviour = getVehicleBehaviourConfig()
 	return vehicleBehaviour and vehicleBehaviour.ignition or nil
+end
+
+local function getDoorControlConfig()
+	local vehicleBehaviour = getVehicleBehaviourConfig()
+	return vehicleBehaviour and vehicleBehaviour.doorControl or nil
 end
 
 local function getKeysConfig()
@@ -221,6 +245,24 @@ local function getVehiclePlate(vehicle)
 	end
 
 	return normalizePlate(GetVehicleNumberPlateText(vehicle))
+end
+
+local function getVehicleDisplayName(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return 'Vehicle'
+	end
+
+	local displayName = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
+	local labelText = displayName and GetLabelText(displayName) or nil
+	if labelText and labelText ~= '' and labelText ~= 'NULL' then
+		return labelText
+	end
+
+	if displayName and displayName ~= '' then
+		return displayName
+	end
+
+	return 'Vehicle'
 end
 
 local function collectVehicleOccupantServerIds(vehicle)
@@ -654,6 +696,370 @@ local function playVehicleLockSound(vehicle, shouldLock)
 	ReleaseSoundId(soundId)
 end
 
+local function getDoorControlSearchRadius()
+	local doorControlConfig = getDoorControlConfig()
+	local searchRadius = tonumber(doorControlConfig and doorControlConfig.searchRadius)
+	if not searchRadius or searchRadius < 1.0 then
+		return 6.0
+	end
+
+	return searchRadius + 0.0
+end
+
+local function getVehicleForDoorControl(ped)
+	if ped == 0 or IsPedFatallyInjured(ped) then
+		return 0
+	end
+
+	if IsPedInAnyVehicle(ped, false) then
+		local vehicle = GetVehiclePedIsIn(ped, false)
+		if vehicle ~= 0 and DoesEntityExist(vehicle) then
+			return vehicle
+		end
+	end
+
+	return getVehicleForLockToggle(ped, getDoorControlSearchRadius())
+end
+
+local function isDoorControlSupportedVehicle(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	local vehicleClass = tonumber(GetVehicleClass(vehicle)) or -1
+	return vehicleClass ~= 8
+		and vehicleClass ~= 13
+		and vehicleClass ~= 14
+		and vehicleClass ~= 15
+		and vehicleClass ~= 16
+		and vehicleClass ~= 21
+end
+
+local function isVehicleDoorIndexValid(vehicle, doorIndex)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	local normalizedDoorIndex = tonumber(doorIndex)
+	if normalizedDoorIndex == nil then
+		return false
+	end
+
+	if not isDoorControlSupportedVehicle(vehicle) then
+		return false
+	end
+
+	if type(GetIsDoorValid) == 'function' then
+		local nativeValid = GetIsDoorValid(vehicle, normalizedDoorIndex)
+		if nativeValid == true then
+			return true
+		end
+	end
+
+	local doorCount = type(GetNumberOfVehicleDoors) == 'function' and tonumber(GetNumberOfVehicleDoors(vehicle)) or 0
+	local seatCount = tonumber(GetVehicleModelNumberOfSeats(GetEntityModel(vehicle))) or 0
+	if normalizedDoorIndex >= 0 and normalizedDoorIndex <= 3 then
+		if doorCount > 0 then
+			return normalizedDoorIndex < doorCount
+		end
+
+		if normalizedDoorIndex <= 1 then
+			return seatCount >= 2
+		end
+
+		return seatCount >= 4
+	end
+
+	return normalizedDoorIndex == 4 or normalizedDoorIndex == 5
+end
+
+local function isVehicleDoorOpen(vehicle, doorIndex)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	return (tonumber(GetVehicleDoorAngleRatio(vehicle, doorIndex)) or 0.0) > DOOR_CONTROL_OPEN_RATIO_THRESHOLD
+end
+
+local function buildDoorControlPayload(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return nil
+	end
+
+	local doors = {}
+	for _, option in ipairs(VEHICLE_DOOR_OPTIONS) do
+		if isVehicleDoorIndexValid(vehicle, option.index) then
+			doors[#doors + 1] = {
+				index = option.index,
+				label = option.label,
+				isOpen = isVehicleDoorOpen(vehicle, option.index)
+			}
+		end
+	end
+
+	return {
+		plate = getVehiclePlate(vehicle) or 'UNKNOWN',
+		vehicleName = getVehicleDisplayName(vehicle),
+		doors = doors
+	}
+end
+
+local function getDoorControlPayloadSignature(payload)
+	if type(payload) ~= 'table' then
+		return nil
+	end
+
+	local parts = {
+		tostring(payload.plate or ''),
+		tostring(payload.vehicleName or '')
+	}
+
+	if type(payload.doors) == 'table' then
+		for index = 1, #payload.doors do
+			local door = payload.doors[index]
+			parts[#parts + 1] = ('%s:%s:%s'):format(
+				tostring(door and door.index or ''),
+				tostring(door and door.label or ''),
+				(door and door.isOpen == true) and '1' or '0'
+			)
+		end
+	end
+
+	return table.concat(parts, '|')
+end
+
+local function closeDoorControlUi(skipNuiMessage)
+	if not doorControlUiOpen then
+		pendingDoorControlPayload = nil
+		lastDoorControlPayloadSignature = nil
+		return
+	end
+
+	doorControlUiOpen = false
+	pendingDoorControlPayload = nil
+	lastDoorControlPayloadSignature = nil
+	doorControlTargetNetId = 0
+	doorControlTargetEntity = 0
+	doorControlTargetPlate = nil
+
+	if type(SetNuiFocusKeepInput) == 'function' then
+		SetNuiFocusKeepInput(false)
+	end
+
+	SetNuiFocus(false, false)
+
+	if skipNuiMessage ~= true then
+		SendNUIMessage({
+			action = 'closeDoorControl'
+		})
+	end
+end
+
+local function showDoorControlUiPayload(payload)
+	if not payload then
+		return
+	end
+
+	doorControlUiOpen = true
+	pendingDoorControlPayload = nil
+	lastDoorControlPayloadSignature = getDoorControlPayloadSignature(payload)
+
+	if type(SetNuiFocusKeepInput) == 'function' then
+		SetNuiFocusKeepInput(false)
+	end
+
+	SetNuiFocus(true, true)
+
+	local function dispatchOpenMessage()
+		if not doorControlUiOpen then
+			return
+		end
+
+		SendNUIMessage({
+			action = 'openDoorControl',
+			payload = payload
+		})
+	end
+
+	dispatchOpenMessage()
+	SetTimeout(100, dispatchOpenMessage)
+	SetTimeout(250, dispatchOpenMessage)
+end
+
+local function refreshDoorControlUiPayload(vehicle)
+	if not doorControlUiOpen then
+		return
+	end
+
+	local payload = buildDoorControlPayload(vehicle)
+	if not payload then
+		return
+	end
+
+	local payloadSignature = getDoorControlPayloadSignature(payload)
+	if payloadSignature ~= nil and payloadSignature == lastDoorControlPayloadSignature then
+		return
+	end
+
+	lastDoorControlPayloadSignature = payloadSignature
+
+	SendNUIMessage({
+		action = 'updateDoorControl',
+		payload = payload
+	})
+end
+
+local function resolveDoorControlTargetVehicle()
+	if doorControlTargetNetId and doorControlTargetNetId ~= 0 then
+		local vehicle = NetworkGetEntityFromNetworkId(doorControlTargetNetId)
+		if vehicle ~= 0 and DoesEntityExist(vehicle) then
+			return vehicle
+		end
+	end
+
+	if doorControlTargetEntity and doorControlTargetEntity ~= 0 and DoesEntityExist(doorControlTargetEntity) then
+		return doorControlTargetEntity
+	end
+
+	return 0
+end
+
+local function requestVehicleEntityControl(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	if NetworkHasControlOfEntity(vehicle) then
+		return true
+	end
+
+	local expiresAt = GetGameTimer() + DOOR_CONTROL_REQUEST_TIMEOUT_MS
+	while GetGameTimer() < expiresAt do
+		NetworkRequestControlOfEntity(vehicle)
+		if NetworkHasControlOfEntity(vehicle) then
+			return true
+		end
+		Wait(0)
+	end
+
+	return NetworkHasControlOfEntity(vehicle)
+end
+
+local function getDoorControlFailureMessage(reason)
+	if isTransientKeyReason(reason) then
+		return 'Vehicle key service is unavailable'
+	end
+
+	if reason == 'no_key' or reason == 'unowned_vehicle' then
+		return 'You do not have the keys for this vehicle'
+	end
+
+	if reason == 'invalid_plate' or reason == 'missing_vehicle' then
+		return 'Could not identify this vehicle'
+	end
+
+	if reason == 'invalid_door' then
+		return 'That door is not available on this vehicle'
+	end
+
+	if reason == 'control_failed' then
+		return 'Could not control this vehicle right now'
+	end
+
+	return 'Could not update vehicle door state'
+end
+
+local function openDoorControlUi()
+	local vehicleBehaviour = getVehicleBehaviourConfig()
+	local doorControlConfig = getDoorControlConfig()
+	if not vehicleBehaviour or vehicleBehaviour.enabled == false or not doorControlConfig or doorControlConfig.enabled == false then
+		return
+	end
+
+	local ped = PlayerPedId()
+	local vehicle = getVehicleForDoorControl(ped)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		if doorControlConfig.notify ~= false then
+			notify('No vehicle nearby to control')
+		end
+		return
+	end
+
+	local hasKey, reason = requestVehicleKeyAccess(vehicle, true, KEY_ACCESS_MODE_DOOR)
+	if hasKey ~= true then
+		if doorControlConfig.notify ~= false then
+			notify(getDoorControlFailureMessage(reason))
+		end
+		return
+	end
+
+	local payload = buildDoorControlPayload(vehicle)
+	if not payload or not payload.doors or #payload.doors == 0 then
+		if doorControlConfig.notify ~= false then
+			notify('This vehicle has no controllable doors')
+		end
+		return
+	end
+
+	doorControlTargetNetId = NetworkGetNetworkIdFromEntity(vehicle)
+	doorControlTargetEntity = vehicle
+	doorControlTargetPlate = payload.plate
+
+	if doorControlNuiReady ~= true then
+		pendingDoorControlPayload = payload
+		return
+	end
+
+	showDoorControlUiPayload(payload)
+end
+
+local function toggleDoorControlUi()
+	if doorControlUiOpen then
+		closeDoorControlUi(false)
+		return
+	end
+
+	openDoorControlUi()
+end
+
+local function toggleVehicleDoorFromUi(doorIndex)
+	local vehicle = resolveDoorControlTargetVehicle()
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		closeDoorControlUi(false)
+		return false, 'missing_vehicle'
+	end
+
+	local plate = getVehiclePlate(vehicle)
+	if not plate or (doorControlTargetPlate and plate ~= doorControlTargetPlate) then
+		closeDoorControlUi(false)
+		return false, 'missing_vehicle'
+	end
+
+	local hasKey, reason = requestVehicleKeyAccess(vehicle, true, KEY_ACCESS_MODE_DOOR)
+	if hasKey ~= true then
+		return false, reason
+	end
+
+	local normalizedDoorIndex = tonumber(doorIndex)
+	if normalizedDoorIndex == nil or not isVehicleDoorIndexValid(vehicle, normalizedDoorIndex) then
+		return false, 'invalid_door'
+	end
+
+	if requestVehicleEntityControl(vehicle) ~= true then
+		return false, 'control_failed'
+	end
+
+	if isVehicleDoorOpen(vehicle, normalizedDoorIndex) then
+		SetVehicleDoorShut(vehicle, normalizedDoorIndex, false)
+	else
+		SetVehicleDoorOpen(vehicle, normalizedDoorIndex, false, false)
+	end
+
+	Wait(DOOR_CONTROL_POST_TOGGLE_REFRESH_DELAY_MS)
+
+	return true, buildDoorControlPayload(vehicle)
+end
+
 local function isWithinLockSoundBroadcastRange(vehicle)
 	if vehicle == 0 or not DoesEntityExist(vehicle) then
 		return false
@@ -875,6 +1281,41 @@ RegisterNetEvent('lsrp_vehiclebehaviour:client:setPlayerLicense', function(licen
 	playerLicenseIdentifier = normalizeLicenseIdentifier(license)
 end)
 
+RegisterNUICallback('doorControlClose', function(_, cb)
+	closeDoorControlUi(true)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('doorControlReady', function(_, cb)
+	doorControlNuiReady = true
+	if pendingDoorControlPayload then
+		showDoorControlUiPayload(pendingDoorControlPayload)
+	end
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('doorControlToggleDoor', function(data, cb)
+	local ok, result = toggleVehicleDoorFromUi(data and data.doorIndex)
+	if ok ~= true then
+		local message = getDoorControlFailureMessage(result)
+		local doorControlConfig = getDoorControlConfig()
+		if doorControlConfig == nil or doorControlConfig.notify ~= false then
+			notify(message)
+		end
+		cb({ ok = false, message = message })
+		return
+	end
+
+	SendNUIMessage({
+		action = 'updateDoorControl',
+		payload = result
+	})
+
+	lastDoorControlPayloadSignature = getDoorControlPayloadSignature(result)
+
+	cb({ ok = true, payload = result })
+end)
+
 AddEventHandler('playerSpawned', function()
 	TriggerServerEvent('lsrp_vehiclebehaviour:server:requestPlayerLicense')
 end)
@@ -1001,6 +1442,11 @@ local defaultIgnitionKey = ((getIgnitionConfig() and getIgnitionConfig().key) or
 local defaultIgnitionModifierKey = tostring((getIgnitionConfig() and getIgnitionConfig().modifierKey) or ''):gsub('^%s+', ''):gsub('%s+$', '')
 local ignitionModifierRequired = defaultIgnitionModifierKey ~= ''
 local ignitionCommandName = ((getIgnitionConfig() and getIgnitionConfig().commandName) or 'ignition')
+local defaultDoorControlKey = ((getDoorControlConfig() and getDoorControlConfig().key) or 'F2')
+local doorControlCommandName = ((getDoorControlConfig() and getDoorControlConfig().commandName) or 'vehicledoors')
+local doorControlKeyMappingCommandName = doorControlCommandName .. '_key'
+local doorControlKeyMappingCommand = '+' .. doorControlKeyMappingCommandName
+local doorControlKeyMappingReleaseCommand = '-' .. doorControlKeyMappingCommandName
 local ignitionKeyMappingCommand = '+' .. ignitionCommandName
 local ignitionModifierCommandName = ignitionCommandName .. '_modifier'
 local ignitionModifierKeyMappingCommand = '+' .. ignitionModifierCommandName
@@ -1066,6 +1512,20 @@ end, false)
 
 RegisterKeyMapping(lockKeyMappingCommand, 'Toggle vehicle lock', 'keyboard', defaultLockKey)
 
+RegisterCommand(doorControlCommandName, function()
+	toggleDoorControlUi()
+end, false)
+
+RegisterCommand(doorControlKeyMappingCommand, function()
+	toggleDoorControlUi()
+end, false)
+
+RegisterCommand(doorControlKeyMappingReleaseCommand, function()
+	-- Required by RegisterKeyMapping (+/- command pair).
+end, false)
+
+RegisterKeyMapping(doorControlKeyMappingCommand, 'Toggle vehicle door controls', 'keyboard', defaultDoorControlKey)
+
 RegisterCommand(giveKeyCommandName, function(_, args)
 	giveVehicleKeyToPlayer(args and args[1])
 end, false)
@@ -1108,6 +1568,24 @@ if type(AddStateBagChangeHandler) == 'function' and type(GetEntityFromStateBagNa
 		SetVehicleEngineOn(entity, ignitionOn, true, true)
 	end)
 end
+
+CreateThread(function()
+	while true do
+		if doorControlUiOpen then
+			local ped = PlayerPedId()
+			local vehicle = resolveDoorControlTargetVehicle()
+			if ped == 0 or IsPedFatallyInjured(ped) or vehicle == 0 or not DoesEntityExist(vehicle) then
+				closeDoorControlUi(false)
+				Wait(250)
+			else
+				refreshDoorControlUiPayload(vehicle)
+				Wait(DOOR_CONTROL_REFRESH_INTERVAL_MS)
+			end
+		else
+			Wait(1000)
+		end
+	end
+end)
 
 CreateThread(function()
 	while not NetworkIsSessionStarted() do

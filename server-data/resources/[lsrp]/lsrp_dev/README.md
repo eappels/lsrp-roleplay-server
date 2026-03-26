@@ -21,7 +21,7 @@ It is not intended as a production gameplay system.
 - `/revive`: respawn the player through the spawner flow (admin only).
 - `/wep [name]`: give a predefined test weapon (admin only).
 - `/veh [model]`: spawn a vehicle in front of the player (admin only).
-- `/devveh`: spawn your owned vehicle with plate `LS516FS` and saved props (admin only).
+- `/devveh`: spawn your owned vehicle with plate `LS632EB` and saved props (admin only).
 - `/ids`: toggle nearby overhead player IDs and names (admin only).
 - `F1`: toggle noclip.
 - `F3`: toggle nearby overhead player IDs and names (admin only).

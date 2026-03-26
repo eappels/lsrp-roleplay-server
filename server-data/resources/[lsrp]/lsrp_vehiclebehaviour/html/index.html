@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vehicle Door Controls</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main id="door-control-app" class="app hidden" aria-hidden="true">
+        <div class="backdrop"></div>
+        <section class="panel" role="dialog" aria-modal="true" aria-labelledby="vehicle-title">
+            <header class="panel-header">
+                <div>
+                    <p class="eyebrow">Vehicle Access</p>
+                    <h1 id="vehicle-title">Vehicle Door Controls</h1>
+                    <p id="vehicle-meta" class="vehicle-meta">Select a door to open or close it.</p>
+                </div>
+                <button id="close-button" class="close-button" type="button" aria-label="Close">X</button>
+            </header>
+
+            <section class="panel-body">
+                <div id="door-grid" class="door-grid"></div>
+                <p id="status-text" class="status-text">F2 closes this menu.</p>
+            </section>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+</html>
