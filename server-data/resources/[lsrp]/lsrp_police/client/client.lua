@@ -327,7 +327,7 @@ local function clampNumber(value, minimum, maximum)
 	return math.max(minimum, math.min(maximum, value))
 end
 
-local function getDistanceToVehicleBounds(vehicle, worldPoint)
+local function getVehicleBoundsDistance(vehicle, worldPoint)
 	if not vehicle or vehicle == 0 or not DoesEntityExist(vehicle) then
 		return math.huge
 	end
@@ -344,10 +344,25 @@ local function getDistanceToVehicleBounds(vehicle, worldPoint)
 	return #(closestWorld - worldPoint)
 end
 
+local function getForwardProbePoint(playerPed, distance)
+	local playerCoords = GetEntityCoords(playerPed)
+	local forwardVector = GetEntityForwardVector(playerPed)
+	return vector3(
+		playerCoords.x + (forwardVector.x * distance),
+		playerCoords.y + (forwardVector.y * distance),
+		playerCoords.z + 0.25
+	)
+end
+
+local function getDistanceToVehicleBounds(vehicle, worldPoint)
+	return getVehicleBoundsDistance(vehicle, worldPoint)
+end
+
 local function findVehiclePlayerIsFacing(maxDistance)
 	local playerPed = PlayerPedId()
 	local maxTargetDistance = tonumber(maxDistance) or 2.0
 	local playerCoords = GetEntityCoords(playerPed)
+	local forwardProbe = getForwardProbePoint(playerPed, math.min(1.8, math.max(1.0, maxTargetDistance)))
 	local cameraOrigin = GetGameplayCamCoord()
 	local cameraDirection = getCameraDirection()
 	local rayTarget = cameraOrigin + (cameraDirection * math.max(maxTargetDistance + 5.0, 8.0))
@@ -355,24 +370,35 @@ local function findVehiclePlayerIsFacing(maxDistance)
 	local _, hit, _, _, entityHit = GetShapeTestResult(rayHandle)
 
 	if hit == 1 and entityHit and entityHit ~= 0 and DoesEntityExist(entityHit) and IsEntityAVehicle(entityHit) then
-		if getDistanceToVehicleBounds(entityHit, playerCoords) <= (maxTargetDistance + 0.25) then
+		local playerDistance = getDistanceToVehicleBounds(entityHit, playerCoords)
+		local probeDistance = getDistanceToVehicleBounds(entityHit, forwardProbe)
+		if math.min(playerDistance, probeDistance) <= (maxTargetDistance + 0.5) then
 			return entityHit
 		end
 	end
 
 	local bestVehicle = nil
-	local bestDot = -1.0
+	local bestScore = nil
 	for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-		if vehicle ~= 0 and DoesEntityExist(vehicle) and getDistanceToVehicleBounds(vehicle, playerCoords) <= (maxTargetDistance + 0.25) then
+		if vehicle ~= 0 and DoesEntityExist(vehicle) then
+			local playerDistance = getDistanceToVehicleBounds(vehicle, playerCoords)
+			local probeDistance = getDistanceToVehicleBounds(vehicle, forwardProbe)
+			local nearestDistance = math.min(playerDistance, probeDistance)
+			if nearestDistance <= (maxTargetDistance + 0.5) then
 			local vehicleCoords = GetEntityCoords(vehicle)
 			local directionToVehicle = vehicleCoords - cameraOrigin
 			local length = #directionToVehicle
 			if length > 0.001 then
 				local normalizedDirection = directionToVehicle / length
 				local dot = (cameraDirection.x * normalizedDirection.x) + (cameraDirection.y * normalizedDirection.y) + (cameraDirection.z * normalizedDirection.z)
-				if dot > 0.7 and dot > bestDot then
-					bestDot = dot
+				local score = (dot * 4.0) - nearestDistance
+				if dot > 0.35 and (bestScore == nil or score > bestScore) then
+					bestScore = score
 					bestVehicle = vehicle
+				end
+			elseif bestScore == nil or (-nearestDistance) > bestScore then
+				bestScore = -nearestDistance
+				bestVehicle = vehicle
 				end
 			end
 		end

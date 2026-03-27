@@ -335,6 +335,37 @@ local function getClosestRepairableVehicle(maxDistance)
 	end)
 end
 
+local function repairVehicleFully(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	local hasControl = requestVehicleControl(vehicle, 2000)
+	if NetworkGetEntityIsNetworked(vehicle) and not hasControl then
+		return false
+	end
+
+	SetVehicleFixed(vehicle)
+	SetVehicleDeformationFixed(vehicle)
+	SetVehicleUndriveable(vehicle, false)
+	SetVehicleEngineHealth(vehicle, 1000.0)
+	SetVehicleBodyHealth(vehicle, 1000.0)
+	SetVehiclePetrolTankHealth(vehicle, 1000.0)
+	SetVehicleDirtLevel(vehicle, 0.0)
+	SetVehicleEngineOn(vehicle, true, true, false)
+
+	for wheelIndex = 0, 7 do
+		if IsVehicleTyreBurst(vehicle, wheelIndex, false) or IsVehicleTyreBurst(vehicle, wheelIndex, true) then
+			SetVehicleTyreFixed(vehicle, wheelIndex)
+		end
+	end
+
+	Wait(0)
+
+	local stillNeedsRepair = doesVehicleNeedRepair(vehicle)
+	return stillNeedsRepair ~= true
+end
+
 local function buildUseEffectContext(effect)
 	if type(effect) ~= 'table' then
 		return nil, nil
@@ -520,13 +551,10 @@ local function applyUseEffect(effect, context)
 			return false
 		end
 
-		requestVehicleControl(closestVehicle, 750)
-		SetVehicleFixed(closestVehicle)
-		SetVehicleDeformationFixed(closestVehicle)
-		SetVehicleEngineHealth(closestVehicle, 1000.0)
-		SetVehicleBodyHealth(closestVehicle, 1000.0)
-		SetVehiclePetrolTankHealth(closestVehicle, 1000.0)
-		SetVehicleDirtLevel(closestVehicle, 0.0)
+		if not repairVehicleFully(closestVehicle) then
+			notifyLocal('Repairing the nearby vehicle failed.')
+			return false
+		end
 
 		notifyLocal('Repaired the nearby vehicle with your repair kit.')
 		return true

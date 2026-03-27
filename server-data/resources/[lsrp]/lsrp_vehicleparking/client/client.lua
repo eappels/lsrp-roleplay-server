@@ -713,11 +713,21 @@ end)
 
 local function ejectAllVehicleOccupants(vehicle)
     if vehicle == 0 or not DoesEntityExist(vehicle) then
-        return
+        return true
     end
 
     local maxPassengers = tonumber(GetVehicleMaxNumberOfPassengers(vehicle)) or 0
     local maxSeatIndex = math.max(maxPassengers - 1, -1)
+
+    local function hasOccupants()
+        for seat = -1, maxSeatIndex do
+            if GetPedInVehicleSeat(vehicle, seat) ~= 0 then
+                return true
+            end
+        end
+
+        return false
+    end
 
     for seat = -1, maxSeatIndex do
         local occupant = GetPedInVehicleSeat(vehicle, seat)
@@ -726,14 +736,32 @@ local function ejectAllVehicleOccupants(vehicle)
         end
     end
 
-    Wait(1750)
+    local waitUntil = GetGameTimer() + 4500
+    while GetGameTimer() < waitUntil do
+        if not hasOccupants() then
+            return true
+        end
+
+        Wait(100)
+    end
 
     for seat = -1, maxSeatIndex do
         local occupant = GetPedInVehicleSeat(vehicle, seat)
-        if occupant ~= 0 then
+        if occupant ~= 0 and not IsPedAPlayer(occupant) then
             TaskLeaveVehicle(occupant, vehicle, 4160)
         end
     end
+
+    waitUntil = GetGameTimer() + 1500
+    while GetGameTimer() < waitUntil do
+        if not hasOccupants() then
+            return true
+        end
+
+        Wait(100)
+    end
+
+    return not hasOccupants()
 end
 
 local function requestEntityControl(entity, timeoutMs)
@@ -776,6 +804,48 @@ local function tryDeleteStoredVehicle(vehicle)
     return not DoesEntityExist(vehicle)
 end
 
+local function waitBeforeStoredVehicleDelete(vehicle, delayMs)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    Wait(math.max(0, math.floor(tonumber(delayMs) or 0)))
+    return vehicle ~= 0 and DoesEntityExist(vehicle)
+end
+
+local function waitForVehicleToEmptyAndDelete(vehicle, timeoutMs)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return true
+    end
+
+    local maxPassengers = tonumber(GetVehicleMaxNumberOfPassengers(vehicle)) or 0
+    local maxSeatIndex = math.max(maxPassengers - 1, -1)
+    local timeoutAt = GetGameTimer() + (timeoutMs or 8000)
+
+    while GetGameTimer() < timeoutAt do
+        local hasOccupants = false
+
+        for seat = -1, maxSeatIndex do
+            if GetPedInVehicleSeat(vehicle, seat) ~= 0 then
+                hasOccupants = true
+                break
+            end
+        end
+
+        if not hasOccupants then
+            if not waitBeforeStoredVehicleDelete(vehicle, 3000) then
+                return true
+            end
+
+            return tryDeleteStoredVehicle(vehicle)
+        end
+
+        Wait(250)
+    end
+
+    return false
+end
+
 RegisterNetEvent('lsrp_vehicleparking:client:vehicleStored', function(success, storedVehicleNetId)
     if success then
         local playerPed = PlayerPedId()
@@ -791,7 +861,23 @@ RegisterNetEvent('lsrp_vehicleparking:client:vehicleStored', function(success, s
         end
         
         if vehicle ~= 0 and DoesEntityExist(vehicle) then
-            ejectAllVehicleOccupants(vehicle)
+            local allOccupantsExited = ejectAllVehicleOccupants(vehicle)
+
+            if not allOccupantsExited then
+                TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle was stored, waiting for passengers to exit before despawning', 'info')
+
+                CreateThread(function()
+                    if not waitForVehicleToEmptyAndDelete(vehicle, 8000) then
+                        TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle was stored but could not be despawned immediately', 'error')
+                    end
+                end)
+
+                return
+            end
+
+            if not waitBeforeStoredVehicleDelete(vehicle, 3000) then
+                return
+            end
 
             if not tryDeleteStoredVehicle(vehicle) then
                 TriggerEvent('lsrp_vehicleparking:client:notify', 'Vehicle was stored but could not be despawned immediately', 'error')
@@ -803,6 +889,25 @@ RegisterNetEvent('lsrp_vehicleparking:client:vehicleStored', function(success, s
             TriggerServerEvent('lsrp_vehicleparking:server:getParkedVehicles', currentZone.name)
         end
     end
+end)
+
+RegisterNetEvent('lsrp_vehicleparking:client:exitStoredVehicle', function(storedVehicleNetId)
+    local netId = tonumber(storedVehicleNetId)
+    if not netId or netId <= 0 or not NetworkDoesNetworkIdExist(netId) then
+        return
+    end
+
+    local vehicle = NetToVeh(netId)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return
+    end
+
+    local playerPed = PlayerPedId()
+    if playerPed == 0 or not DoesEntityExist(playerPed) or not IsPedInVehicle(playerPed, vehicle, false) then
+        return
+    end
+
+    TaskLeaveVehicle(playerPed, vehicle, 0)
 end)
 
 local function sendRetrievalSpawnResult(requestId, success, reason)

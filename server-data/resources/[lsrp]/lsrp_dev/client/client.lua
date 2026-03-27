@@ -9,10 +9,10 @@
 --   /wep [name]        - give a weapon (pistol/ak/rifle/knife/smg/shotgun/revolver)
 --   /veh [model]       - spawn a vehicle 4 m in front of the player (default: comet7)
 --   /setplate [text]   - set the plate of the vehicle you are currently in
---   /ids               - toggle nearby player IDs (admin ACE check on server)
+--   /ids               - toggle nearby player IDs locally for everyone
 --
 -- Note: noclip is defined in noclip.lua (F1 key by default).
--- Note: F3 toggles /ids via key mapping.
+-- Note: Hold F3 to show nearby player IDs while pressed.
 
 -- scroot location: Position: x=-647.54, y=-1720.88, z=24.5
 
@@ -356,10 +356,6 @@ local function drawFloatingText(x, y, z, text)
     EndTextCommandDisplayText(screenX, screenY)
 end
 
-RegisterNetEvent('lsrp_dev:client:setIdOverlayEnabled', function(enabled)
-    idOverlayEnabled = enabled == true
-end)
-
 RegisterNetEvent('lsrp_dev:client:printIdentityAudit', function(lines)
     if type(lines) ~= 'table' or #lines == 0 then
         print('[lsrp_dev] Identity audit: no lines received')
@@ -373,18 +369,27 @@ RegisterNetEvent('lsrp_dev:client:printIdentityAudit', function(lines)
     print('===== End Identity Audit =====')
 end)
 
-local function requestIdOverlayToggle()
-    TriggerServerEvent('lsrp_dev:server:toggleIdOverlay')
+local function setIdOverlayEnabled(enabled)
+    idOverlayEnabled = enabled == true
 end
 
 RegisterCommand('+lsrp_ids_toggle', function()
-    requestIdOverlayToggle()
+    setIdOverlayEnabled(true)
 end, false)
 
 RegisterCommand('-lsrp_ids_toggle', function()
+    setIdOverlayEnabled(false)
 end, false)
 
-RegisterKeyMapping('+lsrp_ids_toggle', 'Toggle admin player ID overlay', 'keyboard', 'F3')
+RegisterKeyMapping('+lsrp_ids_toggle', 'Show nearby player IDs while held', 'keyboard', 'F3')
+
+RegisterCommand('ids', function()
+    setIdOverlayEnabled(not idOverlayEnabled)
+    TriggerEvent('chat:addMessage', {
+        color = { 255, 200, 0 },
+        args = { 'LSRP Dev', idOverlayEnabled and 'Player ID overlay enabled.' or 'Player ID overlay disabled.' }
+    })
+end, false)
 
 Citizen.CreateThread(function()
     while true do
@@ -394,18 +399,17 @@ Citizen.CreateThread(function()
             local localCoords = GetEntityCoords(localPed)
 
             for _, player in ipairs(GetActivePlayers()) do
-                if player ~= localPlayer then
-                    local ped = GetPlayerPed(player)
+                local ped = GetPlayerPed(player)
 
-                    if DoesEntityExist(ped) then
-                        local pedCoords = GetEntityCoords(ped)
-                        local distance = #(pedCoords - localCoords)
+                if DoesEntityExist(ped) then
+                    local pedCoords = GetEntityCoords(ped)
+                    local distance = #(pedCoords - localCoords)
+                    local hasLineOfSight = player == localPlayer or HasEntityClearLosToEntity(localPed, ped, 17)
 
-                        if distance <= idOverlayMaxDistance and HasEntityClearLosToEntity(localPed, ped, 17) then
-                            local serverId = GetPlayerServerId(player)
-                            local playerName = GetPlayerName(player) or 'Unknown'
-                            drawFloatingText(pedCoords.x, pedCoords.y, pedCoords.z + 1.10, ('[%d] %s'):format(serverId, playerName))
-                        end
+                    if distance <= idOverlayMaxDistance and hasLineOfSight then
+                        local serverId = GetPlayerServerId(player)
+                        local playerName = GetPlayerName(player) or 'Unknown'
+                        drawFloatingText(pedCoords.x, pedCoords.y, pedCoords.z + 1.10, ('[%d] %s'):format(serverId, playerName))
                     end
                 end
             end
@@ -418,7 +422,7 @@ Citizen.CreateThread(function()
 end)
 
 Citizen.CreateThread(function()
-    TriggerEvent('chat:addSuggestion', '/ids', 'Toggle admin player ID overlay')
+    TriggerEvent('chat:addSuggestion', '/ids', 'Toggle nearby player ID overlay locally')
 end)
 
 
