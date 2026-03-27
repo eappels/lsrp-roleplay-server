@@ -8,6 +8,7 @@
 --   /revive            - respawn the ped at its current location when dead
 --   /wep [name]        - give a weapon (pistol/ak/rifle/knife/smg/shotgun/revolver)
 --   /veh [model]       - spawn a vehicle 4 m in front of the player (default: comet7)
+--   /setplate [text]   - set the plate of the vehicle you are currently in
 --   /ids               - toggle nearby player IDs (admin ACE check on server)
 --
 -- Note: noclip is defined in noclip.lua (F1 key by default).
@@ -32,6 +33,24 @@ local function trimString(value)
     end
 
     return trimmed
+end
+
+local function normalizePlateText(value)
+    local trimmed = trimString(value)
+    if not trimmed then
+        return nil
+    end
+
+    local sanitized = trimmed:gsub('%s+', ''):upper():gsub('[^A-Z0-9]', '')
+    if sanitized == '' then
+        return nil
+    end
+
+    if #sanitized > 8 then
+        sanitized = sanitized:sub(1, 8)
+    end
+
+    return sanitized
 end
 
 local function decodeVehicleProps(rawProps)
@@ -478,7 +497,7 @@ local function runVehicleAction(payload)
     local veh = CreateVehicle(modelHash, coords.x, coords.y, coords.z, heading + 90, true, false)
     PlaceObjectOnGroundProperly(veh)
     if DoesEntityExist(veh) then
-        SetVehicleNumberPlateText(veh, 'LSRP')
+        SetVehicleNumberPlateText(veh, 'LSRP01')
         SetModelAsNoLongerNeeded(modelHash)
         SetVehicleModKit(veh, 0)
         SetVehicleMod(veh, 11, 3, false)
@@ -491,6 +510,42 @@ local function runVehicleAction(payload)
 		SetVehicleColours(veh, 84, 120)
         SetVehRadioStation(veh, 'OFF')
     end
+end
+
+local function runSetPlateAction(payload)
+    local plate = normalizePlateText(payload and payload.plateText)
+    if not plate then
+        TriggerEvent('chat:addMessage', {
+            color = { 255, 200, 0 },
+            args = { 'LSRP Dev', 'Usage: /setplate xxxxxx' }
+        })
+        return
+    end
+
+    local ped = PlayerPedId()
+    if ped == 0 or not IsPedInAnyVehicle(ped, false) then
+        TriggerEvent('chat:addMessage', {
+            color = { 255, 200, 0 },
+            args = { 'LSRP Dev', 'You must be inside a vehicle.' }
+        })
+        return
+    end
+
+    local vehicle = GetVehiclePedIsIn(ped, false)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        TriggerEvent('chat:addMessage', {
+            color = { 255, 200, 0 },
+            args = { 'LSRP Dev', 'Could not find the current vehicle.' }
+        })
+        return
+    end
+
+    SetVehicleNumberPlateText(vehicle, plate)
+
+    TriggerEvent('chat:addMessage', {
+        color = { 255, 200, 0 },
+        args = { 'LSRP Dev', ('Vehicle plate set to %s.'):format(plate) }
+    })
 end
 
 RegisterNetEvent('lsrp_dev:client:runPrivilegedAction', function(actionName, payload)
@@ -511,6 +566,11 @@ RegisterNetEvent('lsrp_dev:client:runPrivilegedAction', function(actionName, pay
 
     if actionName == 'veh' then
         runVehicleAction(type(payload) == 'table' and payload or {})
+        return
+    end
+
+    if actionName == 'setplate' then
+        runSetPlateAction(type(payload) == 'table' and payload or {})
     end
 end)
 
@@ -539,5 +599,21 @@ end, false)
 RegisterCommand('veh', function(source, args, raw)
     TriggerServerEvent('lsrp_dev:server:requestPrivilegedAction', 'veh', {
         modelArg = args[1]
+    })
+end, false)
+
+RegisterCommand('setplate', function(source, args, raw)
+    local plateText = nil
+
+    if type(raw) == 'string' then
+        plateText = raw:match('^setplate%s+(.+)$')
+    end
+
+    if not plateText then
+        plateText = args and args[1] or nil
+    end
+
+    TriggerServerEvent('lsrp_dev:server:requestPrivilegedAction', 'setplate', {
+        plateText = plateText
     })
 end, false)

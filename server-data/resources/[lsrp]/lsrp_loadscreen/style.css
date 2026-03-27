@@ -49,3 +49,93 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
 }
+
+.hidden {
+    display: none !important;
+}
+
+#prejoin-container {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+}
+
+#prejoin-modal {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 32px;
+    background: radial-gradient(circle at top, rgba(10, 30, 42, 0.45), rgba(0, 0, 0, 0.8));
+    pointer-events: auto;
+}
+
+#prejoin-box,
+#prejoin-map {
+    width: min(92vw, 460px);
+    padding: 28px;
+    border: 1px solid rgba(111, 219, 255, 0.22);
+    border-radius: 18px;
+    background: rgba(7, 15, 20, 0.88);
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.45);
+    color: #f2fbff;
+}
+
+#prejoin-box h2,
+#prejoin-map h3 {
+    margin: 0 0 16px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+
+#prejoin-msg {
+    min-height: 20px;
+    margin-bottom: 12px;
+    color: #9fdff3;
+    font-size: 13px;
+}
+
+#prejoin-box input {
+    display: block;
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ffffff;
+    box-sizing: border-box;
+}
+
+#prejoin-box label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+
+.prejoin-buttons,
+#spawn-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.prejoin-buttons button,
+#spawn-list button {
+    padding: 12px 14px;
+    border: 0;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #56d9ff, #1e91b2);
+    color: #031018;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.prejoin-buttons button:hover,
+#spawn-list button:hover {
+    filter: brightness(1.06);
+}

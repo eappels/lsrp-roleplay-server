@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LSRP Prejoin</title>
+    <link rel="stylesheet" href="prejoin.css">
+</head>
+<body>
+    <main id="app" class="hidden">
+        <section class="panel auth-panel" id="auth-panel">
+            <div class="eyebrow">Los Santos Roleplay</div>
+            <h1>Sign in before entering the city</h1>
+            <p class="lead">Use your email and password, or register a new account for this character slot.</p>
+            <div id="status" class="status"></div>
+            <input id="email" type="email" autocomplete="email" placeholder="Email">
+            <input id="password" type="password" autocomplete="current-password" placeholder="Password">
+            <label class="remember-row"><input id="remember" type="checkbox"> Save credentials on this device</label>
+            <div class="button-row">
+                <button id="login">Login</button>
+                <button id="register" class="secondary">Register</button>
+            </div>
+        </section>
+        <section class="panel spawn-panel locked" id="spawn-panel">
+            <div>
+                <div class="eyebrow">Spawn Selection</div>
+                <h2>Choose where you enter Los Santos</h2>
+                <p class="lead">Pick a starting point on the city map and the server will place you there.</p>
+                <div id="spawn-gate" class="spawn-gate">Log in to unlock spawn selection.</div>
+            </div>
+            <div class="map-shell">
+                <div class="map-frame">
+                    <div class="map-hud">
+                        <div>
+                            <div class="map-kicker">Los Santos City Map</div>
+                            <div id="map-active-label" class="map-active-label">Hover a spawn point to preview it</div>
+                        </div>
+                        <div id="map-active-coords" class="map-active-coords">Awaiting selection</div>
+                    </div>
+                    <svg id="spawn-map" viewBox="0 0 1000 760" preserveAspectRatio="xMidYMid meet" aria-label="Los Santos spawn map">
+                        <defs>
+                            <linearGradient id="map-ocean" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#0a2534"/>
+                                <stop offset="48%" stop-color="#103248"/>
+                                <stop offset="100%" stop-color="#08131d"/>
+                            </linearGradient>
+                            <linearGradient id="map-land" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#23352e"/>
+                                <stop offset="55%" stop-color="#2e463c"/>
+                                <stop offset="100%" stop-color="#192722"/>
+                            </linearGradient>
+                            <linearGradient id="map-hills" x1="0" y1="0" x2="1" y2="1">
+                                <stop offset="0%" stop-color="#40523b"/>
+                                <stop offset="100%" stop-color="#28342a"/>
+                            </linearGradient>
+                            <pattern id="street-grid" width="24" height="24" patternUnits="userSpaceOnUse">
+                                <path d="M 24 0 L 0 0 0 24" fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="1"/>
+                            </pattern>
+                            <filter id="map-shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="rgba(0,0,0,0.35)"/>
+                            </filter>
+                        </defs>
+                        <rect width="1000" height="760" rx="26" fill="url(#map-ocean)"/>
+                        <g class="map-art" filter="url(#map-shadow)">
+                            <path class="map-landmass" d="M176 64 L894 64 Q925 82 934 134 L938 258 L920 354 L926 472 L906 622 Q876 676 790 686 L598 686 L470 700 L314 696 Q226 690 180 654 Q134 618 132 548 L122 470 L88 382 L88 254 Q94 170 126 120 Q144 86 176 64 Z" />
+                            <path class="map-hills" d="M196 116 Q274 94 350 102 L440 132 L538 110 L640 128 L736 112 L844 142 L898 186 L892 246 L846 252 L796 218 L704 204 L624 214 L530 184 L454 198 L364 180 L270 188 L214 166 Z" />
+                            <path class="map-hills secondary" d="M572 184 L664 180 L742 198 L806 236 L826 290 L770 296 L720 270 L656 260 L598 238 Z" />
+                            <path class="map-beach" d="M120 466 Q150 426 176 424 Q214 422 240 446 Q258 462 280 514 Q308 580 352 640 L280 644 Q198 636 162 594 Q126 552 120 466 Z" />
+                            <path class="map-harbor-water" d="M744 474 L906 474 L906 666 L792 666 L758 618 L774 574 Z" />
+                            <path class="map-river" d="M646 206 L684 228 L706 276 L698 332 L714 392 L742 452 L732 528 L696 586 L650 630 L616 640 L628 594 L664 538 L680 470 L666 406 L648 356 L638 286 Z" />
+
+                            <g class="district district-west">
+                                <path d="M180 254 L322 238 L348 322 L310 394 L208 410 L164 334 Z" />
+                                <path d="M208 410 L310 394 L352 476 L338 558 L244 584 L184 510 Z" />
+                                <path d="M338 558 L428 548 L456 642 L350 652 L292 622 Z" />
+                            </g>
+                            <g class="district district-central">
+                                <path d="M322 238 L476 214 L506 314 L348 322 Z" />
+                                <path d="M348 322 L506 314 L528 410 L368 432 Z" />
+                                <path d="M368 432 L528 410 L548 528 L428 548 L338 558 Z" />
+                                <path d="M428 548 L548 528 L594 642 L456 642 Z" />
+                            </g>
+                            <g class="district district-east">
+                                <path d="M506 214 L656 228 L638 286 L648 356 L528 410 Z" />
+                                <path d="M528 410 L648 356 L700 434 L680 530 L548 528 Z" />
+                                <path d="M548 528 L680 530 L650 630 L594 642 Z" />
+                                <path d="M700 434 L774 430 L808 474 L774 574 L680 530 Z" />
+                            </g>
+                            <g class="district district-industrial">
+                                <path d="M774 430 L884 428 L906 474 L744 474 Z" />
+                                <path d="M774 574 L906 574 L906 666 L792 666 L758 618 Z" />
+                            </g>
+
+                            <rect class="airport-runway" x="154" y="596" width="182" height="18" rx="8" />
+                            <rect class="airport-runway" x="166" y="626" width="164" height="14" rx="7" />
+                            <rect class="airport-terminal" x="212" y="572" width="82" height="18" rx="8" />
+
+                            <g class="road road-major">
+                                <path d="M154 216 L232 264 L298 346 L346 448 L362 566 L394 648" />
+                                <path d="M232 582 L336 532 L468 500 L618 500 L782 520 L906 542" />
+                                <path d="M220 316 L350 290 L474 272 L606 274 L738 314 L860 402" />
+                                <path d="M494 158 L472 236 L476 334 L510 436 L594 564 L642 650" />
+                                <path d="M620 226 L698 256 L752 314 L786 404 L784 486 L760 606" />
+                            </g>
+                            <g class="road road-minor">
+                                <path d="M250 228 L246 614" />
+                                <path d="M304 216 L314 634" />
+                                <path d="M374 208 L388 644" />
+                                <path d="M446 188 L462 648" />
+                                <path d="M544 200 L554 632" />
+                                <path d="M624 214 L618 634" />
+                                <path d="M704 250 L680 620" />
+                                <path d="M190 378 L684 352" />
+                                <path d="M174 450 L704 434" />
+                                <path d="M186 520 L664 518" />
+                            </g>
+                            <rect class="street-grid-overlay" x="164" y="188" width="574" height="436" rx="18" />
+
+                            <g class="dock-blocks">
+                                <rect x="792" y="460" width="34" height="80" rx="4" />
+                                <rect x="836" y="446" width="30" height="108" rx="4" />
+                                <rect x="874" y="452" width="18" height="96" rx="4" />
+                                <rect x="802" y="586" width="34" height="58" rx="4" />
+                                <rect x="848" y="592" width="24" height="48" rx="4" />
+                            </g>
+
+                            <g class="map-labels">
+                                <text x="144" y="170" class="label-water">Pacific Ocean</text>
+                                <text x="188" y="606" class="label-major">Los Santos International</text>
+                                <text x="218" y="312">Del Perro</text>
+                                <text x="228" y="486">Little Seoul</text>
+                                <text x="314" y="270">Rockford Hills</text>
+                                <text x="414" y="258">Vinewood</text>
+                                <text x="410" y="390" class="label-major">Downtown</text>
+                                <text x="394" y="454">Pillbox Hill</text>
+                                <text x="588" y="384">La Mesa</text>
+                                <text x="596" y="544">Rancho</text>
+                                <text x="790" y="438">Elysian Island</text>
+                                <text x="806" y="606" class="label-major">Port of LS</text>
+                                <text x="658" y="250">East Vinewood</text>
+                            </g>
+                        </g>
+                        <g id="markers"></g>
+                    </svg>
+                </div>
+                <div id="spawn-list" class="spawn-list"></div>
+            </div>
+        </section>
+    </main>
+    <script src="prejoin.js"></script>
+</body>
+</html>

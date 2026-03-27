@@ -30,6 +30,16 @@ local GROUND_SPAWN_Z_OFFSET = 1.0
 local DRIVER_SEAT_SHUFFLE_TIMEOUT_MS = 4000
 local manualDriverSeatShuffleVehicle = 0
 local manualDriverSeatShuffleExpiresAt = 0
+local prejoinUiOpen = false
+local prejoinAuthenticated = false
+local prejoinStarted = false
+local freezeLocalPlayer
+local spawnPlayerDirect
+local prejoinSpawnPoints = {
+	{ x = -1037.7, y = -2737.3, z = 20.17, heading = 0.0, label = 'Los Santos International', description = 'Airport arrivals and quick access to the south side.', mapX = 262, mapY = 508 },
+	{ x = 215.76, y = -810.12, z = 30.73, heading = 180.0, label = 'Legion Square', description = 'Downtown access near jobs, shops, and garages.', mapX = 510, mapY = 436 },
+	{ x = 369.67, y = -602.17, z = 28.87, heading = 142.11, label = 'Pillbox Hill', description = 'Central city spawn near the medical district.', mapX = 564, mapY = 390 }
+}
 
 -- ---------------------------------------------------------------------------
 -- Loading screen helpers
@@ -78,10 +88,48 @@ local function keepClearingLoadingScreen(durationMs, intervalMs)
 	end)
 end
 
+local function openPrejoinUi()
+	if prejoinStarted then
+		return
+	end
+
+	prejoinStarted = true
+	prejoinUiOpen = true
+	prejoinAuthenticated = false
+
+	keepClearingLoadingScreen(3000, 0)
+	SetNuiFocus(true, true)
+	SetNuiFocusKeepInput(false)
+	SendNUIMessage({
+		action = 'showPrejoin',
+		spawnPoints = prejoinSpawnPoints
+	})
+	TriggerServerEvent('lsrp_spawner:requestPrejoinSpawnOptions')
+	freezeLocalPlayer(true)
+	ShutdownLoadingScreen()
+	if type(ShutdownLoadingScreenNui) == 'function' then
+		ShutdownLoadingScreenNui()
+	end
+	DoScreenFadeIn(500)
+end
+
+RegisterNetEvent('lsrp_spawner:receivePrejoinSpawnOptions')
+AddEventHandler('lsrp_spawner:receivePrejoinSpawnOptions', function(spawnOptions)
+	if type(spawnOptions) == 'table' and #spawnOptions > 0 then
+		prejoinSpawnPoints = spawnOptions
+	end
+
+	if prejoinUiOpen then
+		SendNUIMessage({
+			action = 'updateSpawnPoints',
+			spawnPoints = prejoinSpawnPoints
+		})
+	end
+end)
+
 AddEventHandler('gameEventTriggered', function (name)
 	if name == 'CEventNetworkStartMatch' then
-		keepClearingLoadingScreen(60000, 0)
-		TriggerServerEvent('lsrp_spawner:requestSpawn')
+		openPrejoinUi()
 	end
 end)
 
@@ -106,12 +154,82 @@ local function shutdownLoadscreen()
 	end)
 end
 
+RegisterNUICallback('prejoinRegister', function(data, cb)
+	local email = tostring(data.email or '')
+	local password = tostring(data.password or '')
+	local requestId = math.random(100000, 999999)
+	local responded = false
+
+	local function onResult(success, reason)
+		if responded then
+			return
+		end
+
+		responded = true
+		cb({ success = success == true, reason = reason })
+	end
+
+	RegisterNetEvent('lsrp_prejoin:registerResult' .. requestId)
+	AddEventHandler('lsrp_prejoin:registerResult' .. requestId, function(ok, reason)
+		onResult(ok, reason)
+	end)
+
+	TriggerServerEvent('lsrp_prejoin:register', requestId, { email = email, password = password })
+end)
+
+RegisterNUICallback('prejoinLogin', function(data, cb)
+	local email = tostring(data.email or '')
+	local password = tostring(data.password or '')
+	local requestId = math.random(100000, 999999)
+	local responded = false
+
+	local function onResult(success, reason)
+		if responded then
+			return
+		end
+
+		responded = true
+		if success == true then
+			prejoinAuthenticated = true
+		end
+		cb({ success = success == true, reason = reason })
+	end
+
+	RegisterNetEvent('lsrp_prejoin:loginResult' .. requestId)
+	AddEventHandler('lsrp_prejoin:loginResult' .. requestId, function(ok, reason)
+		onResult(ok, reason)
+	end)
+
+	TriggerServerEvent('lsrp_prejoin:login', requestId, { email = email, password = password })
+end)
+
+RegisterNUICallback('prejoinSpawnSelect', function(data, cb)
+	local spawnIndex = tonumber(data.spawnIndex)
+	local spawn = spawnIndex and prejoinSpawnPoints[spawnIndex + 1] or nil
+
+	if not prejoinAuthenticated then
+		cb({ success = false, reason = 'Login first.' })
+		return
+	end
+
+	if not spawn then
+		cb({ success = false, reason = 'Invalid spawn.' })
+		return
+	end
+
+	prejoinUiOpen = false
+	SetNuiFocus(false, false)
+	SetNuiFocusKeepInput(false)
+	cb({ success = true })
+	spawnPlayerDirect(spawn)
+end)
+
 -- ---------------------------------------------------------------------------
 -- Spawn helpers
 -- ---------------------------------------------------------------------------
 
 -- Freezes or unfreezes the local player (control, visibility, collision, invincibility).
-local function freezeLocalPlayer(freeze)
+freezeLocalPlayer = function(freeze)
 	local player = PlayerId()
 	SetPlayerControl(player, not freeze, false)
 
@@ -191,7 +309,11 @@ end
 
 -- Full spawn sequence: fade, model load, coord set, ground correction, unfade.
 -- Fires 'playerSpawned' local event on completion.
-local function spawnPlayerDirect(spawn)
+spawnPlayerDirect = function(spawn)
+	prejoinUiOpen = false
+	SetNuiFocus(false, false)
+	SetNuiFocusKeepInput(false)
+
 	local spawnX = tonumber(spawn.x) or 0.0
 	local spawnY = tonumber(spawn.y) or 0.0
 	local spawnZ = tonumber(spawn.z) or 72.0
@@ -373,6 +495,18 @@ AddEventHandler('lsrp_spawner:spawnPlayer', function(modelOrNil, ax, ay, az, aHe
 	}
 
 	spawnPlayerDirect(spawnTable)
+end)
+
+CreateThread(function()
+	local opened = false
+	while true do
+		if NetworkIsSessionStarted() and not opened and not prejoinStarted then
+			opened = true
+			openPrejoinUi()
+		end
+
+		Wait(250)
+	end
 end)
 
 CreateThread(function()

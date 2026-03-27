@@ -1,0 +1,446 @@
+html, body {
+    margin: 0;
+    min-height: 100%;
+    font-family: Georgia, "Times New Roman", serif;
+    background: transparent;
+    color: #f5f2ea;
+}
+
+body {
+    overflow: hidden;
+}
+
+.hidden {
+    display: none !important;
+}
+
+#app {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: minmax(340px, 420px) 1fr;
+    gap: 24px;
+    padding: 24px;
+    background:
+        radial-gradient(circle at top left, rgba(198, 168, 103, 0.18), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(49, 115, 141, 0.28), transparent 30%),
+        linear-gradient(135deg, rgba(11, 16, 20, 0.95), rgba(6, 10, 13, 0.9));
+    box-sizing: border-box;
+}
+
+.panel {
+    border: 1px solid rgba(213, 194, 153, 0.18);
+    border-radius: 22px;
+    background: rgba(16, 20, 24, 0.88);
+    box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+    backdrop-filter: blur(12px);
+}
+
+.auth-panel {
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.spawn-panel {
+    padding: 26px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    position: relative;
+}
+
+.spawn-panel.locked::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    background: linear-gradient(180deg, rgba(7, 10, 12, 0.14), rgba(7, 10, 12, 0.34));
+    pointer-events: none;
+}
+
+.eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: #cfb98a;
+    margin-bottom: 12px;
+}
+
+h1, h2 {
+    margin: 0 0 12px;
+    font-weight: 600;
+    line-height: 1.05;
+}
+
+h1 {
+    font-size: clamp(34px, 4vw, 56px);
+}
+
+h2 {
+    font-size: clamp(28px, 3vw, 40px);
+}
+
+.lead {
+    margin: 0 0 20px;
+    color: rgba(245, 242, 234, 0.72);
+    line-height: 1.5;
+}
+
+.status {
+    min-height: 22px;
+    margin-bottom: 10px;
+    color: #9fd7f0;
+}
+
+.spawn-gate {
+    color: #cfb98a;
+    font-size: 13px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: #ffffff;
+    font-size: 15px;
+}
+
+.remember-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 4px 0 16px;
+    color: rgba(245, 242, 234, 0.8);
+}
+
+.remember-row input {
+    width: auto;
+    margin: 0;
+}
+
+.button-row {
+    display: flex;
+    gap: 12px;
+}
+
+button {
+    padding: 13px 16px;
+    border: 0;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #d4b26f, #9c7a37);
+    color: #15100a;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button.secondary {
+    background: linear-gradient(135deg, #88c8de, #477b92);
+}
+
+.map-shell {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(260px, 360px);
+    gap: 18px;
+    min-height: 0;
+    flex: 1;
+}
+
+.map-frame {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background:
+        radial-gradient(circle at top left, rgba(216, 177, 108, 0.14), transparent 28%),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+}
+
+.map-hud {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.map-kicker {
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(245, 242, 234, 0.55);
+    margin-bottom: 4px;
+}
+
+.map-active-label {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.map-active-coords {
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(9, 18, 25, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: rgba(245, 242, 234, 0.82);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+#spawn-map {
+    width: 100%;
+    height: 100%;
+    min-height: 420px;
+    border-radius: 18px;
+    overflow: hidden;
+}
+
+.map-art {
+    pointer-events: none;
+}
+
+.map-landmass {
+    fill: url(#map-land);
+    stroke: rgba(243, 232, 205, 0.08);
+    stroke-width: 4;
+}
+
+.map-hills {
+    fill: url(#map-hills);
+    opacity: 0.82;
+}
+
+.map-hills.secondary {
+    opacity: 0.56;
+}
+
+.map-beach {
+    fill: rgba(216, 188, 133, 0.22);
+}
+
+.map-harbor-water,
+.map-river {
+    fill: rgba(28, 73, 97, 0.66);
+    stroke: rgba(147, 205, 227, 0.18);
+    stroke-width: 2;
+}
+
+.district path {
+    stroke: rgba(255, 255, 255, 0.06);
+    stroke-width: 2;
+}
+
+.district-west path {
+    fill: rgba(192, 169, 116, 0.11);
+}
+
+.district-central path {
+    fill: rgba(135, 178, 163, 0.11);
+}
+
+.district-east path {
+    fill: rgba(126, 154, 186, 0.1);
+}
+
+.district-industrial path {
+    fill: rgba(160, 131, 111, 0.14);
+}
+
+.airport-runway {
+    fill: rgba(227, 233, 238, 0.32);
+}
+
+.airport-terminal {
+    fill: rgba(129, 170, 188, 0.45);
+}
+
+.road {
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.road-major path {
+    stroke: rgba(255, 214, 128, 0.5);
+    stroke-width: 11;
+}
+
+.road-minor path {
+    stroke: rgba(221, 230, 235, 0.24);
+    stroke-width: 4;
+}
+
+.street-grid-overlay {
+    fill: url(#street-grid);
+    opacity: 0.42;
+}
+
+.dock-blocks rect {
+    fill: rgba(225, 212, 184, 0.22);
+}
+
+.map-labels text {
+    font-size: 18px;
+    fill: rgba(244, 239, 228, 0.72);
+    letter-spacing: 0.04em;
+}
+
+.map-labels .label-major {
+    font-size: 20px;
+    fill: rgba(255, 247, 227, 0.88);
+}
+
+.map-labels .label-water {
+    font-size: 24px;
+    fill: rgba(171, 221, 241, 0.68);
+    font-style: italic;
+}
+
+.spawn-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: auto;
+    padding-right: 6px;
+}
+
+.spawn-card {
+    padding: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.04);
+    transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+}
+
+.spawn-card button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.spawn-card.active {
+    border-color: rgba(212, 178, 111, 0.7);
+    box-shadow: 0 0 0 1px rgba(212, 178, 111, 0.35) inset;
+    background: rgba(212, 178, 111, 0.08);
+    transform: translateY(-1px);
+}
+
+.spawn-card h3 {
+    margin: 0 0 8px;
+    font-size: 18px;
+}
+
+.spawn-card p {
+    margin: 0 0 14px;
+    color: rgba(245, 242, 234, 0.7);
+    line-height: 1.45;
+}
+
+.spawn-card-meta {
+    margin: 0 0 14px;
+    color: rgba(159, 215, 240, 0.72);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.map-marker {
+    cursor: pointer;
+    transition: opacity 120ms ease;
+}
+
+.map-marker .marker-pulse {
+    fill: rgba(212, 178, 111, 0.18);
+    opacity: 0;
+    transform-origin: center;
+}
+
+.map-marker .marker-ring {
+    fill: rgba(7, 14, 20, 0.7);
+    stroke: rgba(255, 244, 210, 0.85);
+    stroke-width: 3;
+}
+
+.map-marker .marker-core {
+    fill: #d4b26f;
+    stroke: #fff4d2;
+    stroke-width: 3;
+}
+
+.map-marker .marker-label {
+    fill: #f9f5e8;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    paint-order: stroke;
+    stroke: rgba(8, 14, 19, 0.9);
+    stroke-width: 5;
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.map-marker.active .marker-pulse {
+    opacity: 1;
+    animation: markerPulse 1.8s ease-out infinite;
+}
+
+.map-marker.active .marker-core {
+    fill: #88c8de;
+    stroke: #d8f6ff;
+}
+
+.map-marker.active .marker-label,
+.map-marker:hover .marker-label,
+.map-marker:focus .marker-label {
+    opacity: 1;
+}
+
+.map-marker.edge .marker-ring {
+    stroke-dasharray: 4 5;
+}
+
+.spawn-panel.locked .map-marker {
+    opacity: 0.65;
+}
+
+.spawn-panel.locked .map-marker .marker-core {
+    fill: rgba(212, 178, 111, 0.65);
+}
+
+@keyframes markerPulse {
+    0% {
+        transform: scale(0.55);
+        opacity: 0.7;
+    }
+
+    100% {
+        transform: scale(1.65);
+        opacity: 0;
+    }
+}
+
+@media (max-width: 1100px) {
+    #app {
+        grid-template-columns: 1fr;
+        overflow: auto;
+    }
+
+    .map-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .map-hud {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

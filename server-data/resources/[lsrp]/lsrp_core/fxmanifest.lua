@@ -15,6 +15,7 @@ client_scripts {
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/identity.lua',
+    'server/prejoin_auth.lua',
     'server/server.lua'
 }
 

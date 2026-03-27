@@ -15,7 +15,15 @@ client_scripts {
     'client/client.lua'
 }
 
+ui_page 'ui/prejoin.html'
+
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/server.lua'
+}
+
+files {
+    'ui/prejoin.html',
+    'ui/prejoin.css',
+    'ui/prejoin.js'
 }

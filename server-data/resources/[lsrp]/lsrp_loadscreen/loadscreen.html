@@ -17,6 +17,142 @@
         </div>
 
         <script>
+            // PREJOIN UI state and handlers
+            var PREJOIN = (function () {
+                var container = null;
+                var remembered = null;
+
+                function createUi() {
+                    container = document.createElement('div');
+                    container.id = 'prejoin-container';
+                    container.innerHTML = `
+                        <div id="prejoin-modal" class="hidden">
+                            <div id="prejoin-box">
+                                <h2>Account Login</h2>
+                                <div id="prejoin-msg"></div>
+                                <input id="prejoin-email" type="email" placeholder="Email">
+                                <input id="prejoin-password" type="password" placeholder="Password">
+                                <label><input id="prejoin-remember" type="checkbox"> Remember me</label>
+                                <div class="prejoin-buttons">
+                                    <button id="prejoin-login">Login</button>
+                                    <button id="prejoin-register">Register</button>
+                                </div>
+                            </div>
+                            <div id="prejoin-map" class="hidden">
+                                <h3>Choose a spawn location</h3>
+                                <div id="spawn-list"></div>
+                            </div>
+                        </div>
+                    `;
+
+                    document.body.appendChild(container);
+
+                    document.getElementById('prejoin-login').addEventListener('click', onLogin);
+                    document.getElementById('prejoin-register').addEventListener('click', onRegister);
+                }
+
+                function showLogin(spawnPoints) {
+                    if (!container) createUi();
+                    document.getElementById('prejoin-modal').classList.remove('hidden');
+                    document.getElementById('prejoin-map').classList.add('hidden');
+                    document.getElementById('prejoin-msg').textContent = '';
+
+                    // fill remembered creds
+                    try {
+                        var saved = localStorage.getItem('lsrp_saved_creds');
+                        if (saved) {
+                            var obj = JSON.parse(saved);
+                            document.getElementById('prejoin-email').value = obj.email || '';
+                            document.getElementById('prejoin-remember').checked = !!obj.remember;
+                        }
+                    } catch (e) {}
+
+                    // populate spawn list (saved for later)
+                    container._spawnPoints = spawnPoints || [];
+                    var list = document.getElementById('spawn-list');
+                    list.innerHTML = '';
+                    (spawnPoints || []).forEach(function (p, idx) {
+                        var btn = document.createElement('button');
+                        btn.textContent = (p.label || ('Spawn ' + (idx+1)));
+                        btn.addEventListener('click', function () {
+                            selectSpawn(idx);
+                        });
+                        list.appendChild(btn);
+                    });
+                }
+
+                function showMap() {
+                    document.getElementById('prejoin-map').classList.remove('hidden');
+                    document.getElementById('prejoin-msg').textContent = 'Select a location to spawn';
+                }
+
+                function onLogin() {
+                    var email = document.getElementById('prejoin-email').value || '';
+                    var password = document.getElementById('prejoin-password').value || '';
+                    var remember = document.getElementById('prejoin-remember').checked || false;
+
+                    fetch(`https://${GetParentResourceName()}/prejoinLogin`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email, password: password })
+                    }).then(function (r) { return r.json(); }).then(function (data) {
+                        if (data && data.success) {
+                            if (remember) {
+                                localStorage.setItem('lsrp_saved_creds', JSON.stringify({ email: email, remember: true }));
+                            } else {
+                                localStorage.removeItem('lsrp_saved_creds');
+                            }
+                            showMap();
+                        } else {
+                            document.getElementById('prejoin-msg').textContent = data && data.reason ? data.reason : 'Login failed';
+                        }
+                    }).catch(function () {
+                        document.getElementById('prejoin-msg').textContent = 'Network error';
+                    });
+                }
+
+                function onRegister() {
+                    var email = document.getElementById('prejoin-email').value || '';
+                    var password = document.getElementById('prejoin-password').value || '';
+                    fetch(`https://${GetParentResourceName()}/prejoinRegister`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: email, password: password })
+                    }).then(function (r) { return r.json(); }).then(function (data) {
+                        if (data && data.success) {
+                            document.getElementById('prejoin-msg').textContent = 'Registered. You may now login.';
+                        } else {
+                            document.getElementById('prejoin-msg').textContent = data && data.reason ? data.reason : 'Registration failed';
+                        }
+                    }).catch(function () {
+                        document.getElementById('prejoin-msg').textContent = 'Network error';
+                    });
+                }
+
+                function selectSpawn(idx) {
+                    var spawn = (container && container._spawnPoints && container._spawnPoints[idx]) || null;
+                    if (!spawn) return;
+                    fetch(`https://${GetParentResourceName()}/prejoinSpawnSelect`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ spawnIndex: idx })
+                    }).then(function (r) { return r.json(); }).then(function (data) {
+                        if (data && data.success) {
+                            // hide UI
+                            document.getElementById('prejoin-modal').classList.add('hidden');
+                        } else {
+                            document.getElementById('prejoin-msg').textContent = data && data.reason ? data.reason : 'Spawn failed';
+                        }
+                    }).catch(function () {
+                        document.getElementById('prejoin-msg').textContent = 'Network error';
+                    });
+                }
+
+                return {
+                    showLogin: showLogin
+                };
+            })();
+
             (function () {
                 var fill = document.getElementById('loading-bar-fill');
                 var status = document.getElementById('loading-status');
@@ -159,6 +295,11 @@
                         if (typeof data.status === 'string') {
                             setStatus(data.status);
                         }
+                    }
+                    ,
+                    // Prejoin show; payload: { spawnPoints: [] }
+                    prejoin_show: function (data) {
+                        PREJOIN.showLogin(data.spawnPoints || []);
                     }
                 };
 
