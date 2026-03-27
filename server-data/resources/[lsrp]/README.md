@@ -16,6 +16,7 @@ This index covers the custom `lsrp_*` resources.
 - [lsrp_loadscreen](lsrp_loadscreen/README.md): Custom server loadscreen.
 - [lsrp_mapedits](lsrp_mapedits/README.md): Client-side map edits, barrier removal, and prop hiding.
 - [lsrp_pededitor](lsrp_pededitor/README.md): Character appearance editor and outfit persistence.
+- [lsrp_police](lsrp_police/README.md): Private police job with Mission Row duty and patrol vehicle access.
 - [lsrp_phones](lsrp_phones/README.md): Phone UI, phonebook, and call flow.
 - [lsrp_shops](lsrp_shops/README.md): 24/7 convenience stores and item purchases.
 - [lsrp_scroot](lsrp_scroot/README.md): Placeholder resource.
