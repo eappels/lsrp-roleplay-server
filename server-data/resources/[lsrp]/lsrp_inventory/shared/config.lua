@@ -120,7 +120,7 @@ Config.Items = {
 			requireOnFoot = true,
 			effect = {
 				type = 'vehicle_repair_full',
-				maxDistance = 4.0
+				maxDistance = 5.5
 			}
 		}
 	},

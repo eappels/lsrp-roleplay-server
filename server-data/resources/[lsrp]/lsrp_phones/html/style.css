@@ -454,72 +454,6 @@ body.show-phone .phone {
     color: #f1fbff;
 }
 
-.home-widgets {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 12px;
-    padding: 0 10px;
-}
-
-.home-widget {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    gap: 12px;
-    min-height: 126px;
-    padding: 16px;
-    text-align: left;
-    color: var(--text-primary);
-    border-radius: 24px;
-    border: 1px solid var(--border-soft);
-    background: linear-gradient(180deg, rgba(10, 21, 35, 0.82), rgba(8, 15, 28, 0.64));
-    box-shadow: var(--shadow-panel);
-    cursor: pointer;
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
-}
-
-.home-widget:hover {
-    transform: translateY(-2px);
-    border-color: var(--border-strong);
-}
-
-.home-widget strong {
-    display: block;
-    font-size: 22px;
-    line-height: 1.04;
-    letter-spacing: -0.03em;
-}
-
-.home-widget span:last-child {
-    font-size: 12px;
-    line-height: 1.45;
-    color: var(--text-secondary);
-}
-
-.widget-kicker {
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(188, 212, 238, 0.7);
-}
-
-.home-widget-balance {
-    background: linear-gradient(160deg, rgba(24, 61, 95, 0.92), rgba(13, 28, 45, 0.7));
-}
-
-.home-widget-messages {
-    background: linear-gradient(160deg, rgba(11, 58, 43, 0.92), rgba(9, 28, 31, 0.7));
-}
-
-.home-widget-calls {
-    background: linear-gradient(160deg, rgba(37, 48, 83, 0.92), rgba(15, 23, 43, 0.72));
-}
-
-.home-widget-phonebook {
-    background: linear-gradient(160deg, rgba(72, 47, 26, 0.9), rgba(29, 23, 20, 0.72));
-}
-
 .home-apps-header {
     display: flex;
     justify-content: space-between;
@@ -622,47 +556,6 @@ body.show-phone .phone {
     align-items: center;
     justify-content: center;
     box-shadow: 0 14px 24px rgba(255, 87, 87, 0.28);
-}
-
-.home-dock {
-    margin: auto 10px 0;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 10px;
-    padding: 12px;
-    border-radius: 28px;
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    background: rgba(9, 17, 29, 0.5);
-    backdrop-filter: blur(24px);
-    box-shadow: 0 20px 34px rgba(0, 0, 0, 0.3);
-}
-
-.dock-app {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    min-height: 64px;
-    border-radius: 18px;
-    background: rgba(255, 255, 255, 0.05);
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: background 0.18s ease, transform 0.18s ease;
-}
-
-.dock-app:hover {
-    background: rgba(255, 255, 255, 0.09);
-    transform: translateY(-1px);
-}
-
-.dock-icon {
-    font-size: 20px;
-}
-
-.dock-label {
-    font-size: 11px;
-    color: rgba(216, 230, 245, 0.82);
 }
 
 .app-screen {

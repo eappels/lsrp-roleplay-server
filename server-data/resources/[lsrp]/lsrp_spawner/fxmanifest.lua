@@ -5,10 +5,12 @@ author 'Eddy Appels'
 description 'LSRP Spawner'
 
 dependency 'lsrp_core'
+dependency 'lsrp_housing'
 dependency 'oxmysql'
 
 shared_scripts {
-    '@lsrp_core/shared/config.lua'
+    '@lsrp_core/shared/config.lua',
+    '@lsrp_housing/shared/config.lua'
 }
 
 client_scripts {

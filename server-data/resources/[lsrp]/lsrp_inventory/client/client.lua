@@ -149,6 +149,60 @@ local function requestVehicleControl(vehicle, timeoutMs)
 	return NetworkHasControlOfEntity(vehicle)
 end
 
+local function clampNumber(value, minValue, maxValue)
+	if value < minValue then
+		return minValue
+	end
+
+	if value > maxValue then
+		return maxValue
+	end
+
+	return value
+end
+
+local function getVehicleDistanceFromPoint(vehicle, worldPoint)
+	if vehicle == 0 or not DoesEntityExist(vehicle) or type(worldPoint) ~= 'vector3' then
+		return math.huge
+	end
+
+	local vehicleCoords = GetEntityCoords(vehicle)
+	local bestDistance = #(worldPoint - vehicleCoords)
+	local model = GetEntityModel(vehicle)
+	if not model or model == 0 then
+		return bestDistance
+	end
+
+	local minimum, maximum = GetModelDimensions(model)
+	if not minimum or not maximum then
+		return bestDistance
+	end
+
+	local localPoint = GetOffsetFromEntityGivenWorldCoords(vehicle, worldPoint.x, worldPoint.y, worldPoint.z)
+	local closestX = clampNumber(localPoint.x, minimum.x, maximum.x)
+	local closestY = clampNumber(localPoint.y, minimum.y, maximum.y)
+	local closestZ = clampNumber(localPoint.z, minimum.z, maximum.z)
+	local closestWorldPoint = GetOffsetFromEntityInWorldCoords(vehicle, closestX, closestY, closestZ)
+
+	return math.min(bestDistance, #(worldPoint - closestWorldPoint))
+end
+
+local function getVehicleProximityDistance(vehicle, ped, playerCoords)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return math.huge
+	end
+
+	local origin = playerCoords or GetEntityCoords(ped)
+	local frontProbe = GetOffsetFromEntityInWorldCoords(ped, 0.0, 1.2, 0.0)
+	local sideProbe = GetOffsetFromEntityInWorldCoords(ped, 0.0, 0.6, 0.0)
+
+	local bestDistance = getVehicleDistanceFromPoint(vehicle, origin)
+	bestDistance = math.min(bestDistance, getVehicleDistanceFromPoint(vehicle, frontProbe))
+	bestDistance = math.min(bestDistance, getVehicleDistanceFromPoint(vehicle, sideProbe))
+
+	return bestDistance
+end
+
 local function findClosestVehicle(maxDistance, predicate)
 	local ped = PlayerPedId()
 	if ped == 0 or not DoesEntityExist(ped) then
@@ -160,18 +214,33 @@ local function findClosestVehicle(maxDistance, predicate)
 	local closestVehicle = 0
 	local closestValue = nil
 	local closestDistance = searchRadius + 0.001
+	local frontProbe = GetOffsetFromEntityInWorldCoords(ped, 0.0, math.min(searchRadius, 1.2), 0.0)
 
 	local nativeClosestVehicle = GetClosestVehicle(playerCoords.x, playerCoords.y, playerCoords.z, searchRadius + 0.0, 0, 71)
 	if nativeClosestVehicle ~= 0 and DoesEntityExist(nativeClosestVehicle) then
-		local matches, value = predicate(nativeClosestVehicle)
-		if matches == true then
-			return nativeClosestVehicle, value
+		local nativeDistance = getVehicleProximityDistance(nativeClosestVehicle, ped, playerCoords)
+		if nativeDistance <= searchRadius then
+			local matches, value = predicate(nativeClosestVehicle)
+			if matches == true then
+				return nativeClosestVehicle, value
+			end
+		end
+	end
+
+	local nativeFrontVehicle = GetClosestVehicle(frontProbe.x, frontProbe.y, frontProbe.z, searchRadius + 0.0, 0, 71)
+	if nativeFrontVehicle ~= 0 and nativeFrontVehicle ~= nativeClosestVehicle and DoesEntityExist(nativeFrontVehicle) then
+		local nativeDistance = getVehicleProximityDistance(nativeFrontVehicle, ped, playerCoords)
+		if nativeDistance <= searchRadius then
+			local matches, value = predicate(nativeFrontVehicle)
+			if matches == true then
+				return nativeFrontVehicle, value
+			end
 		end
 	end
 
 	for _, vehicle in ipairs(GetGamePool('CVehicle')) do
 		if vehicle ~= 0 and DoesEntityExist(vehicle) then
-			local distance = #(playerCoords - GetEntityCoords(vehicle))
+			local distance = getVehicleProximityDistance(vehicle, ped, playerCoords)
 			if distance <= searchRadius and distance < closestDistance then
 				local matches, value = predicate(vehicle)
 				if matches == true then
@@ -209,22 +278,60 @@ local function getClosestRefuelableVehicle(maxDistance)
 	end)
 end
 
+local function getClosestNearbyVehicle(maxDistance)
+	return findClosestVehicle(maxDistance, function(vehicle)
+		return true, nil
+	end)
+end
+
+local function doesVehicleNeedRepair(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false, nil
+	end
+
+	local engineHealth = tonumber(GetVehicleEngineHealth(vehicle)) or 1000.0
+	local bodyHealth = tonumber(GetVehicleBodyHealth(vehicle)) or 1000.0
+	local petrolTankHealth = tonumber(GetVehiclePetrolTankHealth(vehicle)) or 1000.0
+	local isDriveable = IsVehicleDriveable(vehicle, false)
+	local visiblyDamaged = false
+
+	if type(IsVehicleDamaged) == 'function' then
+		visiblyDamaged = IsVehicleDamaged(vehicle) == true
+	end
+
+	if not visiblyDamaged then
+		for wheelIndex = 0, 7 do
+			if IsVehicleTyreBurst(vehicle, wheelIndex, false) or IsVehicleTyreBurst(vehicle, wheelIndex, true) then
+				visiblyDamaged = true
+				break
+			end
+		end
+	end
+
+	local needsRepair = engineHealth < 995.0
+		or bodyHealth < 995.0
+		or petrolTankHealth < 995.0
+		or not isDriveable
+		or visiblyDamaged
+
+	if not needsRepair then
+		return false, {
+			engineHealth = engineHealth,
+			bodyHealth = bodyHealth,
+			petrolTankHealth = petrolTankHealth
+		}
+	end
+
+	return true, {
+		engineHealth = engineHealth,
+		bodyHealth = bodyHealth,
+		petrolTankHealth = petrolTankHealth
+	}
+end
+
 local function getClosestRepairableVehicle(maxDistance)
 	return findClosestVehicle(maxDistance, function(vehicle)
-		local engineHealth = tonumber(GetVehicleEngineHealth(vehicle)) or 1000.0
-		local bodyHealth = tonumber(GetVehicleBodyHealth(vehicle)) or 1000.0
-		local petrolTankHealth = tonumber(GetVehiclePetrolTankHealth(vehicle)) or 1000.0
-		local isDriveable = IsVehicleDriveable(vehicle, false)
-		local needsRepair = engineHealth < 990.0 or bodyHealth < 990.0 or petrolTankHealth < 990.0 or not isDriveable
-		if needsRepair then
-			return true, {
-				engineHealth = engineHealth,
-				bodyHealth = bodyHealth,
-				petrolTankHealth = petrolTankHealth
-			}
-		end
-
-		return false, nil
+		return doesVehicleNeedRepair(vehicle)
 	end)
 end
 
@@ -256,9 +363,9 @@ local function buildUseEffectContext(effect)
 
 	if effectType == 'vehicle_repair_full' then
 		local maxDistance = math.max(1.0, tonumber(effect.maxDistance) or 4.0)
-		local vehicle = getClosestRepairableVehicle(maxDistance)
+		local vehicle = getClosestNearbyVehicle(maxDistance)
 		if vehicle == 0 then
-			return nil, 'Stand next to a damaged vehicle to use the repair kit.'
+			return nil, 'Stand next to a vehicle to use the repair kit.'
 		end
 
 		local networkId = NetworkGetEntityIsNetworked(vehicle) and NetworkGetNetworkIdFromEntity(vehicle) or nil
@@ -296,7 +403,7 @@ local function getVehicleFromUseContext(effect, context)
 		if effectType == 'vehicle_refuel_amount' or effectType == 'vehicle_refuel_full' then
 			return getClosestRefuelableVehicle(math.max(1.0, tonumber(context.maxDistance) or tonumber(effect.maxDistance) or 4.0))
 		elseif effectType == 'vehicle_repair_full' then
-			return getClosestRepairableVehicle(math.max(1.0, tonumber(context.maxDistance) or tonumber(effect.maxDistance) or 4.0))
+			return getClosestNearbyVehicle(math.max(1.0, tonumber(context.maxDistance) or tonumber(effect.maxDistance) or 4.0))
 		end
 	end
 
@@ -409,7 +516,7 @@ local function applyUseEffect(effect, context)
 	if tostring(effect.type or '') == 'vehicle_repair_full' then
 		local closestVehicle = getVehicleFromUseContext(effect, context)
 		if closestVehicle == 0 then
-			notifyLocal('Stand next to a damaged vehicle to use the repair kit.')
+			notifyLocal('Stand next to a vehicle to use the repair kit.')
 			return false
 		end
 
@@ -487,7 +594,7 @@ local function canApplyUseEffect(effect, context)
 			return true, nil
 		end
 
-		return false, 'Stand next to a damaged vehicle to use the repair kit.'
+		return false, 'Stand next to a vehicle to use the repair kit.'
 	end
 
 	return true, nil
