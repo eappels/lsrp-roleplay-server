@@ -2,7 +2,7 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'LSRP Development'
-description 'LSRP private police job with Mission Row duty and patrol vehicle access'
+description 'LSRP private police job with Mission Row duty, wardrobe, and patrol vehicle access'
 version '1.0.0'
 
 lua54 'yes'
@@ -21,5 +21,6 @@ server_scripts {
 
 dependencies {
 	'lsrp_jobs',
+	'lsrp_pededitor',
 	'lsrp_vehicleparking'
 }

@@ -526,6 +526,15 @@ local function returnPatrolVehicle()
 	notify('Patrol vehicle returned to the garage.')
 end
 
+local function openPoliceDressingRoom()
+	if not isPoliceEmployee() then
+		notify('Only sworn LSPD personnel can access the police dressing room.')
+		return
+	end
+
+	TriggerEvent('lsrp_pededitor:open')
+end
+
 RegisterNetEvent('lsrp_police:client:notify', function(message)
 	notify(message)
 end)
@@ -571,15 +580,20 @@ CreateThread(function()
 				local drawDistance = tonumber(Config.DrawDistance) or 30.0
 				local interactionDistance = tonumber(Config.InteractionDistance) or 2.5
 				local dutyDistance = #(playerCoords - station.dutyCoords)
+				local dressingRoomDistance = station.dressingRoomCoords and #(playerCoords - station.dressingRoomCoords) or math.huge
 				local spawnDistance = #(playerCoords - station.vehicleSpawn.coords)
 				local returnDistance = #(playerCoords - station.vehicleReturn)
 
-				if dutyDistance <= drawDistance or spawnDistance <= drawDistance or returnDistance <= drawDistance then
+				if dutyDistance <= drawDistance or dressingRoomDistance <= drawDistance or spawnDistance <= drawDistance or returnDistance <= drawDistance then
 					waitMs = 0
 				end
 
 				if dutyDistance <= drawDistance then
 					DrawMarker(1, station.dutyCoords.x, station.dutyCoords.y, station.dutyCoords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.65, 1.65, 0.7, 82, 162, 255, 110, false, false, 2, false, nil, nil, false)
+				end
+
+				if dressingRoomDistance <= drawDistance then
+					DrawMarker(1, station.dressingRoomCoords.x, station.dressingRoomCoords.y, station.dressingRoomCoords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.35, 1.35, 0.55, 82, 162, 255, 110, false, false, 2, false, nil, nil, false)
 				end
 
 				if spawnDistance <= drawDistance then
@@ -610,6 +624,20 @@ CreateThread(function()
 					end
 				elseif dutyDistance <= interactionDistance then
 					showHelpPrompt('Only sworn LSPD personnel can access the duty locker')
+					if isInteractionJustPressed() then
+						notify('You are not assigned to the Los Santos Police Department.')
+						Wait(300)
+					end
+				end
+
+				if isPoliceEmployee() and dressingRoomDistance <= interactionDistance then
+					showHelpPrompt(Config.DressingRoomPrompt or 'Press ~INPUT_CONTEXT~ to access the police dressing room')
+					if isInteractionJustPressed() then
+						openPoliceDressingRoom()
+						Wait(300)
+					end
+				elseif dressingRoomDistance <= interactionDistance then
+					showHelpPrompt('Only sworn LSPD personnel can access the police dressing room')
 					if isInteractionJustPressed() then
 						notify('You are not assigned to the Los Santos Police Department.')
 						Wait(300)

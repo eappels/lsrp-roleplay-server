@@ -9,6 +9,7 @@ Config.DrawDistance = 30.0
 Config.InteractionDistance = 2.5
 Config.VehicleModel = 'police3'
 Config.VehiclePlatePrefix = 'LSPD'
+Config.DressingRoomPrompt = 'Press ~INPUT_CONTEXT~ to access the police dressing room'
 Config.VehicleColors = {
 	primary = 111,
 	secondary = 111
@@ -73,6 +74,7 @@ Config.Stations = {
 			label = 'Mission Row PD'
 		},
 		dutyCoords = vector3(441.15, -981.89, 30.69),
+		dressingRoomCoords = vector3(457.28, -990.87, 30.69),
 		vehicleSpawn = {
 			coords = vector3(454.29, -1017.42, 28.42),
 			heading = 90.0
