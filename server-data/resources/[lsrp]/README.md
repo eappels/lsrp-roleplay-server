@@ -10,6 +10,7 @@ This index covers the custom `lsrp_*` resources.
 - [lsrp_dev](lsrp_dev/README.md): Developer and admin test utilities.
 - [lsrp_economy](lsrp_economy/README.md): Persistent LS$ balance and transaction system.
 - [lsrp_fuel](lsrp_fuel/README.md): Vehicle fuel consumption and gas-station refueling.
+- [lsrp_hacking](lsrp_hacking/README.md): Scaffold resource for future hacking gameplay systems.
 - [lsrp_inventory](lsrp_inventory/README.md): NUI inventory scaffold and current vehicle key item.
 - [lsrp_jobcenter](lsrp_jobcenter/README.md): Job center kiosk and civilian job browser.
 - [lsrp_jobs](lsrp_jobs/README.md): Employment state, duty, payroll, and job permissions.

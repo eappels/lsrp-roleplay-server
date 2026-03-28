@@ -1,0 +1,548 @@
+local function debugLog(message)
+	if not Config.Debug then
+		return
+	end
+
+	print(('[lsrp_hacking] %s'):format(tostring(message)))
+end
+
+local HACK_ANIM_DICT = 'anim@heists@ornate_bank@hack'
+local HACK_SCENE_BASE_Z = 29.34
+local HACK_SCENE_Z_LIFT = 0.43
+local HACK_SCENE_FORWARD_ADJUST = 0.55
+local HACK_SCENE_RIGHT_ADJUST = 0.30
+local PED_BAG_COMPONENT = 5
+local activeHackCamera = nil
+local vendorPed = 0
+local nextVendorTalkAt = 0
+local HACK_PROPS = {
+	bag = 'hei_p_m_bag_var22_arm_s',
+	laptop = 'hei_prop_hst_laptop',
+	card = 'hei_prop_heist_card_hack_02'
+}
+
+local function getVendorConfig()
+	return type(Config.Vendor) == 'table' and Config.Vendor or {}
+end
+
+local function getVendorCoords()
+	local vendorConfig = getVendorConfig()
+	local coords = vendorConfig.coords
+	if type(coords) == 'vector4' or type(coords) == 'vector3' then
+		return vector3(coords.x, coords.y, coords.z), tonumber(coords.w) or tonumber(coords.heading) or 0.0
+	end
+
+	if type(coords) ~= 'table' then
+		return nil, 0.0
+	end
+
+	local x = tonumber(coords.x)
+	local y = tonumber(coords.y)
+	local z = tonumber(coords.z)
+	if not x or not y or not z then
+		return nil, 0.0
+	end
+
+	return vector3(x + 0.0, y + 0.0, z + 0.0), tonumber(coords.w) or tonumber(coords.heading) or 0.0
+	end
+
+local function showHelpPrompt(message)
+	BeginTextCommandDisplayHelp('STRING')
+	AddTextComponentSubstringPlayerName(tostring(message or ''))
+	EndTextCommandDisplayHelp(0, false, true, -1)
+end
+
+local function capturePedBagVariation(ped)
+	if ped == 0 or not DoesEntityExist(ped) then
+		return nil
+	end
+
+	return {
+		drawable = GetPedDrawableVariation(ped, PED_BAG_COMPONENT),
+		texture = GetPedTextureVariation(ped, PED_BAG_COMPONENT),
+		palette = GetPedPaletteVariation(ped, PED_BAG_COMPONENT)
+	}
+end
+
+local function hidePedBagVariation(ped)
+	if ped == 0 or not DoesEntityExist(ped) then
+		return nil
+	end
+
+	local bagVariation = capturePedBagVariation(ped)
+	SetPedComponentVariation(ped, PED_BAG_COMPONENT, 0, 0, 0)
+	return bagVariation
+end
+
+local function restorePedBagVariation(ped, bagVariation)
+	if ped == 0 or not DoesEntityExist(ped) or type(bagVariation) ~= 'table' then
+		return
+	end
+
+	SetPedComponentVariation(
+		ped,
+		PED_BAG_COMPONENT,
+		math.max(0, math.floor(tonumber(bagVariation.drawable) or 0)),
+		math.max(0, math.floor(tonumber(bagVariation.texture) or 0)),
+		math.max(0, math.floor(tonumber(bagVariation.palette) or 0))
+	)
+end
+
+local function requestAnimDictLoaded(animDict)
+	if not animDict or animDict == '' then
+		return false
+	end
+
+	RequestAnimDict(animDict)
+	local timeoutAt = GetGameTimer() + 5000
+	while not HasAnimDictLoaded(animDict) do
+		if GetGameTimer() >= timeoutAt then
+			return false
+		end
+		Wait(0)
+	end
+
+	return true
+end
+
+local function requestModelLoaded(modelName)
+	if not modelName or modelName == '' then
+		return nil
+	end
+
+	local modelHash = GetHashKey(modelName)
+	if modelHash == 0 or not IsModelInCdimage(modelHash) then
+		return nil
+	end
+
+	RequestModel(modelHash)
+	local timeoutAt = GetGameTimer() + 5000
+	while not HasModelLoaded(modelHash) do
+		if GetGameTimer() >= timeoutAt then
+			return nil
+		end
+		Wait(0)
+	end
+
+	return modelHash
+end
+
+local function destroyVendorPed()
+	if vendorPed ~= 0 and DoesEntityExist(vendorPed) then
+		DeletePed(vendorPed)
+	end
+
+	vendorPed = 0
+end
+
+local function ensureVendorPed()
+	local vendorConfig = getVendorConfig()
+	if vendorConfig.enabled == false then
+		destroyVendorPed()
+		return
+	end
+
+	if vendorPed ~= 0 and DoesEntityExist(vendorPed) then
+		return
+	end
+
+	local vendorCoords, vendorHeading = getVendorCoords()
+	if not vendorCoords then
+		return
+	end
+
+	local modelHash = requestModelLoaded(vendorConfig.model or 'g_m_y_mexgoon_01')
+	if not modelHash then
+		debugLog('failed to load vendor ped model')
+		return
+	end
+
+	vendorPed = CreatePed(4, modelHash, vendorCoords.x, vendorCoords.y, vendorCoords.z, vendorHeading, false, false)
+	SetModelAsNoLongerNeeded(modelHash)
+	if vendorPed == 0 or not DoesEntityExist(vendorPed) then
+		vendorPed = 0
+		debugLog('failed to create vendor ped')
+		return
+	end
+
+	SetEntityAsMissionEntity(vendorPed, true, true)
+	SetEntityHeading(vendorPed, vendorHeading)
+	SetEntityCoordsNoOffset(vendorPed, vendorCoords.x, vendorCoords.y, vendorCoords.z, false, false, false)
+	SetBlockingOfNonTemporaryEvents(vendorPed, true)
+	SetPedCanRagdoll(vendorPed, false)
+	SetPedFleeAttributes(vendorPed, 0, false)
+	SetEntityInvincible(vendorPed, true)
+	FreezeEntityPosition(vendorPed, true)
+end
+
+local function deleteEntitySafe(entity)
+	if entity and entity ~= 0 and DoesEntityExist(entity) then
+		DeleteObject(entity)
+	end
+end
+
+local function cleanupHackProps(entities)
+	if type(entities) ~= 'table' then
+		return
+	end
+
+	deleteEntitySafe(entities.bag)
+	deleteEntitySafe(entities.laptop)
+	deleteEntitySafe(entities.card)
+end
+
+local function normalize2d(x, y)
+	local length = math.sqrt((x * x) + (y * y))
+	if length < 0.001 then
+		return 0.0, 1.0
+	end
+
+	return x / length, y / length
+end
+
+local function getHackApproachDirection(atmEntity, atmCoords)
+	local ped = PlayerPedId()
+	local pedCoords = GetEntityCoords(ped)
+	local toPedX, toPedY = normalize2d(pedCoords.x - atmCoords.x, pedCoords.y - atmCoords.y)
+
+	if atmEntity ~= 0 and DoesEntityExist(atmEntity) then
+		local atmForward = GetEntityForwardVector(atmEntity)
+		local forwardX, forwardY = normalize2d(atmForward.x, atmForward.y)
+		if ((forwardX * toPedX) + (forwardY * toPedY)) < 0.0 then
+			forwardX = -forwardX
+			forwardY = -forwardY
+		end
+		return forwardX, forwardY
+	end
+
+	return toPedX, toPedY
+end
+
+local function getHackSceneDistance(atmEntity)
+	local baseDistance = 0.56
+	if atmEntity == 0 or not DoesEntityExist(atmEntity) then
+		return math.max(0.05, baseDistance - HACK_SCENE_FORWARD_ADJUST)
+	end
+
+	local model = GetEntityModel(atmEntity)
+	if not model or model == 0 then
+		return baseDistance
+	end
+
+	local minimum, maximum = GetModelDimensions(model)
+	if not minimum or not maximum then
+		return math.max(0.05, baseDistance - HACK_SCENE_FORWARD_ADJUST)
+	end
+
+	local frontExtent = math.max(math.abs(minimum.y), math.abs(maximum.y))
+	return math.max(0.05, math.max(baseDistance, frontExtent + 0.03) - HACK_SCENE_FORWARD_ADJUST)
+end
+
+local function buildHackSceneOrigin(atmCoords, atmEntity)
+	local ped = PlayerPedId()
+	local pedCoords = GetEntityCoords(ped)
+	local approachX, approachY = getHackApproachDirection(atmEntity, atmCoords)
+	local sceneDistance = getHackSceneDistance(atmEntity)
+	local rightX = -approachY
+	local rightY = approachX
+	local baseSceneX = atmCoords.x + (approachX * sceneDistance)
+	local baseSceneY = atmCoords.y + (approachY * sceneDistance)
+	local baseSceneZ = HACK_SCENE_BASE_Z + HACK_SCENE_Z_LIFT
+	local sceneX = baseSceneX + (rightX * HACK_SCENE_RIGHT_ADJUST)
+	local sceneY = baseSceneY + (rightY * HACK_SCENE_RIGHT_ADJUST)
+	local sceneZ = baseSceneZ
+
+	local heading = GetHeadingFromVector_2d(atmCoords.x - baseSceneX, atmCoords.y - baseSceneY)
+	return {
+		baseOrigin = vector3(baseSceneX, baseSceneY, baseSceneZ),
+		shiftedOrigin = vector3(sceneX, sceneY, sceneZ),
+		rotation = vector3(0.0, 0.0, heading),
+		shift = vector3(rightX * HACK_SCENE_RIGHT_ADJUST, rightY * HACK_SCENE_RIGHT_ADJUST, 0.0)
+	}
+end
+
+local function createHackProp(modelName, coords)
+	local modelHash = requestModelLoaded(modelName)
+	if not modelHash then
+		return 0
+	end
+
+	local entity = CreateObject(modelHash, coords.x, coords.y, coords.z, true, true, false)
+	SetModelAsNoLongerNeeded(modelHash)
+	if entity ~= 0 and DoesEntityExist(entity) then
+		SetEntityAsMissionEntity(entity, true, true)
+	end
+
+	return entity
+end
+
+local function destroyHackCamera()
+	if activeHackCamera and DoesCamExist(activeHackCamera) then
+		RenderScriptCams(false, false, 0, true, true)
+		DestroyCam(activeHackCamera, false)
+	end
+
+	activeHackCamera = nil
+end
+
+local function createHackCamera()
+	destroyHackCamera()
+
+	local camCoords = GetFinalRenderedCamCoord()
+	local camRot = GetFinalRenderedCamRot(2)
+	local camera = CreateCamWithParams(
+		'DEFAULT_SCRIPTED_CAMERA',
+		camCoords.x,
+		camCoords.y,
+		camCoords.z,
+		camRot.x,
+		camRot.y,
+		camRot.z,
+		GetGameplayCamFov(),
+		true,
+		2
+	)
+	if not camera or camera == 0 then
+		return nil
+	end
+
+	SetCamActive(camera, true)
+	RenderScriptCams(true, false, 0, true, true)
+	activeHackCamera = camera
+	return camera
+end
+
+local function playScenePart(scene, durationMs)
+	NetworkStartSynchronisedScene(scene)
+	Wait(math.max(0, math.floor(tonumber(durationMs) or 0)))
+	NetworkStopSynchronisedScene(scene)
+end
+
+local function playHackScene(atmCoords, atmEntity)
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
+		return false, 'invalid_ped'
+	end
+
+	if not requestAnimDictLoaded(HACK_ANIM_DICT) then
+		return false, 'missing_anim'
+	end
+
+	local sceneData = buildHackSceneOrigin(atmCoords, atmEntity)
+	local sceneOrigin = sceneData.shiftedOrigin
+	local sceneRotation = sceneData.rotation
+	local baseOrigin = sceneData.baseOrigin
+	local sceneShift = sceneData.shift
+	local pedBagVariation = nil
+	local hackCamera = nil
+	local pedStartPosition = GetAnimInitialOffsetPosition(
+		HACK_ANIM_DICT,
+		'hack_enter',
+		baseOrigin.x,
+		baseOrigin.y,
+		baseOrigin.z,
+		sceneRotation.x,
+		sceneRotation.y,
+		sceneRotation.z,
+		0,
+		2
+	)
+	local pedStartRotation = GetAnimInitialOffsetRotation(
+		HACK_ANIM_DICT,
+		'hack_enter',
+		baseOrigin.x,
+		baseOrigin.y,
+		baseOrigin.z,
+		sceneRotation.x,
+		sceneRotation.y,
+		sceneRotation.z,
+		0,
+		2
+	)
+	local bag = createHackProp(HACK_PROPS.bag, sceneOrigin)
+	local laptop = createHackProp(HACK_PROPS.laptop, sceneOrigin)
+	local card = createHackProp(HACK_PROPS.card, sceneOrigin)
+	if bag == 0 or laptop == 0 or card == 0 then
+		cleanupHackProps({ bag = bag, laptop = laptop, card = card })
+		return false, 'missing_prop'
+	end
+
+	hackCamera = createHackCamera()
+	pedBagVariation = hidePedBagVariation(ped)
+	SetEntityCoordsNoOffset(ped, pedStartPosition.x + sceneShift.x, pedStartPosition.y + sceneShift.y, pedStartPosition.z, false, false, false)
+	SetEntityRotation(ped, pedStartRotation.x, pedStartRotation.y, pedStartRotation.z, 2, true)
+	FreezeEntityPosition(ped, true)
+
+	local enterScene = NetworkCreateSynchronisedScene(sceneOrigin.x, sceneOrigin.y, sceneOrigin.z, sceneRotation.x, sceneRotation.y, sceneRotation.z, 2, false, false, 1065353216, 0, 1.3)
+	local loopScene = NetworkCreateSynchronisedScene(sceneOrigin.x, sceneOrigin.y, sceneOrigin.z, sceneRotation.x, sceneRotation.y, sceneRotation.z, 2, false, false, 1065353216, 0, 1.3)
+	local exitScene = NetworkCreateSynchronisedScene(sceneOrigin.x, sceneOrigin.y, sceneOrigin.z, sceneRotation.x, sceneRotation.y, sceneRotation.z, 2, false, false, 1065353216, 0, 1.3)
+
+	NetworkAddPedToSynchronisedScene(ped, enterScene, HACK_ANIM_DICT, 'hack_enter', 1.5, -4.0, 1, 16, 1148846080, 0)
+	NetworkAddEntityToSynchronisedScene(bag, enterScene, HACK_ANIM_DICT, 'hack_enter_bag', 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(laptop, enterScene, HACK_ANIM_DICT, 'hack_enter_laptop', 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(card, enterScene, HACK_ANIM_DICT, 'hack_enter_card', 4.0, -8.0, 1)
+
+	NetworkAddPedToSynchronisedScene(ped, loopScene, HACK_ANIM_DICT, 'hack_loop', 1.5, -4.0, 1, 16, 1148846080, 0)
+	NetworkAddEntityToSynchronisedScene(bag, loopScene, HACK_ANIM_DICT, 'hack_loop_bag', 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(laptop, loopScene, HACK_ANIM_DICT, 'hack_loop_laptop', 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(card, loopScene, HACK_ANIM_DICT, 'hack_loop_card', 4.0, -8.0, 1)
+
+	NetworkAddPedToSynchronisedScene(ped, exitScene, HACK_ANIM_DICT, 'hack_exit', 1.5, -4.0, 1, 16, 1148846080, 0)
+	NetworkAddEntityToSynchronisedScene(bag, exitScene, HACK_ANIM_DICT, 'hack_exit_bag', 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(laptop, exitScene, HACK_ANIM_DICT, 'hack_exit_laptop', 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(card, exitScene, HACK_ANIM_DICT, 'hack_exit_card', 4.0, -8.0, 1)
+
+	playScenePart(enterScene, 4500)
+	playScenePart(loopScene, 4500)
+	playScenePart(exitScene, 4500)
+
+	cleanupHackProps({ bag = bag, laptop = laptop, card = card })
+	FreezeEntityPosition(ped, false)
+	ClearPedTasks(ped)
+	restorePedBagVariation(ped, pedBagVariation)
+	if hackCamera then
+		destroyHackCamera()
+	end
+	return true, nil
+end
+
+local function isExteriorAtmLocation(coords)
+	if type(coords) ~= 'vector3' then
+		return false
+	end
+
+	return GetInteriorAtCoords(coords.x, coords.y, coords.z) == 0
+end
+
+local function getNearestAtm(maxDistance)
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) then
+		return nil
+	end
+
+	local playerCoords = GetEntityCoords(ped)
+	local interactDistance = math.max(0.5, tonumber(maxDistance) or tonumber(Config.AtmUseDistance) or 1.8)
+	local scanRadius = math.max(interactDistance, tonumber(Config.AtmScanRadius) or 5.0)
+	local nearestAtm = nil
+	local nearestDistance = interactDistance + 0.001
+
+	for _, modelHash in ipairs(Config.AtmModels or {}) do
+		local atmObject = GetClosestObjectOfType(playerCoords.x, playerCoords.y, playerCoords.z, scanRadius, modelHash, false, false, false)
+		if atmObject ~= 0 and DoesEntityExist(atmObject) then
+			local atmCoords = GetEntityCoords(atmObject)
+			local distance = #(playerCoords - atmCoords)
+			local isValidAtm = (Config.ExteriorOnlyAtms ~= true) or isExteriorAtmLocation(atmCoords)
+			if isValidAtm and distance <= interactDistance and distance < nearestDistance then
+				nearestDistance = distance
+				nearestAtm = {
+					entity = atmObject,
+					coords = atmCoords,
+					distance = distance
+				}
+			end
+		end
+	end
+
+	return nearestAtm
+end
+
+exports('getNearestAtm', function(maxDistance)
+	return getNearestAtm(maxDistance)
+end)
+
+RegisterNetEvent('lsrp_hacking:client:deviceUsed', function(context)
+	if type(context) ~= 'table' then
+		return
+	end
+
+	local atmEntity = tonumber(context.atm) or 0
+	local atmCoords = vector3(
+		tonumber(context.x) or 0.0,
+		tonumber(context.y) or 0.0,
+		tonumber(context.z) or 0.0
+	)
+	if atmEntity ~= 0 and DoesEntityExist(atmEntity) then
+		atmCoords = GetEntityCoords(atmEntity)
+	end
+
+	if Config.ExteriorOnlyAtms == true and not isExteriorAtmLocation(atmCoords) then
+		debugLog(('blocked indoor ATM hack at %.2f, %.2f, %.2f'):format(
+			atmCoords.x,
+			atmCoords.y,
+			atmCoords.z
+		))
+		return
+	end
+
+	debugLog(('device used near ATM at %.2f, %.2f, %.2f'):format(
+		atmCoords.x,
+		atmCoords.y,
+		atmCoords.z
+	))
+
+	local playedAnimation, animationError = playHackScene(atmCoords, atmEntity)
+	if playedAnimation ~= true then
+		debugLog(('hack animation fallback: %s'):format(tostring(animationError)))
+	end
+
+	TriggerServerEvent('lsrp_hacking:server:completeAtmHack', {
+		x = atmCoords.x,
+		y = atmCoords.y,
+		z = atmCoords.z
+	})
+end)
+
+AddEventHandler('onClientResourceStart', function(resourceName)
+	if resourceName ~= GetCurrentResourceName() then
+		return
+	end
+
+	ensureVendorPed()
+	debugLog('client started')
+end)
+
+CreateThread(function()
+	while true do
+		local waitMs = 1000
+		local vendorConfig = getVendorConfig()
+		if vendorConfig.enabled ~= false then
+			ensureVendorPed()
+
+			local playerPed = PlayerPedId()
+			if playerPed ~= 0 and DoesEntityExist(playerPed) and not IsPedInAnyVehicle(playerPed, false) then
+				local vendorCoords = nil
+				if vendorPed ~= 0 and DoesEntityExist(vendorPed) then
+					vendorCoords = GetEntityCoords(vendorPed)
+				else
+					vendorCoords = select(1, getVendorCoords())
+				end
+
+				if vendorCoords then
+					local playerCoords = GetEntityCoords(playerPed)
+					local distance = #(playerCoords - vendorCoords)
+					if distance <= math.max(1.0, tonumber(vendorConfig.drawDistance) or 18.0) then
+						waitMs = 0
+						if distance <= math.max(1.0, tonumber(vendorConfig.interactDistance) or 2.0) then
+							showHelpPrompt(tostring(vendorConfig.prompt or 'Press ~INPUT_CONTEXT~ to talk'))
+							if GetGameTimer() >= nextVendorTalkAt and IsControlJustPressed(0, 38) then
+								nextVendorTalkAt = GetGameTimer() + 900
+								TriggerServerEvent('lsrp_hacking:server:talkToVendor')
+							end
+						end
+					end
+				end
+			end
+		end
+
+		Wait(waitMs)
+	end
+end)
+
+AddEventHandler('onClientResourceStop', function(resourceName)
+	if resourceName ~= GetCurrentResourceName() then
+		return
+	end
+
+	destroyVendorPed()
+	destroyHackCamera()
+end)

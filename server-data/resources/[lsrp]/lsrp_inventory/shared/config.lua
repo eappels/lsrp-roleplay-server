@@ -36,23 +36,6 @@ Config.Items = {
 			requireOnFoot = true
 		}
 	},
-	cola = {
-		label = 'Cola',
-		weight = 300,
-		maxStack = 10,
-		image = 'cola-Db24EFMX.png',
-		description = 'Cold and sugary.',
-		use = {
-			label = 'Drink',
-			mode = 'anim',
-			animDict = 'mp_player_intdrink',
-			animName = 'loop_bottle',
-			flag = 49,
-			durationMs = 10000,
-			consumeAmount = 1,
-			requireOnFoot = true
-		}
-	},
 	bandage = {
 		label = 'Bandage',
 		weight = 150,
@@ -80,6 +63,24 @@ Config.Items = {
 		maxStack = 5,
 		image = 'lockpick-BY_OMax9.png',
 		description = 'Useful when a key is missing.'
+	},
+	WEAPON_HACKINGDEVICE = {
+		label = 'Hacking Device',
+		weight = 1500,
+		maxStack = 1,
+		image = 'hackingdevice-DLgIotFO.png',
+		description = 'A specialized electronic device for ATM intrusion.',
+		use = {
+			label = 'Hack ATM',
+			mode = 'none',
+			durationMs = 1000,
+			consumeAmount = 0,
+			requireOnFoot = true,
+			effect = {
+				type = 'atm_hacking_animation',
+				maxDistance = 1.8
+			}
+		}
 	},
 	gascan = {
 		label = 'Gas Can',

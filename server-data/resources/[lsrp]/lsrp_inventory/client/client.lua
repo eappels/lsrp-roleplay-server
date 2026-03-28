@@ -11,6 +11,7 @@ local latestNearbyPlayers = {}
 local useInProgress = false
 local activeUseToken = nil
 local activeUseContext = nil
+local activeUseProp = nil
 
 local function getActiveTarget()
 	return latestStashTarget or latestTransferTarget
@@ -20,6 +21,10 @@ local function notifyLocal(message)
 	if not message or message == '' then
 		return
 	end
+	if mode == 'none' then
+		return true, nil
+	end
+
 
 	TriggerEvent('chat:addMessage', {
 		args = { ('^3[Inventory]^7 %s'):format(tostring(message)) }
@@ -71,6 +76,113 @@ local function requestAnimDictLoaded(animDict)
 	return true
 end
 
+local function requestModelLoaded(modelName)
+	if not modelName or modelName == '' then
+		return nil
+	end
+
+	local modelHash = GetHashKey(modelName)
+	if modelHash == 0 or not IsModelInCdimage(modelHash) then
+		return nil
+	end
+
+	RequestModel(modelHash)
+	local timeoutAt = GetGameTimer() + 5000
+	while not HasModelLoaded(modelHash) do
+		if GetGameTimer() >= timeoutAt then
+			return nil
+		end
+		Wait(0)
+	end
+
+	return modelHash
+end
+
+local function clearUseProp()
+	if activeUseProp and DoesEntityExist(activeUseProp) then
+		DeleteObject(activeUseProp)
+	end
+
+	activeUseProp = nil
+end
+
+local function attachUseProp(propData)
+	clearUseProp()
+
+	if type(propData) ~= 'table' then
+		return true
+	end
+
+	local modelHash = requestModelLoaded(tostring(propData.model or ''))
+	if not modelHash then
+		return false
+	end
+
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) then
+		SetModelAsNoLongerNeeded(modelHash)
+		return false
+	end
+
+	local offsetX = tonumber(propData.offset and propData.offset.x) or 0.0
+	local offsetY = tonumber(propData.offset and propData.offset.y) or 0.0
+	local offsetZ = tonumber(propData.offset and propData.offset.z) or 0.0
+	local rotationX = tonumber(propData.rotation and propData.rotation.x) or 0.0
+	local rotationY = tonumber(propData.rotation and propData.rotation.y) or 0.0
+	local rotationZ = tonumber(propData.rotation and propData.rotation.z) or 0.0
+	local groundLift = tonumber(propData.groundLift) or 0.0
+	local attachToPed = propData.attachToPed ~= false
+
+	local spawnCoords = GetEntityCoords(ped)
+	if not attachToPed then
+		spawnCoords = GetOffsetFromEntityInWorldCoords(ped, offsetX, offsetY, offsetZ)
+	end
+
+	local propEntity = CreateObject(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, true, true, false)
+	SetModelAsNoLongerNeeded(modelHash)
+	if propEntity == 0 or not DoesEntityExist(propEntity) then
+		return false
+	end
+
+	SetEntityAsMissionEntity(propEntity, true, true)
+
+	if not attachToPed then
+		SetEntityRotation(propEntity, rotationX, rotationY, GetEntityHeading(ped) + rotationZ, 2, true)
+		PlaceObjectOnGroundProperly(propEntity)
+		if groundLift ~= 0.0 then
+			local placedCoords = GetEntityCoords(propEntity)
+			SetEntityCoordsNoOffset(propEntity, placedCoords.x, placedCoords.y, placedCoords.z + groundLift, false, false, false)
+		end
+		FreezeEntityPosition(propEntity, true)
+		activeUseProp = propEntity
+		return true
+	end
+
+	local attachmentBone = math.floor(tonumber(propData.bone) or 57005)
+	local boneIndex = attachmentBone > 0 and GetPedBoneIndex(ped, attachmentBone) or 0
+
+	AttachEntityToEntity(
+		propEntity,
+		ped,
+		boneIndex,
+		offsetX,
+		offsetY,
+		offsetZ,
+		rotationX,
+		rotationY,
+		rotationZ,
+		true,
+		true,
+		false,
+		true,
+		1,
+		true
+	)
+
+	activeUseProp = propEntity
+	return true
+end
+
 local function playItemUseAnimation(useData)
 	local ped = PlayerPedId()
 	if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
@@ -82,12 +194,20 @@ local function playItemUseAnimation(useData)
 	end
 
 	local mode = tostring(useData.mode or 'anim')
+	if mode == 'none' then
+		return true, nil
+	end
+
 	if mode == 'scenario' then
 		local scenario = tostring(useData.scenario or '')
 		if scenario == '' then
 			return false, 'invalid_scenario'
 		end
 		TaskStartScenarioInPlace(ped, scenario, 0, true)
+		if not attachUseProp(useData.prop) then
+			ClearPedTasks(ped)
+			return false, 'missing_prop'
+		end
 		return true, nil
 	end
 
@@ -115,6 +235,11 @@ local function playItemUseAnimation(useData)
 		false
 	)
 
+	if not attachUseProp(useData.prop) then
+		ClearPedTasks(ped)
+		return false, 'missing_prop'
+	end
+
 	return true, nil
 end
 
@@ -123,8 +248,34 @@ local function finishUseAnimation()
 	if ped ~= 0 and DoesEntityExist(ped) then
 		ClearPedTasks(ped)
 	end
+	clearUseProp()
 	useInProgress = false
 	activeUseToken = nil
+end
+
+local function getClosestAtm(maxDistance)
+	if GetResourceState('lsrp_hacking') ~= 'started' then
+		return nil
+	end
+
+	local ok, atmData = pcall(function()
+		return exports['lsrp_hacking']:getNearestAtm(maxDistance)
+	end)
+
+	if not ok or type(atmData) ~= 'table' then
+		return nil
+	end
+
+	local atmEntity = tonumber(atmData.entity) or 0
+	if atmEntity == 0 or not DoesEntityExist(atmEntity) then
+		return nil
+	end
+
+	return {
+		entity = atmEntity,
+		coords = atmData.coords,
+		distance = tonumber(atmData.distance) or 0.0
+	}
 end
 
 local function requestVehicleControl(vehicle, timeoutMs)
@@ -408,6 +559,26 @@ local function buildUseEffectContext(effect)
 		}, nil
 	end
 
+	if effectType == 'atm_hacking_animation' then
+		local maxDistance = math.max(0.5, tonumber(effect.maxDistance) or 1.8)
+		local atm = getClosestAtm(maxDistance)
+		if not atm then
+			return nil, 'Stand next to an outdoor ATM to use the hacking device.'
+		end
+
+		local atmCoords = atm.coords or GetEntityCoords(atm.entity)
+		return {
+			effectType = effectType,
+			atm = atm.entity,
+			coords = {
+				x = tonumber(atmCoords.x) or 0.0,
+				y = tonumber(atmCoords.y) or 0.0,
+				z = tonumber(atmCoords.z) or 0.0
+			},
+			maxDistance = maxDistance
+		}, nil
+	end
+
 	return nil, nil
 end
 
@@ -560,6 +731,23 @@ local function applyUseEffect(effect, context)
 		return true
 	end
 
+	if tostring(effect.type or '') == 'atm_hacking_animation' then
+		if type(context) ~= 'table' or type(context.coords) ~= 'table' then
+			return false
+		end
+
+		if GetResourceState('lsrp_hacking') == 'started' then
+			TriggerEvent('lsrp_hacking:client:deviceUsed', {
+				x = tonumber(context.coords.x) or 0.0,
+				y = tonumber(context.coords.y) or 0.0,
+				z = tonumber(context.coords.z) or 0.0,
+				atm = tonumber(context.atm) or 0
+			})
+		end
+
+		return true
+	end
+
 	return false
 end
 
@@ -623,6 +811,20 @@ local function canApplyUseEffect(effect, context)
 		end
 
 		return false, 'Stand next to a vehicle to use the repair kit.'
+	end
+
+	if tostring(effect.type or '') == 'atm_hacking_animation' then
+		local ped = PlayerPedId()
+		if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
+			return false, 'You cannot use that right now.'
+		end
+
+		local atm = getClosestAtm(math.max(0.5, tonumber(context and context.maxDistance) or tonumber(effect.maxDistance) or 1.8))
+		if atm then
+			return true, nil
+		end
+
+		return false, 'Stand next to an ATM to use the hacking device.'
 	end
 
 	return true, nil
@@ -859,6 +1061,17 @@ RegisterNUICallback('dropItem', function(data, cb)
 		return
 	end
 	TriggerServerEvent('lsrp_inventory:server:dropItem', fromSlot, amount)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('trashItem', function(data, cb)
+	local fromSlot = math.floor(tonumber(data and data.fromSlot) or 0)
+	local amount = math.floor(tonumber(data and data.amount) or 1)
+	if fromSlot < 1 then
+		cb({ ok = false, error = 'invalid_slot' })
+		return
+	end
+	TriggerServerEvent('lsrp_inventory:server:trashItem', fromSlot, amount)
 	cb({ ok = true })
 end)
 

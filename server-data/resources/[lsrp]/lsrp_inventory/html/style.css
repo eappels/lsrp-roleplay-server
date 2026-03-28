@@ -294,7 +294,9 @@ body.drag-active {
 }
 
 .slot.drop-target,
-.drop-zone.drop-target {
+.drop-zone.drop-target,
+.trash-zone.drop-target,
+.use-zone.drop-target {
 	border-color: var(--accent);
 	box-shadow: 0 0 0 1px rgba(217, 168, 74, 0.35) inset;
 }
@@ -345,13 +347,14 @@ body.drag-active {
 	border-top: 1px solid var(--line);
 	border-bottom: none;
 	display: grid;
-	grid-template-columns: 220px 220px 1fr;
+	grid-template-columns: 220px 220px 220px 1fr;
 	gap: 14px;
 	align-items: center;
 }
 
 .use-zone,
-.drop-zone {
+.drop-zone,
+.trash-zone {
 	border: 1px dashed rgba(217, 168, 74, 0.55);
 	color: #f4ddb0;
 	padding: 12px 14px;
@@ -364,6 +367,13 @@ body.drag-active {
 	border: 1px dashed rgba(201, 99, 99, 0.5);
 	color: #f5c4c4;
 	background: rgba(201, 99, 99, 0.08);
+}
+
+.trash-zone {
+	border: 1px dashed rgba(227, 109, 70, 0.7);
+	color: #ffd3c6;
+	background: rgba(227, 109, 70, 0.12);
+	font-weight: 700;
 }
 
 #status-text {

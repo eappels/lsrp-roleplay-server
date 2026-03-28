@@ -235,6 +235,12 @@ function updateDropHighlight(clientX, clientY) {
 		return { type: 'use' };
 	}
 
+	const trashZoneElement = element.closest('#trash-drop-zone');
+	if (trashZoneElement) {
+		trashZoneElement.classList.add('drop-target');
+		return { type: 'trash' };
+	}
+
 	const slotElement = element.closest('.slot');
 	if (slotElement) {
 		slotElement.classList.add('drop-target');
@@ -491,6 +497,38 @@ async function handleDropAction(target) {
 		}
 
 		setStatus(`${sourceItem.use.label || 'Using'} ${sourceItem.label || sourceItem.name}...`);
+		return;
+	}
+
+	if (target.type === 'trash') {
+		if (!isSelfDrag) {
+			setStatus('Only your own inventory items can be trashed here.');
+			return;
+		}
+
+		if (isTransientInventoryItem(sourceItem)) {
+			setStatus('Key items cannot be deleted.');
+			return;
+		}
+
+		let amount;
+		if (state.drag && state.drag.ctrl) {
+			amount = await resolveDragAmount(sourceItem, 'Trash');
+			if (amount === null) {
+				setStatus('Trash action cancelled.');
+				return;
+			}
+		} else {
+			amount = Math.max(1, toInteger(sourceItem.count, 1));
+		}
+
+		const response = await postNui('trashItem', { fromSlot: sourceSlot, amount });
+		if (!response || response.ok !== true) {
+			setStatus('Could not delete item.');
+			return;
+		}
+
+		setStatus(`Deleted ${sourceItem.label || sourceItem.name} x${amount}.`);
 		return;
 	}
 
