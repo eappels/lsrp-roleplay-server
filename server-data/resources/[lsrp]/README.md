@@ -15,6 +15,7 @@ This index covers the custom `lsrp_*` resources.
 - [lsrp_jobcenter](lsrp_jobcenter/README.md): Job center kiosk and civilian job browser.
 - [lsrp_jobs](lsrp_jobs/README.md): Employment state, duty, payroll, and job permissions.
 - [lsrp_loadscreen](lsrp_loadscreen/README.md): Custom server loadscreen.
+- [lsrp_nui_template](lsrp_nui_template/README.md): Reusable transparent NUI shell/template for future interfaces.
 - [lsrp_mapedits](lsrp_mapedits/README.md): Client-side map edits, barrier removal, and prop hiding.
 - [lsrp_pededitor](lsrp_pededitor/README.md): Character appearance editor and outfit persistence.
 - [lsrp_police](lsrp_police/README.md): Private police job with Mission Row duty and patrol vehicle access.

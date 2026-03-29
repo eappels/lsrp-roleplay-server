@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSRP NUI Template</title>
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=1">
+</head>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <main id="app" class="app hidden" aria-hidden="true">
+        <div class="shell-atmo shell-atmo--left" aria-hidden="true"></div>
+        <div class="shell-atmo shell-atmo--right" aria-hidden="true"></div>
+
+        <section class="shell" role="dialog" aria-modal="true" aria-labelledby="shell-title">
+            <header class="shell__header">
+                <div>
+                    <p id="eyebrow" class="shell__eyebrow">LSRP Template</p>
+                    <h1 id="shell-title">Reusable NUI Shell</h1>
+                    <p id="subtitle" class="shell__subtitle">Use this as the default starting point for new LSRP interfaces.</p>
+                </div>
+                <button id="close-button" class="shell__close" type="button" aria-label="Close">Close</button>
+            </header>
+
+            <section id="status-strip" class="status-strip"></section>
+
+            <section id="section-list" class="section-list"></section>
+
+            <footer class="shell__footer">
+                <span id="footer-text">Replace this content with the workflow-specific footer copy.</span>
+                <div class="shell__actions">
+                    <button id="secondary-button" class="shell__button shell__button--muted" type="button">Secondary</button>
+                    <button id="primary-button" class="shell__button" type="button">Primary</button>
+                </div>
+            </footer>
+        </section>
+    </main>
+
+    <script src="script.js?v=1"></script>
+</body>
+</html>
