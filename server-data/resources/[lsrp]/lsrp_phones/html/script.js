@@ -62,6 +62,35 @@ const taxiState = {
     currentView: 'menu'
 };
 
+function setPhoneHidden() {
+    const container = document.getElementById('phone-container');
+    document.body.style.display = 'none';
+    document.body.style.visibility = 'hidden';
+    document.body.style.opacity = '0';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+    document.body.classList.remove('show-phone', 'show-incoming-toast');
+
+    if (container) {
+        container.classList.add('hidden');
+        container.setAttribute('aria-hidden', 'true');
+    }
+}
+
+function showPhoneShell() {
+    const container = document.getElementById('phone-container');
+    document.body.style.display = 'block';
+    document.body.style.visibility = 'visible';
+    document.body.style.opacity = '1';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+
+    if (container) {
+        container.classList.remove('hidden');
+        container.setAttribute('aria-hidden', 'false');
+    }
+}
+
 const MAX_PHONE_DIGITS = 7;
 const MAX_MESSAGE_LENGTH = 280;
 
@@ -1785,11 +1814,13 @@ updateMessagesUnreadSummary();
 updateMessagesBadge();
 renderHomeDashboard();
 renderTaxiApp();
+setPhoneHidden();
 
 window.addEventListener('message', (event) => {
     const data = event.data;
 
     if (data.action === 'openPhone') {
+        showPhoneShell();
         callState.phoneVisible = true;
         document.body.classList.add('show-phone');
 
@@ -1803,6 +1834,7 @@ window.addEventListener('message', (event) => {
         document.body.classList.remove('show-phone');
         closeApp();
         updateIncomingToast();
+        setPhoneHidden();
     } else if (data.action === 'displayVehicles') {
         displayVehicles(data.vehicles);
     } else if (data.action === 'displayPhonebook') {
