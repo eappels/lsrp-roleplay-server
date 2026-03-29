@@ -1,59 +1,85 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ped Editor</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260329a">
 </head>
-<body>
-    <div id="app">
-        <div class="editor">
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <h1>Ped Editor</h1>
-                    <div class="notice">Camera: press <strong>W</strong>/<strong>S</strong> to move up/down, <strong>A</strong>/<strong>D</strong> to rotate</div>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <main id="app" class="app hidden" aria-hidden="true">
+        <div class="shell-atmo shell-atmo--left" aria-hidden="true"></div>
+        <div class="shell-atmo shell-atmo--right" aria-hidden="true"></div>
+
+        <section class="shell" role="dialog" aria-modal="true" aria-labelledby="shell-title">
+            <header class="shell__header">
+                <div>
+                    <p class="shell__eyebrow">LSRP Wardrobe Studio</p>
+                    <h1 id="shell-title">Clothing Editor</h1>
+                    <p class="shell__subtitle">Adjust model variants live, manage saved outfits, and use <strong>W</strong>/<strong>S</strong>/<strong>A</strong>/<strong>D</strong> to control the preview camera.</p>
                 </div>
-                <div id="component-list" class="component-list"></div>
-                <div class="sidebar-actions">
-                    <button id="revert-btn">Revert</button>
-                    <button id="close-nui">Close</button>
-                </div>
-            </div>
-            <div class="details">
-                <div class="details-top">
-                    <div class="gender-select">
-                        <button id="male-btn" class="gender-btn">Male</button>
-                        <button id="female-btn" class="gender-btn">Female</button>
+                <button id="close-nui" class="shell__close" type="button" aria-label="Close">Close</button>
+            </header>
+
+            <section class="editor">
+                <aside class="sidebar">
+                    <div class="sidebar-header">
+                        <h2>Components</h2>
+                        <div class="notice">Select a clothing slot on the left, then tune drawable and texture values on the right.</div>
                     </div>
-                </div>
-                <div id="detail-panel" class="detail-panel">
-                    <h2 id="detail-title">Select a component</h2>
-                    <div id="detail-controls" class="detail-controls">
-                        <div class="control-row">
-                            <label>Drawable</label>
-                            <button id="dec-draw">-</button>
-                            <input id="draw-val" type="number" min="0" value="0" />
-                            <button id="inc-draw">+</button>
-                        </div>
-                        <div class="control-row">
-                            <label>Texture</label>
-                            <button id="dec-text">-</button>
-                            <input id="text-val" type="number" min="0" value="0" />
-                            <button id="inc-text">+</button>
-                        </div>
-                        <div class="control-actions">
-                            <!-- Apply removed: changes are applied live -->
+                    <div id="component-list" class="component-list"></div>
+                    <div class="sidebar-actions">
+                        <button id="revert-btn" class="secondary-button" type="button">Revert</button>
+                    </div>
+                </aside>
+
+                <section class="details">
+                    <div class="details-top">
+                        <div class="gender-select">
+                            <button id="male-btn" class="gender-btn" type="button">Male</button>
+                            <button id="female-btn" class="gender-btn" type="button">Female</button>
                         </div>
                     </div>
-                    <div id="outfits" class="outfits" style="margin-top:12px;">
-                        <h3>Saved Outfits</h3>
-                        <div id="outfits-list"></div>
+
+                    <div id="detail-panel" class="detail-panel">
+                        <h2 id="detail-title">Select a component</h2>
+                        <div id="detail-controls" class="detail-controls">
+                            <div class="control-row">
+                                <label for="draw-val">Drawable</label>
+                                <button id="dec-draw" type="button">-</button>
+                                <input id="draw-val" type="number" min="0" value="0">
+                                <button id="inc-draw" type="button">+</button>
+                            </div>
+                            <div class="control-row">
+                                <label for="text-val">Texture</label>
+                                <button id="dec-text" type="button">-</button>
+                                <input id="text-val" type="number" min="0" value="0">
+                                <button id="inc-text" type="button">+</button>
+                            </div>
+                        </div>
+
+                        <div id="outfits" class="outfits">
+                            <h3>Saved Outfits</h3>
+                            <div id="outfits-list"></div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <script src="main.js"></script>
+                </section>
+            </section>
+        </section>
+    </main>
+    <script src="main.js?v=20260329a"></script>
 </body>
 </html>

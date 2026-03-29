@@ -1,6 +1,11 @@
 window.addEventListener('DOMContentLoaded', () => {
-    // hide NUI frame until shown
+    document.body.style.display = 'none';
     document.body.style.visibility = 'hidden';
+    document.body.style.opacity = '0';
+    document.body.style.background = 'transparent';
+    document.body.style.backgroundColor = 'transparent';
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('app').setAttribute('aria-hidden', 'true');
 
     // helper: report JS errors back to client Lua
     function reportError(info) {
@@ -40,22 +45,48 @@ window.addEventListener('DOMContentLoaded', () => {
     ];
 
     const outfitsList = document.getElementById('outfits-list');
+    const cameraKeys = ['w', 's', 'a', 'd'];
+
+    function setCameraKeyState(key, down) {
+        return fetch(`https://${GetParentResourceName()}/cameraKey`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ key, down })
+        }).catch(() => {});
+    }
+
+    function releaseCameraKeys() {
+        cameraKeys.forEach((key) => {
+            setCameraKeyState(key, false);
+        });
+    }
+
+    function isTypingInEditor() {
+        const activeElement = document.activeElement;
+        if (!activeElement) {
+            return false;
+        }
+
+        const tagName = String(activeElement.tagName || '').toLowerCase();
+        return tagName === 'input' || tagName === 'textarea';
+    }
 
     function renderOutfits(list) {
         let html = '';
-        // normalize to 10 slots
+        // show the first 5 slots in the editor while keeping the backend slot model intact
         const slots = {};
         (list || []).forEach(o => { slots[o.slot] = o; });
-        for (let i = 1; i <= 10; i++) {
+        for (let i = 1; i <= 5; i++) {
             const o = slots[i];
             const name = o && o.name ? o.name : 'Empty';
             html += `
                 <div class="outfit-row" data-slot="${i}">
-                    <div class="slot">${i}</div>
                     <div class="oname">${name}</div>
-                    <button class="load-outfit">Load</button>
-                    <button class="save-outfit">Save</button>
-                    <button class="del-outfit">Del</button>
+                    <div class="outfit-actions">
+                        <button class="load-outfit">Load</button>
+                        <button class="save-outfit">Save</button>
+                        <button class="del-outfit">Del</button>
+                    </div>
                 </div>
             `;
         }
@@ -76,12 +107,10 @@ window.addEventListener('DOMContentLoaded', () => {
         let html = '';
         for (let i = 0; i <= 11; i++) {
             const name = componentNames[i] || `Component ${i}`;
-            const comp = currentComponents[i] || { drawable: 0, texture: 0 };
             html += `
                 <div class="component-row" data-id="${i}">
                     <div>
                         <div class="comp-label">${name}</div>
-                        <div class="comp-sub">D:${comp.drawable} T:${comp.texture}</div>
                     </div>
                     <div class="comp-actions">Select</div>
                 </div>
@@ -143,17 +172,24 @@ window.addEventListener('DOMContentLoaded', () => {
         // create editor
         const editor = document.createElement('div');
         editor.className = 'save-editor';
-        editor.style.display = 'flex';
-        editor.style.gap = '6px';
         const input = document.createElement('input');
         input.type = 'text';
         input.placeholder = 'Outfit name (optional)';
         input.value = origName === 'Empty' ? '' : origName;
-        input.style.flex = '1';
+        input.className = 'save-editor__input';
+        input.autocomplete = 'off';
+        releaseCameraKeys();
         const ok = document.createElement('button'); ok.textContent = 'OK';
         const cancel = document.createElement('button'); cancel.textContent = 'Cancel';
-        editor.appendChild(input); editor.appendChild(ok); editor.appendChild(cancel);
+        const actionsRow = document.createElement('div');
+        actionsRow.className = 'save-editor__actions';
+        actionsRow.appendChild(ok);
+        actionsRow.appendChild(cancel);
+        editor.appendChild(input);
+        editor.appendChild(actionsRow);
         nameDiv.replaceWith(editor);
+        input.focus();
+        input.select();
 
         ok.addEventListener('click', async () => {
             try {
@@ -351,14 +387,20 @@ window.addEventListener('DOMContentLoaded', () => {
     // when shown
     window.addEventListener('message', (event) => {
         if (event.data.type === 'show') {
-            document.getElementById('app').style.display = 'block';
+            document.body.style.display = 'block';
             document.body.style.visibility = 'visible';
+            document.body.style.opacity = '1';
+            document.getElementById('app').classList.remove('hidden');
+            document.getElementById('app').setAttribute('aria-hidden', 'false');
             fetchAndRenderComponents();
             refreshOutfits();
             refreshGenderSelection();
         } else if (event.data.type === 'hide') {
-            document.getElementById('app').style.display = 'none';
+            document.getElementById('app').classList.add('hidden');
+            document.getElementById('app').setAttribute('aria-hidden', 'true');
+            document.body.style.display = 'none';
             document.body.style.visibility = 'hidden';
+            document.body.style.opacity = '0';
         }
     });
 
@@ -368,7 +410,11 @@ window.addEventListener('DOMContentLoaded', () => {
         try {
             const k = keyMap[e.key];
             if (k) {
-                fetch(`https://${GetParentResourceName()}/cameraKey`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: k, down: true }) });
+                if (isTypingInEditor()) {
+                    return;
+                }
+
+                setCameraKeyState(k, true);
             }
         } catch (err) { }
     });
@@ -376,7 +422,7 @@ window.addEventListener('DOMContentLoaded', () => {
         try {
             const k = keyMap[e.key];
             if (k) {
-                fetch(`https://${GetParentResourceName()}/cameraKey`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: k, down: false }) });
+                setCameraKeyState(k, false);
             }
         } catch (err) { }
     });

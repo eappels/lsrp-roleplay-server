@@ -684,11 +684,11 @@ CreateThread(function()
 			end
 
 			if cameraState.a then
-				cameraState.angle = cameraState.angle + 1.8
+				cameraState.angle = cameraState.angle - 1.8
 			end
 
 			if cameraState.d then
-				cameraState.angle = cameraState.angle - 1.8
+				cameraState.angle = cameraState.angle + 1.8
 			end
 
 			updatePreviewCamera()
