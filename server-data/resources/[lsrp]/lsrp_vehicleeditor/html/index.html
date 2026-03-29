@@ -1,13 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Editor</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260329a">
 </head>
-<body>
-    <div id="app">
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <div id="app" aria-hidden="true">
         <div class="editor">
             <div class="sidebar">
                 <div class="sidebar-header">
@@ -166,6 +179,6 @@
         </div>
     </div>
 
-    <script src="main.js"></script>
+    <script src="main.js?v=20260329a"></script>
 </body>
 </html>

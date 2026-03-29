@@ -22,13 +22,40 @@ const itemGridElement = document.getElementById('item-grid');
 const closeButtonElement = document.getElementById('close-btn');
 const toastElement = document.getElementById('toast');
 
+function setShopHidden() {
+    document.body.style.display = 'none';
+    document.body.style.visibility = 'hidden';
+    document.body.style.opacity = '0';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+
+    appElement.classList.add('hidden');
+    appElement.setAttribute('aria-hidden', 'true');
+}
+
+function showShopShell() {
+    document.body.style.display = 'block';
+    document.body.style.visibility = 'visible';
+    document.body.style.opacity = '1';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+
+    appElement.classList.remove('hidden');
+    appElement.setAttribute('aria-hidden', 'false');
+}
+
 function formatFallbackCurrency(value) {
     const amount = Math.max(0, Math.floor(Number(value) || 0));
     return `LS$${amount.toLocaleString('en-US')}`;
 }
 
 function setAppVisibility(visible) {
-    appElement.classList.toggle('hidden', !visible);
+    if (visible) {
+        showShopShell();
+        return;
+    }
+
+    setShopHidden();
 }
 
 function showToast(message, kind = 'info') {
@@ -281,3 +308,5 @@ window.addEventListener('keydown', (event) => {
 closeButtonElement.addEventListener('click', () => {
     handleClose();
 });
+
+setShopHidden();

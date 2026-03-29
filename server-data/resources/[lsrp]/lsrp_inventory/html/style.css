@@ -20,6 +20,7 @@
 
 body {
 	background: transparent;
+	background-color: transparent;
 	color: var(--text);
 	font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }

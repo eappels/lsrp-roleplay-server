@@ -2,6 +2,7 @@ body {
     margin: 0;
     padding: 0;
     background: transparent;
+    background-color: transparent;
     color: #fff;
     font-family: Arial, sans-serif;
 }

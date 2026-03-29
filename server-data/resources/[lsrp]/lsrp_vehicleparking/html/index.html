@@ -1,13 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Parking</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260329a">
 </head>
-<body>
-    <div id="parking-container" class="hidden">
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <div id="parking-container" class="hidden" aria-hidden="true">
         <div class="parking-panel">
             <div class="panel-header">
                 <h1 id="zone-name">Parking</h1>
@@ -43,6 +56,6 @@
         </div>
     </div>
     
-    <script src="script.js"></script>
+    <script src="script.js?v=20260329a"></script>
 </body>
 </html>

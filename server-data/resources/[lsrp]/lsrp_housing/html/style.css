@@ -32,6 +32,7 @@ body {
   display: none;
   visibility: hidden;
   opacity: 0;
+  background-color: transparent;
 }
 
 html.nui-open,

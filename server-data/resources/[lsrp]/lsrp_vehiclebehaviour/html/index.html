@@ -1,12 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Vehicle Door Controls</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260329a">
 </head>
-<body>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
     <main id="door-control-app" class="app hidden" aria-hidden="true">
         <div class="backdrop"></div>
         <section class="panel" role="dialog" aria-modal="true" aria-labelledby="vehicle-title">
@@ -26,6 +39,6 @@
         </section>
     </main>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=20260329a"></script>
 </body>
 </html>

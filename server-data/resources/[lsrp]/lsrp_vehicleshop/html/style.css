@@ -25,6 +25,7 @@ body {
     color: var(--text-main);
     font-family: "Bahnschrift", "Franklin Gothic Medium", "Trebuchet MS", sans-serif;
     overflow: hidden;
+    background-color: transparent;
 }
 
 .hidden {

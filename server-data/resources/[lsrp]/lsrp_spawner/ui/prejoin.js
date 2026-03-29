@@ -25,6 +25,26 @@
         drawBottom: 672
     };
 
+    function hidePrejoinShell() {
+        document.body.style.display = 'none';
+        document.body.style.visibility = 'hidden';
+        document.body.style.opacity = '0';
+        document.body.style.background = 'transparent';
+        document.body.style.backgroundColor = 'transparent';
+        app.classList.add('hidden');
+        app.setAttribute('aria-hidden', 'true');
+    }
+
+    function showPrejoinShell() {
+        document.body.style.display = 'block';
+        document.body.style.visibility = 'visible';
+        document.body.style.opacity = '1';
+        document.body.style.background = 'transparent';
+        document.body.style.backgroundColor = 'transparent';
+        app.classList.remove('hidden');
+        app.setAttribute('aria-hidden', 'false');
+    }
+
     function resourceUrl(path) {
         return 'https://' + GetParentResourceName() + '/' + path;
     }
@@ -261,7 +281,7 @@
     function showAuth(spawns) {
         isAuthenticated = false;
         renderSpawns(spawns);
-        app.classList.remove('hidden');
+        showPrejoinShell();
         authPanel.classList.remove('hidden');
         setStatus('');
         loadRemembered();
@@ -292,7 +312,7 @@
                 return;
             }
 
-            app.classList.add('hidden');
+            hidePrejoinShell();
         }).catch(function () {
             setStatus('Spawn request failed.');
         });
@@ -338,4 +358,6 @@
             renderSpawns(data.spawnPoints || []);
         }
     });
+
+    hidePrejoinShell();
 })();

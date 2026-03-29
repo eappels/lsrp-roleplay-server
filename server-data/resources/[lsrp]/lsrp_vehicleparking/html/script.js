@@ -4,7 +4,30 @@ let canStoreVehicle = true;
 const resourceName = (typeof window.GetParentResourceName === 'function')
     ? window.GetParentResourceName()
     : 'lsrp_vehicleparking';
+const parkingContainerElement = document.getElementById('parking-container');
 const storeButtonElement = document.querySelector('.store-btn');
+
+function setParkingHidden() {
+    document.body.style.display = 'none';
+    document.body.style.visibility = 'hidden';
+    document.body.style.opacity = '0';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+
+    parkingContainerElement.classList.add('hidden');
+    parkingContainerElement.setAttribute('aria-hidden', 'true');
+}
+
+function showParkingShell() {
+    document.body.style.display = 'block';
+    document.body.style.visibility = 'visible';
+    document.body.style.opacity = '1';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+
+    parkingContainerElement.classList.remove('hidden');
+    parkingContainerElement.setAttribute('aria-hidden', 'false');
+}
 
 async function postNui(eventName, payload = {}) {
     try {
@@ -59,11 +82,11 @@ function openUI(zoneName, slots, allowStoreVehicle) {
         storeButtonElement.style.display = canStoreVehicle ? '' : 'none';
     }
 
-    document.getElementById('parking-container').classList.remove('hidden');
+    showParkingShell();
 }
 
 function closeUIInternal() {
-    document.getElementById('parking-container').classList.add('hidden');
+    setParkingHidden();
     currentZone = null;
     canStoreVehicle = true;
 }
@@ -160,4 +183,6 @@ function createVehicleCard(vehicle) {
     
     return card;
 }
+
+setParkingHidden();
 

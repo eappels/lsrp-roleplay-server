@@ -3,6 +3,7 @@ html, body {
     min-height: 100%;
     font-family: Georgia, "Times New Roman", serif;
     background: transparent;
+    background-color: transparent;
     color: #f5f2ea;
 }
 

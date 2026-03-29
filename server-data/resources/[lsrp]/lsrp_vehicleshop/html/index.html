@@ -1,13 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LSRP Vehicle Shop</title>
-    <link rel="stylesheet" href="style.css">
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260329a">
 </head>
-<body>
-    <div id="app" class="hidden">
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <div id="app" class="hidden" aria-hidden="true">
         <div class="backdrop-ring"></div>
 
         <div class="shop-shell">
@@ -72,6 +85,6 @@
         <div id="toast" class="toast hidden"></div>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=20260329a"></script>
 </body>
 </html>

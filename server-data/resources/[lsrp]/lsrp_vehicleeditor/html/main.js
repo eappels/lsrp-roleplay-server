@@ -1,5 +1,9 @@
 window.addEventListener('DOMContentLoaded', () => {
     document.body.style.visibility = 'hidden';
+    document.body.style.display = 'none';
+    document.body.style.opacity = '0';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
 
     function reportError(info) {
         try {
@@ -84,6 +88,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let modApplyTimer = null;
     let colorApplyTimer = null;
+
+    function setEditorHidden() {
+        document.body.style.display = 'none';
+        document.body.style.visibility = 'hidden';
+        document.body.style.opacity = '0';
+        document.body.style.setProperty('background', 'transparent', 'important');
+        document.body.style.setProperty('background-color', 'transparent', 'important');
+
+        app.style.display = 'none';
+        app.setAttribute('aria-hidden', 'true');
+    }
+
+    function showEditorShell() {
+        document.body.style.display = 'block';
+        document.body.style.visibility = 'visible';
+        document.body.style.opacity = '1';
+        document.body.style.setProperty('background', 'transparent', 'important');
+        document.body.style.setProperty('background-color', 'transparent', 'important');
+
+        app.style.display = 'block';
+        app.setAttribute('aria-hidden', 'false');
+    }
 
     function toInt(value, fallback) {
         const parsed = Number.parseInt(value, 10);
@@ -504,16 +530,14 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!event || !event.data) return;
 
         if (event.data.type === 'show') {
-            app.style.display = 'block';
-            document.body.style.visibility = 'visible';
+            showEditorShell();
             await refreshVehicleState();
             return;
         }
 
         if (event.data.type === 'hide') {
             releaseCameraKeys();
-            app.style.display = 'none';
-            document.body.style.visibility = 'hidden';
+            setEditorHidden();
         }
     });
 
@@ -551,4 +575,5 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     bindValueSteppers();
+    setEditorHidden();
 });

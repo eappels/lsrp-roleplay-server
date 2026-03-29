@@ -16,6 +16,28 @@ const state = {
     payloadKey: null
 };
 
+function setAppHidden() {
+    document.body.style.display = 'none';
+    document.body.style.visibility = 'hidden';
+    document.body.style.opacity = '0';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+
+    app.classList.add('hidden');
+    app.setAttribute('aria-hidden', 'true');
+}
+
+function showAppShell() {
+    document.body.style.display = 'block';
+    document.body.style.visibility = 'visible';
+    document.body.style.opacity = '1';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+
+    app.classList.remove('hidden');
+    app.setAttribute('aria-hidden', 'false');
+}
+
 function getPayloadKey(payload) {
     if (!payload || typeof payload !== 'object') {
         return null;
@@ -116,8 +138,7 @@ function applyPayload(payload) {
 function openApp(payload) {
     state.open = true;
     state.pending = false;
-    app.classList.remove('hidden');
-    app.setAttribute('aria-hidden', 'false');
+    showAppShell();
     applyPayload(payload);
     setStatus('F2 closes this menu.');
 }
@@ -127,8 +148,7 @@ function closeApp() {
     state.pending = false;
     state.payload = null;
     state.payloadKey = null;
-    app.classList.add('hidden');
-    app.setAttribute('aria-hidden', 'true');
+    setAppHidden();
     doorGridEl.innerHTML = '';
 }
 
@@ -218,3 +238,5 @@ window.addEventListener('load', () => {
 window.setTimeout(() => {
     notifyReady();
 }, 250);
+
+setAppHidden();

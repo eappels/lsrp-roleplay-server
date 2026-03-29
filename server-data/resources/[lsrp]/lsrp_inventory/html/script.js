@@ -36,6 +36,28 @@ const amountCancel = document.getElementById('amount-cancel');
 let activeAmountCleanup = null;
 let lastNearbyPlayersRenderKey = '';
 
+function setInventoryHidden() {
+	document.body.style.display = 'none';
+	document.body.style.visibility = 'hidden';
+	document.body.style.opacity = '0';
+	document.body.style.setProperty('background', 'transparent', 'important');
+	document.body.style.setProperty('background-color', 'transparent', 'important');
+
+	appElement.classList.add('hidden');
+	appElement.setAttribute('aria-hidden', 'true');
+}
+
+function showInventoryShell() {
+	document.body.style.display = 'block';
+	document.body.style.visibility = 'visible';
+	document.body.style.opacity = '1';
+	document.body.style.setProperty('background', 'transparent', 'important');
+	document.body.style.setProperty('background-color', 'transparent', 'important');
+
+	appElement.classList.remove('hidden');
+	appElement.setAttribute('aria-hidden', 'false');
+}
+
 function postNui(endpoint, payload = {}) {
 	return fetch(`https://${resourceName}/${endpoint}`, {
 		method: 'POST',
@@ -115,7 +137,15 @@ function isTransientInventoryItem(item) {
 
 function setVisible(visible) {
 	state.visible = Boolean(visible);
-	appElement.classList.toggle('hidden', !state.visible);
+	if (state.visible) {
+		showInventoryShell();
+		return;
+	}
+
+	if (activeAmountCleanup) {
+		activeAmountCleanup(null);
+	}
+	setInventoryHidden();
 }
 
 function setStatus(message) {

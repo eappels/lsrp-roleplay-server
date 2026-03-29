@@ -28,6 +28,7 @@ body {
 
 body {
     display: block;
+    background-color: transparent;
 }
 
 .hidden {

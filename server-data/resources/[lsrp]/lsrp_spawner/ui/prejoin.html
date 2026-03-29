@@ -1,13 +1,26 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LSRP Prejoin</title>
-    <link rel="stylesheet" href="prejoin.css">
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="prejoin.css?v=20260329a">
 </head>
-<body>
-    <main id="app" class="hidden">
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <main id="app" class="hidden" aria-hidden="true">
         <section class="panel auth-panel" id="auth-panel">
             <div class="eyebrow">Los Santos Roleplay</div>
             <h1>Sign in before entering the city</h1>
@@ -147,6 +160,6 @@
             </div>
         </section>
     </main>
-    <script src="prejoin.js"></script>
+    <script src="prejoin.js?v=20260329a"></script>
 </body>
 </html>

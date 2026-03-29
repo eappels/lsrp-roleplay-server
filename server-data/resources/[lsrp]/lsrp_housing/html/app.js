@@ -12,13 +12,48 @@ let currentInput = ''
 let toastTimeout = null
 
 document.documentElement.style.background = 'transparent'
+document.documentElement.style.backgroundColor = 'transparent'
 document.documentElement.classList.add('nui-closed')
 document.body.style.background = 'transparent'
+document.body.style.backgroundColor = 'transparent'
 document.body.style.display = 'none'
 document.body.style.visibility = 'hidden'
 document.body.style.opacity = '0'
 document.body.classList.add('nui-closed')
 document.body.classList.remove('nui-open')
+
+function hideHousingShell() {
+  document.documentElement.classList.remove('nui-open')
+  document.documentElement.classList.add('nui-closed')
+  document.body.classList.remove('nui-open')
+  document.body.classList.add('nui-closed')
+  document.body.style.display = 'none'
+  document.body.style.visibility = 'hidden'
+  document.body.style.opacity = '0'
+  document.body.style.background = 'transparent'
+  document.body.style.backgroundColor = 'transparent'
+  app.classList.remove('active')
+  app.classList.add('hidden')
+  app.style.display = 'none'
+  app.setAttribute('aria-hidden', 'true')
+}
+
+function showHousingShell(panel) {
+  document.documentElement.classList.remove('nui-closed')
+  document.documentElement.classList.add('nui-open')
+  document.body.classList.remove('nui-closed')
+  document.body.classList.add('nui-open')
+  document.body.style.display = 'block'
+  document.body.style.visibility = 'visible'
+  document.body.style.opacity = '1'
+  document.body.style.background = 'transparent'
+  document.body.style.backgroundColor = 'transparent'
+  app.classList.add('active')
+  app.classList.remove('hidden')
+  app.style.display = ''
+  app.setAttribute('aria-hidden', 'false')
+  panel.classList.remove('hidden')
+}
 
 function post(name, payload = {}) {
   return fetch(`https://lsrp_housing/${name}`, {
@@ -34,29 +69,9 @@ function setVisible(panel) {
   kiosk.classList.add('hidden')
 
   if (panel) {
-    document.documentElement.classList.remove('nui-closed')
-    document.documentElement.classList.add('nui-open')
-    document.body.classList.remove('nui-closed')
-    document.body.classList.add('nui-open')
-    document.body.style.display = 'block'
-    document.body.style.visibility = 'visible'
-    document.body.style.opacity = '1'
-    app.classList.add('active')
-    app.classList.remove('hidden')
-    app.style.display = ''
-    panel.classList.remove('hidden')
+    showHousingShell(panel)
   } else {
-    document.documentElement.classList.remove('nui-open')
-    document.documentElement.classList.add('nui-closed')
-    document.body.classList.remove('nui-open')
-    document.body.classList.add('nui-closed')
-    document.body.classList.remove('nui-open')
-    document.body.style.display = 'none'
-    document.body.style.visibility = 'hidden'
-    document.body.style.opacity = '0'
-    app.classList.remove('active')
-    app.classList.add('hidden')
-    app.style.display = 'none'
+    hideHousingShell()
   }
 }
 

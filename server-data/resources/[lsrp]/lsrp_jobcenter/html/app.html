@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,10 +9,16 @@
         html, body {
             margin: 0;
             min-height: 100vh;
-            background: transparent;
+            background: transparent !important;
+            background-color: transparent !important;
             overflow: hidden;
             font-family: Arial, sans-serif;
             color: #f3f3f3;
+        }
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
         }
         .hidden { display: none !important; }
         #app {
@@ -69,8 +75,8 @@
         .muted { color: #b7bcc5; }
     </style>
 </head>
-<body>
-    <main id="app" class="hidden" hidden>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <main id="app" class="hidden" hidden aria-hidden="true">
         <section class="panel">
             <div class="row">
                 <div>
@@ -113,9 +119,30 @@
             request.send(JSON.stringify(payload || {}));
         }
 
-        function closeApp() {
+        function hideJobcenterShell() {
+            document.body.style.display = 'none';
+            document.body.style.visibility = 'hidden';
+            document.body.style.opacity = '0';
+            document.body.style.background = 'transparent';
+            document.body.style.backgroundColor = 'transparent';
             appEl.className = 'hidden';
             appEl.hidden = true;
+            appEl.setAttribute('aria-hidden', 'true');
+        }
+
+        function showJobcenterShell() {
+            document.body.style.display = 'block';
+            document.body.style.visibility = 'visible';
+            document.body.style.opacity = '1';
+            document.body.style.background = 'transparent';
+            document.body.style.backgroundColor = 'transparent';
+            appEl.className = '';
+            appEl.hidden = false;
+            appEl.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeApp() {
+            hideJobcenterShell();
         }
 
         function renderEmployment(currentEmployment) {
@@ -189,8 +216,7 @@
         }
 
         function openApp(payload) {
-            appEl.className = '';
-            appEl.hidden = false;
+            showJobcenterShell();
             subtitleEl.textContent = payload && payload.loading ? 'Loading current employment and available positions...' : 'Browse public jobs.';
             renderEmployment(payload && payload.currentEmployment);
             renderJobs(payload && payload.jobs);
