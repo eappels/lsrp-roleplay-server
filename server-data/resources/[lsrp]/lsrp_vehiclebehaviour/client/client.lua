@@ -1443,7 +1443,7 @@ local defaultIgnitionModifierKey = tostring((getIgnitionConfig() and getIgnition
 local ignitionModifierRequired = defaultIgnitionModifierKey ~= ''
 local ignitionCommandName = ((getIgnitionConfig() and getIgnitionConfig().commandName) or 'ignition')
 local defaultDoorControlKey = ((getDoorControlConfig() and getDoorControlConfig().key) or 'F2')
-local doorControlCommandName = ((getDoorControlConfig() and getDoorControlConfig().commandName) or 'vehicledoors')
+local doorControlCommandName = ((getDoorControlConfig() and getDoorControlConfig().commandName) or 'vehdoors')
 local doorControlKeyMappingCommandName = doorControlCommandName .. '_key'
 local doorControlKeyMappingCommand = '+' .. doorControlKeyMappingCommandName
 local doorControlKeyMappingReleaseCommand = '-' .. doorControlKeyMappingCommandName

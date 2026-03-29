@@ -16,6 +16,15 @@ const state = {
     payloadKey: null
 };
 
+const DOOR_LAYOUT_ORDER = {
+    4: 0,
+    0: 1,
+    1: 2,
+    2: 3,
+    3: 4,
+    5: 5
+};
+
 function setAppHidden() {
     document.body.style.display = 'none';
     document.body.style.visibility = 'hidden';
@@ -90,18 +99,40 @@ function renderDoors() {
 
     const payload = state.payload;
     const doors = payload && Array.isArray(payload.doors) ? payload.doors : [];
+    const orderedDoors = doors.slice().sort((leftDoor, rightDoor) => {
+        const leftIndex = Number(leftDoor && leftDoor.index);
+        const rightIndex = Number(rightDoor && rightDoor.index);
+        const leftOrder = Object.prototype.hasOwnProperty.call(DOOR_LAYOUT_ORDER, leftIndex)
+            ? DOOR_LAYOUT_ORDER[leftIndex]
+            : 99;
+        const rightOrder = Object.prototype.hasOwnProperty.call(DOOR_LAYOUT_ORDER, rightIndex)
+            ? DOOR_LAYOUT_ORDER[rightIndex]
+            : 99;
 
-    if (!doors.length) {
+        if (leftOrder !== rightOrder) {
+            return leftOrder - rightOrder;
+        }
+
+        return leftIndex - rightIndex;
+    });
+
+    if (!orderedDoors.length) {
         setStatus('No controllable doors are available for this vehicle.', true);
         return;
     }
 
-    for (const door of doors) {
+    for (const door of orderedDoors) {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = `door-button${door.isOpen ? ' is-open' : ''}`;
         button.disabled = state.pending;
         button.dataset.doorIndex = String(door.index);
+
+        if (Number(door.index) === 4) {
+            button.classList.add('door-button-front');
+        } else if (Number(door.index) === 5) {
+            button.classList.add('door-button-rear');
+        }
 
         const label = document.createElement('span');
         label.className = 'door-label';

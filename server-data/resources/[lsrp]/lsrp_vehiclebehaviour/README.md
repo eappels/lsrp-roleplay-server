@@ -18,6 +18,7 @@ This resource depends on `oxmysql` and uses `lsrp_vehicleparking` as the ownersh
 ## Controls
 
 - Vehicle door controls: `F2`
+- Vehicle door command: `/vehdoors`
 - Ignition: `Left Alt + Left Ctrl`
 - Lock or unlock vehicle: `X` (within 10 meters)
 - Give a key to another player: `/givekey [server id]`
