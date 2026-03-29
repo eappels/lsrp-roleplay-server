@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSRP Hacking</title>
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260329a">
+</head>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <main id="app" class="app hidden" aria-hidden="true">
+        <div class="screen-backdrop" aria-hidden="true"></div>
+        <section class="panel" aria-live="polite">
+            <div class="panel__glow"></div>
+            <header class="panel__header">
+                <div>
+                    <p class="eyebrow">LSRP Intrusion Suite</p>
+                    <h1>Bypass the ATM lockout</h1>
+                </div>
+                <div class="timer" id="timer">00:00</div>
+            </header>
+
+            <section class="statusbar">
+                <div>
+                    <span class="statusbar__label">Stage</span>
+                    <strong id="roundLabel">1 / 1</strong>
+                </div>
+                <div>
+                    <span class="statusbar__label">Signal integrity</span>
+                    <strong id="integrityLabel">Stable</strong>
+                </div>
+            </section>
+
+            <section class="brief">
+                <p>Align each live node with its target value before the watchdog closes the session.</p>
+                <p class="brief__hint">Use mouse controls or <kbd>Tab</kbd> to switch nodes and <kbd>A</kbd>/<kbd>D</kbd> or arrow keys to tune values.</p>
+            </section>
+
+            <section id="nodes" class="nodes"></section>
+
+            <footer class="panel__footer">
+                <span id="footerText">The laptop session will stay open until you finish or the watchdog trips.</span>
+            </footer>
+        </section>
+    </main>
+
+    <script src="script.js?v=20260329a"></script>
+</body>
+</html>

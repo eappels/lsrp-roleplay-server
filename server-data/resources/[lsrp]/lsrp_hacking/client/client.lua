@@ -7,12 +7,13 @@ local function debugLog(message)
 end
 
 local HACK_ANIM_DICT = 'anim@heists@ornate_bank@hack'
-local HACK_SCENE_BASE_Z = 29.34
+local HACK_SCENE_BASE_Z = 29.20
 local HACK_SCENE_Z_LIFT = 0.43
 local HACK_SCENE_FORWARD_ADJUST = 0.55
 local HACK_SCENE_RIGHT_ADJUST = 0.30
 local PED_BAG_COMPONENT = 5
 local activeHackCamera = nil
+local activeHackPuzzle = nil
 local vendorPed = 0
 local nextVendorTalkAt = 0
 local HACK_PROPS = {
@@ -20,6 +21,16 @@ local HACK_PROPS = {
 	laptop = 'hei_prop_hst_laptop',
 	card = 'hei_prop_heist_card_hack_02'
 }
+
+local function notifyLocal(message)
+	if not message or message == '' then
+		return
+	end
+
+	TriggerEvent('chat:addMessage', {
+		args = { ('^5[Hacking]^7 %s'):format(tostring(message)) }
+	})
+end
 
 local function getVendorConfig()
 	return type(Config.Vendor) == 'table' and Config.Vendor or {}
@@ -318,14 +329,149 @@ local function playScenePart(scene, durationMs)
 	NetworkStopSynchronisedScene(scene)
 end
 
+local function getHackPuzzleConfig()
+	return type(Config.HackPuzzle) == 'table' and Config.HackPuzzle or {}
+end
+
+local function buildHackPuzzleRound(nodeCount)
+	local totalNodes = math.max(2, math.floor(tonumber(nodeCount) or 3))
+	local nodes = {}
+
+	for index = 1, totalNodes do
+		local targetValue = math.random(0, 9)
+		local currentValue = math.random(0, 9)
+		if currentValue == targetValue then
+			currentValue = (currentValue + math.random(1, 8)) % 10
+		end
+
+		nodes[#nodes + 1] = {
+			id = index,
+			target = targetValue,
+			current = currentValue
+		}
+	end
+
+	return nodes
+end
+
+local function buildHackPuzzlePayload()
+	local puzzleConfig = getHackPuzzleConfig()
+	local rounds = 3
+	local roundNodeCounts = type(puzzleConfig.roundNodeCounts) == 'table' and puzzleConfig.roundNodeCounts or {}
+	local payload = {
+		requestId = ('%d:%d'):format(GetGameTimer(), math.random(1000, 9999)),
+		timeLimitSeconds = math.max(10, math.floor(tonumber(puzzleConfig.timeLimitSeconds) or 45)),
+		rounds = {}
+	}
+
+	for roundIndex = 1, rounds do
+		payload.rounds[#payload.rounds + 1] = {
+			index = roundIndex,
+			nodes = buildHackPuzzleRound(roundNodeCounts[roundIndex] or (roundIndex + 2))
+		}
+	end
+
+	return payload
+end
+
+local function hideHackPuzzle()
+	activeHackPuzzle = nil
+	SetNuiFocus(false, false)
+	if type(SetNuiFocusKeepInput) == 'function' then
+		SetNuiFocusKeepInput(false)
+	end
+	SendNUIMessage({ action = 'hidePuzzle' })
+end
+
+local function resolveHackPuzzle(requestId, success, errorMessage)
+	if not activeHackPuzzle or tostring(requestId or '') ~= tostring(activeHackPuzzle.requestId or '') then
+		return false
+	end
+
+	activeHackPuzzle.resolved = true
+	activeHackPuzzle.success = success == true
+	activeHackPuzzle.errorMessage = tostring(errorMessage or (success == true and '') or 'The ATM lockout tripped.')
+	return true
+end
+
+local function beginHackPuzzle()
+	if activeHackPuzzle then
+		return nil, 'A hack is already in progress.'
+	end
+
+	local payload = buildHackPuzzlePayload()
+	activeHackPuzzle = {
+		requestId = payload.requestId,
+		resolved = false,
+		success = false,
+		errorMessage = 'The ATM lockout tripped.'
+	}
+
+	SetNuiFocus(true, true)
+	if type(SetNuiFocusKeepInput) == 'function' then
+		SetNuiFocusKeepInput(false)
+	end
+	SendNUIMessage({
+		action = 'showPuzzle',
+		payload = payload
+	})
+
+	return activeHackPuzzle, nil
+end
+
+local function createHackScene(sceneOrigin, sceneRotation, ped, bag, laptop, card, sceneName)
+	local scene = NetworkCreateSynchronisedScene(sceneOrigin.x, sceneOrigin.y, sceneOrigin.z, sceneRotation.x, sceneRotation.y, sceneRotation.z, 2, false, false, 1065353216, 0, 1.3)
+	NetworkAddPedToSynchronisedScene(ped, scene, HACK_ANIM_DICT, sceneName, 1.5, -4.0, 1, 16, 1148846080, 0)
+	NetworkAddEntityToSynchronisedScene(bag, scene, HACK_ANIM_DICT, ('%s_bag'):format(sceneName), 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(laptop, scene, HACK_ANIM_DICT, ('%s_laptop'):format(sceneName), 4.0, -8.0, 1)
+	NetworkAddEntityToSynchronisedScene(card, scene, HACK_ANIM_DICT, ('%s_card'):format(sceneName), 4.0, -8.0, 1)
+	return scene
+end
+
+local function awaitHackPuzzle(ped, sceneOrigin, sceneRotation, bag, laptop, card)
+	local puzzleState = beginHackPuzzle()
+	if not puzzleState then
+		return false, 'The hacking interface failed to open.'
+	end
+
+	while activeHackPuzzle == puzzleState and not puzzleState.resolved do
+		if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) or IsPedRagdoll(ped) then
+			resolveHackPuzzle(puzzleState.requestId, false, 'The hack was interrupted.')
+			break
+		end
+
+		local loopScene = createHackScene(sceneOrigin, sceneRotation, ped, bag, laptop, card, 'hack_loop')
+		NetworkStartSynchronisedScene(loopScene)
+
+		local cycleDeadline = GetGameTimer() + 4200
+		while GetGameTimer() < cycleDeadline do
+			Wait(50)
+			if activeHackPuzzle ~= puzzleState or puzzleState.resolved then
+				break
+			end
+			if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) or IsPedRagdoll(ped) then
+				resolveHackPuzzle(puzzleState.requestId, false, 'The hack was interrupted.')
+				break
+			end
+		end
+
+		NetworkStopSynchronisedScene(loopScene)
+	end
+
+	local success = puzzleState.success == true
+	local errorMessage = puzzleState.errorMessage
+	hideHackPuzzle()
+	return success, errorMessage
+end
+
 local function playHackScene(atmCoords, atmEntity)
 	local ped = PlayerPedId()
 	if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
-		return false, 'invalid_ped'
+		return false, 'You cannot hack the ATM right now.'
 	end
 
 	if not requestAnimDictLoaded(HACK_ANIM_DICT) then
-		return false, 'missing_anim'
+		return false, 'The hacking animation failed to load.'
 	end
 
 	local sceneData = buildHackSceneOrigin(atmCoords, atmEntity)
@@ -364,7 +510,7 @@ local function playHackScene(atmCoords, atmEntity)
 	local card = createHackProp(HACK_PROPS.card, sceneOrigin)
 	if bag == 0 or laptop == 0 or card == 0 then
 		cleanupHackProps({ bag = bag, laptop = laptop, card = card })
-		return false, 'missing_prop'
+		return false, 'The hacking tools could not be prepared.'
 	end
 
 	hackCamera = createHackCamera()
@@ -373,27 +519,13 @@ local function playHackScene(atmCoords, atmEntity)
 	SetEntityRotation(ped, pedStartRotation.x, pedStartRotation.y, pedStartRotation.z, 2, true)
 	FreezeEntityPosition(ped, true)
 
-	local enterScene = NetworkCreateSynchronisedScene(sceneOrigin.x, sceneOrigin.y, sceneOrigin.z, sceneRotation.x, sceneRotation.y, sceneRotation.z, 2, false, false, 1065353216, 0, 1.3)
-	local loopScene = NetworkCreateSynchronisedScene(sceneOrigin.x, sceneOrigin.y, sceneOrigin.z, sceneRotation.x, sceneRotation.y, sceneRotation.z, 2, false, false, 1065353216, 0, 1.3)
-	local exitScene = NetworkCreateSynchronisedScene(sceneOrigin.x, sceneOrigin.y, sceneOrigin.z, sceneRotation.x, sceneRotation.y, sceneRotation.z, 2, false, false, 1065353216, 0, 1.3)
-
-	NetworkAddPedToSynchronisedScene(ped, enterScene, HACK_ANIM_DICT, 'hack_enter', 1.5, -4.0, 1, 16, 1148846080, 0)
-	NetworkAddEntityToSynchronisedScene(bag, enterScene, HACK_ANIM_DICT, 'hack_enter_bag', 4.0, -8.0, 1)
-	NetworkAddEntityToSynchronisedScene(laptop, enterScene, HACK_ANIM_DICT, 'hack_enter_laptop', 4.0, -8.0, 1)
-	NetworkAddEntityToSynchronisedScene(card, enterScene, HACK_ANIM_DICT, 'hack_enter_card', 4.0, -8.0, 1)
-
-	NetworkAddPedToSynchronisedScene(ped, loopScene, HACK_ANIM_DICT, 'hack_loop', 1.5, -4.0, 1, 16, 1148846080, 0)
-	NetworkAddEntityToSynchronisedScene(bag, loopScene, HACK_ANIM_DICT, 'hack_loop_bag', 4.0, -8.0, 1)
-	NetworkAddEntityToSynchronisedScene(laptop, loopScene, HACK_ANIM_DICT, 'hack_loop_laptop', 4.0, -8.0, 1)
-	NetworkAddEntityToSynchronisedScene(card, loopScene, HACK_ANIM_DICT, 'hack_loop_card', 4.0, -8.0, 1)
-
-	NetworkAddPedToSynchronisedScene(ped, exitScene, HACK_ANIM_DICT, 'hack_exit', 1.5, -4.0, 1, 16, 1148846080, 0)
-	NetworkAddEntityToSynchronisedScene(bag, exitScene, HACK_ANIM_DICT, 'hack_exit_bag', 4.0, -8.0, 1)
-	NetworkAddEntityToSynchronisedScene(laptop, exitScene, HACK_ANIM_DICT, 'hack_exit_laptop', 4.0, -8.0, 1)
-	NetworkAddEntityToSynchronisedScene(card, exitScene, HACK_ANIM_DICT, 'hack_exit_card', 4.0, -8.0, 1)
+	local enterScene = createHackScene(sceneOrigin, sceneRotation, ped, bag, laptop, card, 'hack_enter')
+	local exitScene = createHackScene(sceneOrigin, sceneRotation, ped, bag, laptop, card, 'hack_exit')
+	local success = false
+	local errorMessage = nil
 
 	playScenePart(enterScene, 4500)
-	playScenePart(loopScene, 4500)
+	success, errorMessage = awaitHackPuzzle(ped, sceneOrigin, sceneRotation, bag, laptop, card)
 	playScenePart(exitScene, 4500)
 
 	cleanupHackProps({ bag = bag, laptop = laptop, card = card })
@@ -403,7 +535,7 @@ local function playHackScene(atmCoords, atmEntity)
 	if hackCamera then
 		destroyHackCamera()
 	end
-	return true, nil
+	return success, errorMessage
 end
 
 local function isExteriorAtmLocation(coords)
@@ -412,6 +544,63 @@ local function isExteriorAtmLocation(coords)
 	end
 
 	return GetInteriorAtCoords(coords.x, coords.y, coords.z) == 0
+end
+
+local function isUsableExteriorAtm(atmCoords, playerCoords)
+	if Config.ExteriorOnlyAtms ~= true then
+		return true
+	end
+
+	if isExteriorAtmLocation(atmCoords) then
+		return true
+	end
+
+	return isExteriorAtmLocation(playerCoords)
+end
+
+local function getAtmInteractionDistance(playerCoords, atmEntity, atmCoords)
+	if type(playerCoords) ~= 'vector3' or type(atmCoords) ~= 'vector3' then
+		return math.huge
+	end
+
+	local directDistance = #(playerCoords - atmCoords)
+	if atmEntity == 0 or not DoesEntityExist(atmEntity) then
+		return directDistance
+	end
+
+	local model = GetEntityModel(atmEntity)
+	if not model or model == 0 then
+		return directDistance
+	end
+
+	local minimum, maximum = GetModelDimensions(model)
+	if not minimum or not maximum then
+		return directDistance
+	end
+
+	local approachX, approachY = getHackApproachDirection(atmEntity, atmCoords)
+	local frontExtent = math.max(math.abs(minimum.y), math.abs(maximum.y))
+	local interactionPoint = vector3(
+		atmCoords.x + (approachX * frontExtent),
+		atmCoords.y + (approachY * frontExtent),
+		atmCoords.z
+	)
+
+	return math.min(directDistance, #(playerCoords - interactionPoint))
+end
+
+local function isConfiguredAtmModel(modelHash)
+	if not modelHash or modelHash == 0 then
+		return false
+	end
+
+	for _, configuredModelHash in ipairs(Config.AtmModels or {}) do
+		if modelHash == configuredModelHash then
+			return true
+		end
+	end
+
+	return false
 end
 
 local function getNearestAtm(maxDistance)
@@ -425,20 +614,23 @@ local function getNearestAtm(maxDistance)
 	local scanRadius = math.max(interactDistance, tonumber(Config.AtmScanRadius) or 5.0)
 	local nearestAtm = nil
 	local nearestDistance = interactDistance + 0.001
+	local objectPool = GetGamePool('CObject') or {}
 
-	for _, modelHash in ipairs(Config.AtmModels or {}) do
-		local atmObject = GetClosestObjectOfType(playerCoords.x, playerCoords.y, playerCoords.z, scanRadius, modelHash, false, false, false)
-		if atmObject ~= 0 and DoesEntityExist(atmObject) then
+	for _, atmObject in ipairs(objectPool) do
+		if atmObject ~= 0 and DoesEntityExist(atmObject) and isConfiguredAtmModel(GetEntityModel(atmObject)) then
 			local atmCoords = GetEntityCoords(atmObject)
-			local distance = #(playerCoords - atmCoords)
-			local isValidAtm = (Config.ExteriorOnlyAtms ~= true) or isExteriorAtmLocation(atmCoords)
-			if isValidAtm and distance <= interactDistance and distance < nearestDistance then
-				nearestDistance = distance
-				nearestAtm = {
-					entity = atmObject,
-					coords = atmCoords,
-					distance = distance
-				}
+			local coarseDistance = #(playerCoords - atmCoords)
+			if coarseDistance <= scanRadius then
+				local distance = getAtmInteractionDistance(playerCoords, atmObject, atmCoords)
+				local isValidAtm = isUsableExteriorAtm(atmCoords, playerCoords)
+				if isValidAtm and distance <= interactDistance and distance < nearestDistance then
+					nearestDistance = distance
+					nearestAtm = {
+						entity = atmObject,
+						coords = atmCoords,
+						distance = distance
+					}
+				end
 			end
 		end
 	end
@@ -450,9 +642,19 @@ exports('getNearestAtm', function(maxDistance)
 	return getNearestAtm(maxDistance)
 end)
 
-RegisterNetEvent('lsrp_hacking:client:deviceUsed', function(context)
+RegisterNUICallback('hackPuzzleComplete', function(data, cb)
+	resolveHackPuzzle(data and data.requestId, true, nil)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('hackPuzzleFail', function(data, cb)
+	resolveHackPuzzle(data and data.requestId, false, data and data.error)
+	cb({ ok = true })
+end)
+
+local function performAtmHack(context)
 	if type(context) ~= 'table' then
-		return
+		return false, 'The hacking device did not initialize correctly.'
 	end
 
 	local atmEntity = tonumber(context.atm) or 0
@@ -465,13 +667,19 @@ RegisterNetEvent('lsrp_hacking:client:deviceUsed', function(context)
 		atmCoords = GetEntityCoords(atmEntity)
 	end
 
-	if Config.ExteriorOnlyAtms == true and not isExteriorAtmLocation(atmCoords) then
+	local ped = PlayerPedId()
+	local playerCoords = atmCoords
+	if ped ~= 0 and DoesEntityExist(ped) then
+		playerCoords = GetEntityCoords(ped)
+	end
+
+	if not isUsableExteriorAtm(atmCoords, playerCoords) then
 		debugLog(('blocked indoor ATM hack at %.2f, %.2f, %.2f'):format(
 			atmCoords.x,
 			atmCoords.y,
 			atmCoords.z
 		))
-		return
+		return false, 'Stand next to an outdoor ATM to use the hacking device.'
 	end
 
 	debugLog(('device used near ATM at %.2f, %.2f, %.2f'):format(
@@ -480,9 +688,9 @@ RegisterNetEvent('lsrp_hacking:client:deviceUsed', function(context)
 		atmCoords.z
 	))
 
-	local playedAnimation, animationError = playHackScene(atmCoords, atmEntity)
-	if playedAnimation ~= true then
-		debugLog(('hack animation fallback: %s'):format(tostring(animationError)))
+	local hackSucceeded, hackError = playHackScene(atmCoords, atmEntity)
+	if hackSucceeded ~= true then
+		return false, hackError or 'The ATM lockout tripped.'
 	end
 
 	TriggerServerEvent('lsrp_hacking:server:completeAtmHack', {
@@ -490,6 +698,19 @@ RegisterNetEvent('lsrp_hacking:client:deviceUsed', function(context)
 		y = atmCoords.y,
 		z = atmCoords.z
 	})
+
+	return true, nil
+end
+
+exports('startAtmHack', function(context)
+	return performAtmHack(context)
+end)
+
+RegisterNetEvent('lsrp_hacking:client:deviceUsed', function(context)
+	local success, errorMessage = performAtmHack(context)
+	if success ~= true and errorMessage and errorMessage ~= '' then
+		notifyLocal(errorMessage)
+	end
 end)
 
 AddEventHandler('onClientResourceStart', function(resourceName)
@@ -497,6 +718,7 @@ AddEventHandler('onClientResourceStart', function(resourceName)
 		return
 	end
 
+	hideHackPuzzle()
 	ensureVendorPed()
 	debugLog('client started')
 end)
@@ -543,6 +765,7 @@ AddEventHandler('onClientResourceStop', function(resourceName)
 		return
 	end
 
+	hideHackPuzzle()
 	destroyVendorPed()
 	destroyHackCamera()
 end)

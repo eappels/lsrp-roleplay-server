@@ -6,6 +6,11 @@ Config.AtmScanRadius = 5.0
 Config.ValidationDistance = 2.5
 Config.ExteriorOnlyAtms = true
 Config.CooldownSeconds = 600
+Config.HackPuzzle = {
+	rounds = 2,
+	timeLimitSeconds = 45,
+	roundNodeCounts = { 3, 4, 5 }
+}
 Config.Vendor = {
 	enabled = true,
 	model = 'g_m_y_mexgoon_01',
@@ -24,7 +29,7 @@ Config.Vendor = {
 	}
 }
 Config.Reward = {
-	min = 3500,
+	min = 1000,
 	max = 8500,
 	reason = 'atm_hack'
 }
