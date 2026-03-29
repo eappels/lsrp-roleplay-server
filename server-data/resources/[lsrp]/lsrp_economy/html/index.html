@@ -1,33 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LSRP Banking Terminal</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-    <div id="bank-app" class="hidden">
-        <div class="atmo-layer atmo-a"></div>
-        <div class="atmo-layer atmo-b"></div>
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
 
-        <main class="panel" role="application" aria-label="Banking terminal">
-            <header class="panel-header">
-                <div class="title-wrap">
-                    <p class="kicker" id="terminal-type">ATM Terminal</p>
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="style.css?v=20260329a">
+</head>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <main id="bank-app" class="app hidden" aria-hidden="true">
+        <div class="shell-atmo shell-atmo--left" aria-hidden="true"></div>
+        <div class="shell-atmo shell-atmo--right" aria-hidden="true"></div>
+
+        <section class="shell" role="application" aria-label="Banking terminal">
+            <header class="shell__header">
+                <div>
+                    <p class="shell__eyebrow" id="terminal-type">ATM Terminal</p>
                     <h1>Los Santos Banking Network</h1>
-                    <p class="subtitle" id="location-label">Nearest Terminal</p>
+                    <p class="shell__subtitle" id="location-label">Nearest Terminal</p>
                 </div>
-                <button id="close-button" type="button" class="icon-button" aria-label="Close panel">X</button>
+                <button id="close-button" type="button" class="shell__close" aria-label="Close panel">Close</button>
             </header>
 
             <section class="balance-row" aria-label="Balance overview">
-                <article class="balance-card">
+                <article class="status-card balance-card">
                     <span class="card-label">Account Balance</span>
                     <strong id="balance-value">LS$0</strong>
                 </article>
 
-                <article class="balance-card">
+                <article class="status-card balance-card">
                     <span class="card-label">Cash On Hand</span>
                     <strong id="cash-value">LS$0</strong>
                 </article>
@@ -43,46 +56,50 @@
                 </article>
             </section>
 
-            <section class="cash-panel" aria-label="Deposit and retrieve cash">
-                <div class="section-head">
-                    <h2>Cash Movement</h2>
-                </div>
-                <p class="section-copy">Deposit cash into your account or retrieve cash from your account.</p>
+            <section class="content-grid">
+                <section class="cash-panel content-panel" aria-label="Deposit and retrieve cash">
+                    <div class="section-head">
+                        <h2>Cash Movement</h2>
+                    </div>
+                    <p class="section-copy">Deposit cash into your account or retrieve cash from your account.</p>
 
-                <form id="cash-form" autocomplete="off">
-                    <label class="field-group" for="cash-amount">
-                        <span>Amount (Whole LS$)</span>
-                        <input id="cash-amount" name="cashAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 250" required>
-                    </label>
+                    <form id="cash-form" autocomplete="off">
+                        <label class="field-group" for="cash-amount">
+                            <span>Amount (Whole LS$)</span>
+                            <input id="cash-amount" name="cashAmount" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 250" required>
+                        </label>
 
-                    <button id="deposit-submit" type="submit" class="primary-button">Deposit</button>
-                    <button id="withdraw-submit" type="button" class="ghost-button">Retrieve</button>
-                </form>
+                        <div class="action-row">
+                            <button id="deposit-submit" type="submit" class="primary-button">Deposit</button>
+                            <button id="withdraw-submit" type="button" class="ghost-button">Retrieve</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="transfer-panel content-panel" aria-label="Transfer money">
+                    <div class="section-head">
+                        <h2>Wire Transfer</h2>
+                        <button id="refresh-button" type="button" class="ghost-button">Refresh</button>
+                    </div>
+                    <p id="transfer-note" class="section-copy">Send LS$ using the recipient account ID. Transfers work even if they are offline.</p>
+
+                    <form id="transfer-form" autocomplete="off">
+                        <label class="field-group" for="target-id">
+                            <span>Recipient Account ID</span>
+                            <input id="target-id" name="targetAccountId" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 1024" required>
+                        </label>
+
+                        <label class="field-group" for="transfer-amount">
+                            <span>Amount (Whole LS$)</span>
+                            <input id="transfer-amount" name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 500" required>
+                        </label>
+
+                        <button id="transfer-submit" type="submit" class="primary-button">Send Transfer</button>
+                    </form>
+                </section>
             </section>
 
-            <section class="transfer-panel" aria-label="Transfer money">
-                <div class="section-head">
-                    <h2>Wire Transfer</h2>
-                    <button id="refresh-button" type="button" class="ghost-button">Refresh</button>
-                </div>
-                <p id="transfer-note" class="section-copy">Send LS$ using the recipient account ID. Transfers work even if they are offline.</p>
-
-                <form id="transfer-form" autocomplete="off">
-                    <label class="field-group" for="target-id">
-                        <span>Recipient Account ID</span>
-                        <input id="target-id" name="targetAccountId" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 1024" required>
-                    </label>
-
-                    <label class="field-group" for="transfer-amount">
-                        <span>Amount (Whole LS$)</span>
-                        <input id="transfer-amount" name="amount" type="number" min="1" step="1" inputmode="numeric" placeholder="e.g. 500" required>
-                    </label>
-
-                    <button id="transfer-submit" type="submit" class="primary-button">Send Transfer</button>
-                </form>
-            </section>
-
-            <section class="transactions-panel" aria-label="Recent transactions">
+            <section class="transactions-panel content-panel" aria-label="Recent transactions">
                 <div class="section-head">
                     <h2>Recent Activity</h2>
                 </div>
@@ -92,11 +109,11 @@
                 <p id="transactions-empty" class="empty-state">No transactions yet.</p>
                 <div id="transactions-list" class="transactions-list" aria-live="polite"></div>
             </section>
-        </main>
+        </section>
 
         <div id="toast-container" class="toast-container" aria-live="assertive"></div>
-    </div>
+    </main>
 
-    <script src="script.js"></script>
+    <script src="script.js?v=20260329a"></script>
 </body>
 </html>

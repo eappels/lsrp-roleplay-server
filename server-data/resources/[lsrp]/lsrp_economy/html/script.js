@@ -34,6 +34,16 @@ const state = {
     accountId: null
 };
 
+function setStartupHidden() {
+    document.body.style.display = 'none';
+    document.body.style.visibility = 'hidden';
+    document.body.style.opacity = '0';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
+    app.classList.add('hidden');
+    app.setAttribute('aria-hidden', 'true');
+}
+
 function normalizeWholeAmount(rawValue) {
     const parsed = Number(rawValue);
     if (!Number.isFinite(parsed)) {
@@ -270,13 +280,19 @@ function openApp(payload) {
     transactionsListEl.innerHTML = '';
     transactionsEmptyEl.classList.remove('hidden');
 
+    document.body.style.display = 'block';
+    document.body.style.visibility = 'visible';
+    document.body.style.opacity = '1';
+    document.body.style.setProperty('background', 'transparent', 'important');
+    document.body.style.setProperty('background-color', 'transparent', 'important');
     app.classList.remove('hidden');
+    app.setAttribute('aria-hidden', 'false');
 }
 
 function closeApp() {
     state.open = false;
-    app.classList.add('hidden');
     toastContainerEl.innerHTML = '';
+    setStartupHidden();
 }
 
 async function requestData() {
@@ -458,3 +474,5 @@ document.addEventListener('keydown', (event) => {
         });
     }
 });
+
+setStartupHidden();
