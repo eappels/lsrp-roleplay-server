@@ -21,14 +21,24 @@ local HACK_PROPS = {
 	laptop = 'hei_prop_hst_laptop',
 	card = 'hei_prop_heist_card_hack_02'
 }
+local vendorPedSpawnPending = false
+
+local function showFeedNotification(message)
+	BeginTextCommandThefeedPost('STRING')
+	AddTextComponentSubstringPlayerName(tostring(message or ''))
+	EndTextCommandThefeedPostTicker(false, false)
+end
 
 local function notifyLocal(message)
 	if not message or message == '' then
 		return
 	end
 
+	showFeedNotification(('[Hacking] %s'):format(tostring(message)))
+
 	TriggerEvent('chat:addMessage', {
-		args = { ('^5[Hacking]^7 %s'):format(tostring(message)) }
+		color = { 145, 203, 255 },
+		args = { 'Hacking', tostring(message) }
 	})
 end
 
@@ -61,6 +71,15 @@ local function showHelpPrompt(message)
 	BeginTextCommandDisplayHelp('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandDisplayHelp(0, false, true, -1)
+end
+
+local function isVendorInteractPressed()
+	return IsControlJustPressed(0, 38)
+		or IsDisabledControlJustPressed(0, 38)
+		or IsControlJustReleased(0, 38)
+		or IsDisabledControlJustReleased(0, 38)
+		or IsControlPressed(0, 38)
+		or IsDisabledControlPressed(0, 38)
 end
 
 local function capturePedBagVariation(ped)
@@ -139,6 +158,8 @@ local function requestModelLoaded(modelName)
 end
 
 local function destroyVendorPed()
+	vendorPedSpawnPending = false
+
 	if vendorPed ~= 0 and DoesEntityExist(vendorPed) then
 		DeletePed(vendorPed)
 	end
@@ -153,22 +174,31 @@ local function ensureVendorPed()
 		return
 	end
 
+	if vendorPedSpawnPending then
+		return
+	end
+
 	if vendorPed ~= 0 and DoesEntityExist(vendorPed) then
 		return
 	end
 
+	vendorPedSpawnPending = true
+
 	local vendorCoords, vendorHeading = getVendorCoords()
 	if not vendorCoords then
+		vendorPedSpawnPending = false
 		return
 	end
 
 	local modelHash = requestModelLoaded(vendorConfig.model or 'g_m_y_mexgoon_01')
 	if not modelHash then
+		vendorPedSpawnPending = false
 		debugLog('failed to load vendor ped model')
 		return
 	end
 
 	vendorPed = CreatePed(4, modelHash, vendorCoords.x, vendorCoords.y, vendorCoords.z, vendorHeading, false, false)
+	vendorPedSpawnPending = false
 	SetModelAsNoLongerNeeded(modelHash)
 	if vendorPed == 0 or not DoesEntityExist(vendorPed) then
 		vendorPed = 0
@@ -713,6 +743,10 @@ RegisterNetEvent('lsrp_hacking:client:deviceUsed', function(context)
 	end
 end)
 
+RegisterNetEvent('lsrp_hacking:client:notify', function(message)
+	notifyLocal(message)
+end)
+
 AddEventHandler('onClientResourceStart', function(resourceName)
 	if resourceName ~= GetCurrentResourceName() then
 		return
@@ -746,7 +780,7 @@ CreateThread(function()
 						waitMs = 0
 						if distance <= math.max(1.0, tonumber(vendorConfig.interactDistance) or 2.0) then
 							showHelpPrompt(tostring(vendorConfig.prompt or 'Press ~INPUT_CONTEXT~ to talk'))
-							if GetGameTimer() >= nextVendorTalkAt and IsControlJustPressed(0, 38) then
+							if GetGameTimer() >= nextVendorTalkAt and isVendorInteractPressed() then
 								nextVendorTalkAt = GetGameTimer() + 900
 								TriggerServerEvent('lsrp_hacking:server:talkToVendor')
 							end

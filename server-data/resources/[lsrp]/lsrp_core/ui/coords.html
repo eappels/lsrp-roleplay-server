@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LSRP Navigation HUD</title>
+    <style>
+        html,
+        body {
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+
+        body {
+            display: none;
+            visibility: hidden;
+            opacity: 0;
+        }
+    </style>
+    <link rel="stylesheet" href="coords.css">
+</head>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+    <main id="hud-root" class="hud-root is-hidden" aria-hidden="true">
+        <div class="hud-anchor">
+            <section class="hud-panel">
+                <div class="hud-panel__glow"></div>
+                <div class="hud-panel__topline">
+                    <div class="hud-panel__eyebrow">Navigation</div>
+                    <div class="hud-panel__eyebrow hud-panel__eyebrow--muted">Los Santos Relay</div>
+                </div>
+
+                <div id="street-value" class="hud-panel__street">Integrity Way / Power Street</div>
+
+                <section id="compass-section" class="hud-compass">
+                    <div class="hud-compass__frame">
+                        <div class="hud-compass__fade hud-compass__fade--left"></div>
+                        <div id="compass-rail" class="hud-compass__rail"></div>
+                        <div class="hud-compass__marker"></div>
+                        <div class="hud-compass__fade hud-compass__fade--right"></div>
+                    </div>
+                </section>
+
+                <div class="hud-panel__meta">
+                    <span id="direction-value" class="hud-chip">N</span>
+                    <span id="heading-value" class="hud-chip hud-chip--accent">000°</span>
+                </div>
+
+                <section id="coords-section" class="hud-coords">
+                    <article class="hud-coords__item">
+                        <div class="hud-coords__label">X</div>
+                        <div id="x-value" class="hud-coords__value">0.00</div>
+                    </article>
+                    <article class="hud-coords__item">
+                        <div class="hud-coords__label">Y</div>
+                        <div id="y-value" class="hud-coords__value">0.00</div>
+                    </article>
+                    <article class="hud-coords__item">
+                        <div class="hud-coords__label">Z</div>
+                        <div id="z-value" class="hud-coords__value">0.00</div>
+                    </article>
+                </section>
+            </section>
+        </div>
+    </main>
+
+    <script src="coords.js"></script>
+</body>
+</html>

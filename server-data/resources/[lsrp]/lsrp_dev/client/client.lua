@@ -4,6 +4,7 @@
 --
 -- Commands:
 --   /pos               - print current world coordinates and heading to F8 console
+--   /tp [x] [y] [z]    - teleport to world coordinates
 --   /heal              - restore the local ped to full health
 --   /revive            - respawn the ped at its current location when dead
 --   /wep [name]        - give a weapon (pistol/ak/rifle/knife/smg/shotgun/revolver)
@@ -431,6 +432,42 @@ local function runHealAction()
     SetEntityHealth(ped, GetEntityMaxHealth(ped))
 end
 
+local function runTeleportAction(payload)
+    local x = tonumber(payload and payload.x)
+    local y = tonumber(payload and payload.y)
+    local z = tonumber(payload and payload.z)
+
+    if not x or not y or not z then
+        TriggerEvent('chat:addMessage', {
+            color = { 255, 200, 0 },
+            args = { 'LSRP Dev', 'Usage: /tp x y z' }
+        })
+        return
+    end
+
+    local ped = PlayerPedId()
+    if ped == 0 or not DoesEntityExist(ped) then
+        TriggerEvent('chat:addMessage', {
+            color = { 255, 200, 0 },
+            args = { 'LSRP Dev', 'Could not find your player ped.' }
+        })
+        return
+    end
+
+    RequestCollisionAtCoord(x, y, z)
+
+    if IsPedInAnyVehicle(ped, false) then
+        SetPedCoordsKeepVehicle(ped, x + 0.0, y + 0.0, z + 0.0)
+    else
+        SetEntityCoords(ped, x + 0.0, y + 0.0, z + 0.0, false, false, false, false)
+    end
+
+    TriggerEvent('chat:addMessage', {
+        color = { 255, 200, 0 },
+        args = { 'LSRP Dev', ('Teleported to %.2f, %.2f, %.2f.'):format(x, y, z) }
+    })
+end
+
 local function runReviveAction()
 	local ped = PlayerPedId()
 	if IsEntityDead(ped) then
@@ -553,6 +590,11 @@ local function runSetPlateAction(payload)
 end
 
 RegisterNetEvent('lsrp_dev:client:runPrivilegedAction', function(actionName, payload)
+    if actionName == 'tp' then
+        runTeleportAction(type(payload) == 'table' and payload or {})
+        return
+    end
+
     if actionName == 'heal' then
         runHealAction()
         return
@@ -584,6 +626,14 @@ RegisterCommand('pos', function(source, args)
     local pos = GetEntityCoords(ped)
     local heading = GetEntityHeading(ped)
     print(('Position: x=%.2f, y=%.2f, z=%.2f, heading=%.2f'):format(pos.x, pos.y, pos.z, heading))
+end, false)
+
+RegisterCommand('tp', function(source, args)
+    TriggerServerEvent('lsrp_dev:server:requestPrivilegedAction', 'tp', {
+        x = args and args[1] or nil,
+        y = args and args[2] or nil,
+        z = args and args[3] or nil
+    })
 end, false)
 
 RegisterCommand('heal', function(source, args)

@@ -19,6 +19,16 @@ lsrpConfig.playerPositionSaveMinHeadingDelta = 7.5
 -- Force a save after this much time even if movement thresholds are not met. Set to 0 to disable forced saves.
 lsrpConfig.playerPositionForceSaveIntervalMs = 180000
 
+lsrpConfig.compassEnabled = true
+lsrpConfig.compassUseCameraHeading = true
+lsrpConfig.compassShowDegrees = true
+lsrpConfig.compassShowDirectionText = true
+
+lsrpConfig.coordinateHudEnabled = true
+lsrpConfig.coordinateHudShowHeading = true
+lsrpConfig.coordinateHudShowStreet = true
+lsrpConfig.coordinateHudUpdateIntervalMs = 200
+
 lsrpConfig.pedEditorAutoRestoreEnabled = true
 -- Keep this nil to restore the most recently saved outfit.
 lsrpConfig.pedEditorAutoRestoreSlot = nil

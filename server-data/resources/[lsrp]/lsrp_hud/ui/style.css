@@ -1,0 +1,329 @@
+:root {
+	--panel-bg-top: rgba(12, 19, 27, 0.92);
+	--panel-bg-bottom: rgba(8, 13, 20, 0.8);
+	--panel-border: rgba(255, 214, 138, 0.2);
+	--panel-shadow: 0 24px 60px rgba(0, 0, 0, 0.42);
+	--text-main: #f7f1e7;
+	--text-muted: #a3b3bd;
+	--text-faint: rgba(163, 179, 189, 0.72);
+	--accent: #f0bd6a;
+	--accent-strong: #ffd892;
+	--accent-soft: rgba(240, 189, 106, 0.14);
+	--line-soft: rgba(255, 255, 255, 0.08);
+	--chip-bg: rgba(255, 255, 255, 0.045);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html,
+body {
+	margin: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background: transparent !important;
+	background-color: transparent !important;
+	font-family: "Bahnschrift SemiCondensed", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+.is-hidden {
+	opacity: 0;
+	visibility: hidden;
+}
+
+.hud-root {
+	position: fixed;
+	inset: 0;
+	width: 100vw;
+	height: 100vh;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding-top: 1rem;
+	pointer-events: none;
+	background: transparent !important;
+	background-color: transparent !important;
+	transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.hud-anchor {
+	width: min(36rem, calc(100vw - 1.5rem));
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
+.hud-panel {
+	position: relative;
+	overflow: hidden;
+	padding: 1rem 1rem 0.95rem;
+	border: 1px solid var(--panel-border);
+	border-radius: 1.15rem;
+	background:
+		linear-gradient(180deg, var(--panel-bg-top), var(--panel-bg-bottom)),
+		radial-gradient(circle at top left, rgba(240, 189, 106, 0.18), transparent 38%),
+		radial-gradient(circle at bottom right, rgba(118, 157, 184, 0.12), transparent 32%);
+	box-shadow: var(--panel-shadow);
+	color: var(--text-main);
+	backdrop-filter: blur(16px);
+}
+
+.hud-panel__glow {
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
+	pointer-events: none;
+}
+
+.hud-panel__topline {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.75rem;
+}
+
+.hud-panel__eyebrow {
+	color: var(--accent);
+	font-size: 0.68rem;
+	font-weight: 700;
+	letter-spacing: 0.26em;
+	text-transform: uppercase;
+}
+
+.hud-panel__eyebrow--muted {
+	color: var(--text-faint);
+}
+
+.hud-panel__street {
+	position: relative;
+	z-index: 1;
+	margin-top: 0.45rem;
+	min-height: 1.55rem;
+	color: var(--text-main);
+	font-size: 1.02rem;
+	font-weight: 700;
+	letter-spacing: 0.045em;
+	text-align: center;
+	text-transform: uppercase;
+}
+
+.hud-panel__street.is-hidden {
+	display: none;
+}
+
+.hud-compass {
+	position: relative;
+	z-index: 1;
+	margin-top: 0.7rem;
+}
+
+.hud-compass.is-hidden {
+	display: none;
+}
+
+.hud-compass__frame {
+	position: relative;
+	height: 4.55rem;
+	overflow: hidden;
+	border: 1px solid var(--line-soft);
+	border-radius: 0.95rem;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.015));
+}
+
+.hud-compass__rail {
+	position: absolute;
+	inset: 0;
+}
+
+.hud-compass__fade {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 22%;
+	z-index: 2;
+}
+
+.hud-compass__fade--left {
+	left: 0;
+	background: linear-gradient(90deg, rgba(8, 13, 20, 0.88), transparent);
+}
+
+.hud-compass__fade--right {
+	right: 0;
+	background: linear-gradient(270deg, rgba(8, 13, 20, 0.88), transparent);
+}
+
+.hud-compass__marker {
+	position: absolute;
+	top: 0.45rem;
+	bottom: 0.58rem;
+	left: 50%;
+	width: 2px;
+	transform: translateX(-50%);
+	border-radius: 999px;
+	background: linear-gradient(180deg, rgba(255, 216, 146, 0.14), var(--accent-strong), rgba(255, 216, 146, 0.3));
+	box-shadow: 0 0 18px rgba(255, 216, 146, 0.18);
+	z-index: 3;
+}
+
+.hud-compass__tick {
+	position: absolute;
+	bottom: 0.8rem;
+	width: 2px;
+	height: 0.88rem;
+	border-radius: 999px;
+	transform: translateX(-50%);
+	background: rgba(223, 230, 235, 0.42);
+}
+
+.hud-compass__tick--major {
+	height: 1.22rem;
+	background: rgba(230, 236, 240, 0.7);
+}
+
+.hud-compass__tick--cardinal {
+	height: 1.55rem;
+	background: var(--accent);
+	box-shadow: 0 0 12px rgba(240, 189, 106, 0.22);
+}
+
+.hud-compass__label {
+	position: absolute;
+	top: 0.55rem;
+	transform: translateX(-50%);
+	color: rgba(240, 242, 245, 0.82);
+	font-size: 0.9rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+}
+
+.hud-compass__label--cardinal {
+	color: var(--accent-strong);
+}
+
+.hud-panel__meta {
+	position: relative;
+	z-index: 1;
+	display: flex;
+	justify-content: center;
+	gap: 0.5rem;
+	margin-top: 0.75rem;
+}
+
+.hud-chip {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 4rem;
+	min-height: 2rem;
+	padding: 0.22rem 0.75rem;
+	border: 1px solid var(--line-soft);
+	border-radius: 999px;
+	background: var(--chip-bg);
+	color: var(--text-main);
+	font-size: 0.84rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.hud-chip--accent {
+	background: var(--accent-soft);
+	color: var(--accent-strong);
+}
+
+.hud-chip.is-hidden {
+	display: none;
+}
+
+.hud-coords {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.6rem;
+	margin-top: 0.82rem;
+}
+
+.hud-coords.is-hidden {
+	display: none;
+}
+
+.hud-coords__item {
+	min-width: 0;
+	padding: 0.7rem 0.75rem;
+	border: 1px solid var(--line-soft);
+	border-radius: 0.82rem;
+	background: rgba(255, 255, 255, 0.03);
+}
+
+.hud-coords__label {
+	color: var(--text-faint);
+	font-size: 0.66rem;
+	font-weight: 700;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+}
+
+.hud-coords__value {
+	margin-top: 0.18rem;
+	color: var(--text-main);
+	font-size: 0.96rem;
+	font-weight: 700;
+	letter-spacing: 0.04em;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+@media (max-width: 900px) {
+	.hud-root {
+		padding-top: 0.7rem;
+	}
+
+	.hud-anchor {
+		width: calc(100vw - 1rem);
+	}
+
+	.hud-panel {
+		padding: 0.85rem 0.8rem 0.8rem;
+		border-radius: 1rem;
+	}
+
+	.hud-panel__topline {
+		gap: 0.4rem;
+	}
+
+	.hud-panel__eyebrow {
+		font-size: 0.6rem;
+		letter-spacing: 0.2em;
+	}
+
+	.hud-panel__street {
+		font-size: 0.88rem;
+	}
+
+	.hud-compass__frame {
+		height: 4rem;
+	}
+
+	.hud-compass__label {
+		font-size: 0.78rem;
+	}
+
+	.hud-coords {
+		gap: 0.45rem;
+	}
+
+	.hud-coords__item {
+		padding: 0.58rem 0.6rem;
+	}
+
+	.hud-coords__value {
+		font-size: 0.82rem;
+	}
+}

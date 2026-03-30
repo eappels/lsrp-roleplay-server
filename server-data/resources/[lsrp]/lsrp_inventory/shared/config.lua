@@ -36,6 +36,13 @@ Config.Items = {
 			requireOnFoot = true
 		}
 	},
+	cola = {
+		label = 'Cola',
+		weight = 150,
+		maxStack = 10,
+		image = 'cola-Db24EFMX.png',
+		description = 'Cold sugar in a can.'
+	},
 	bandage = {
 		label = 'Bandage',
 		weight = 150,

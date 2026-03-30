@@ -22,17 +22,62 @@
 <body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
     <main id="app" class="hidden" aria-hidden="true">
         <section class="panel auth-panel" id="auth-panel">
-            <div class="eyebrow">Los Santos Roleplay</div>
-            <h1>Sign in before entering the city</h1>
-            <p class="lead">Use your email and password, or register a new account for this character slot.</p>
-            <div id="status" class="status"></div>
-            <input id="email" type="email" autocomplete="email" placeholder="Email">
-            <input id="password" type="password" autocomplete="current-password" placeholder="Password">
-            <label class="remember-row"><input id="remember" type="checkbox"> Save credentials on this device</label>
-            <div class="button-row">
-                <button id="login">Login</button>
-                <button id="register" class="secondary">Register</button>
+            <div id="auth-view" class="stage-view">
+                <div class="eyebrow">Los Santos Roleplay</div>
+                <h1>Sign in before entering the city</h1>
+                <p class="lead">Use your email and password, or register a new account for this character slot.</p>
+                <input id="email" type="email" autocomplete="email" placeholder="Email">
+                <input id="password" type="password" autocomplete="current-password" placeholder="Password">
+                <label class="remember-row"><input id="remember" type="checkbox"> Save credentials on this device</label>
+                <div class="button-row">
+                    <button id="login">Login</button>
+                    <button id="register" class="secondary">Register</button>
+                </div>
             </div>
+            <div id="character-view" class="stage-view hidden">
+                <div class="eyebrow">Character Creation</div>
+                <h1>Create your first resident</h1>
+                <p class="lead">Choose the identity that will enter Los Santos on this account. After that, the clothing editor opens at the creation interior before you enter the city.</p>
+                <div class="field-row">
+                    <input id="first-name" type="text" maxlength="24" autocomplete="given-name" placeholder="First name">
+                    <input id="last-name" type="text" maxlength="24" autocomplete="family-name" placeholder="Last name">
+                </div>
+                <div class="field-row">
+                    <input id="date-of-birth" type="text" maxlength="10" inputmode="numeric" autocomplete="bday" placeholder="Date of birth (YYYY-MM-DD)">
+                    <select id="character-sex" aria-label="Character sex">
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+                <div class="identity-note">This first pass stores one character for this account and uses it to drive your default spawn model and future identity systems.</div>
+                <div class="button-row">
+                    <button id="create-character">Create Character</button>
+                    <button id="back-to-login" class="secondary">Back</button>
+                </div>
+            </div>
+            <div id="ready-view" class="stage-view hidden">
+                <div class="eyebrow">Identity Ready</div>
+                <h1>Your resident is cleared to enter</h1>
+                <p class="lead">Spawn selection is now unlocked. You can refine clothing and appearance after entry with the wardrobe tools.</p>
+                <section class="identity-card" aria-labelledby="identity-card-title">
+                    <div class="identity-card__eyebrow" id="identity-card-title">Character Profile</div>
+                    <div id="ready-full-name" class="identity-card__name">No character loaded</div>
+                    <div class="identity-card__grid">
+                        <div>
+                            <span class="identity-card__label">Date of Birth</span>
+                            <strong id="ready-date-of-birth">-</strong>
+                        </div>
+                        <div>
+                            <span class="identity-card__label">Sex</span>
+                            <strong id="ready-sex">-</strong>
+                        </div>
+                    </div>
+                </section>
+                <div class="button-row ready-actions">
+                    <button id="spawn-airport">Spawn Los Santos Airport</button>
+                </div>
+            </div>
+            <div id="status" class="status"></div>
         </section>
         <section class="panel spawn-panel locked" id="spawn-panel">
             <div>
@@ -40,6 +85,10 @@
                 <h2>Choose where you enter Los Santos</h2>
                 <p class="lead">Pick a starting point on the city map and the server will place you there.</p>
                 <div id="spawn-gate" class="spawn-gate">Log in to unlock spawn selection.</div>
+                <div id="spawn-character-summary" class="spawn-character-summary hidden">
+                    <span id="spawn-character-name">No character</span>
+                    <span id="spawn-character-meta">Identity pending</span>
+                </div>
             </div>
             <div class="map-shell">
                 <div class="map-frame">

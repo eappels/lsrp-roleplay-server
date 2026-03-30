@@ -1,12 +1,25 @@
 (function () {
     var app = document.getElementById('app');
-    var authPanel = document.getElementById('auth-panel');
+    var authView = document.getElementById('auth-view');
+    var characterView = document.getElementById('character-view');
+    var readyView = document.getElementById('ready-view');
     var spawnPanel = document.getElementById('spawn-panel');
     var statusEl = document.getElementById('status');
     var emailEl = document.getElementById('email');
     var passwordEl = document.getElementById('password');
     var rememberEl = document.getElementById('remember');
+    var firstNameEl = document.getElementById('first-name');
+    var lastNameEl = document.getElementById('last-name');
+    var dateOfBirthEl = document.getElementById('date-of-birth');
+    var sexEl = document.getElementById('character-sex');
     var spawnGateEl = document.getElementById('spawn-gate');
+    var spawnCharacterSummaryEl = document.getElementById('spawn-character-summary');
+    var spawnCharacterNameEl = document.getElementById('spawn-character-name');
+    var spawnCharacterMetaEl = document.getElementById('spawn-character-meta');
+    var readyFullNameEl = document.getElementById('ready-full-name');
+    var readyDateOfBirthEl = document.getElementById('ready-date-of-birth');
+    var readySexEl = document.getElementById('ready-sex');
+    var spawnAirportEl = document.getElementById('spawn-airport');
     var mapActiveLabelEl = document.getElementById('map-active-label');
     var mapActiveCoordsEl = document.getElementById('map-active-coords');
     var markersEl = document.getElementById('markers');
@@ -14,6 +27,8 @@
     var spawnPoints = [];
     var activeSpawnIndex = -1;
     var isAuthenticated = false;
+    var hasCharacter = false;
+    var currentCharacter = null;
     var MAP_LIMITS = {
         minX: -2050,
         maxX: 1700,
@@ -127,12 +142,192 @@
         statusEl.textContent = message || '';
     }
 
+    function friendlyReason(reason, fallback) {
+        var messages = {
+            not_authenticated: 'Log in again before continuing.',
+            invalid_first_name: 'Enter a valid first name using letters, spaces, apostrophes, or hyphens.',
+            invalid_last_name: 'Enter a valid last name using letters, spaces, apostrophes, or hyphens.',
+            invalid_date_of_birth: 'Choose a valid date of birth for a character aged 16 to 100.',
+            invalid_sex: 'Choose a valid sex for this character.',
+            db_error: 'Character creation failed while saving. Try again.',
+            create_failed: 'Character creation did not complete. Try again.',
+            character_service_unavailable: 'Character service is unavailable right now.'
+        };
+
+        return messages[reason] || fallback || 'Request failed.';
+    }
+
+    function setLeftStage(stage) {
+        authView.classList.toggle('hidden', stage !== 'auth');
+        characterView.classList.toggle('hidden', stage !== 'character');
+        readyView.classList.toggle('hidden', stage !== 'ready');
+    }
+
+    function titleCase(value) {
+        return String(value || '').replace(/\b([a-z])/g, function (match) {
+            return match.toUpperCase();
+        });
+    }
+
+    function normalizeName(value) {
+        return String(value || '').trim().replace(/\s+/g, ' ');
+    }
+
+    function getDaysInMonth(year, month) {
+        return new Date(year, month, 0).getDate();
+    }
+
+    function getLatestAllowedBirthDate() {
+        var today = new Date();
+        var latest = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        latest.setFullYear(latest.getFullYear() - 16);
+        return latest;
+    }
+
+    function normalizeDateInput(value) {
+        var raw = String(value || '').trim();
+        if (!raw) {
+            return '';
+        }
+
+        var match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (!match) {
+            return '';
+        }
+
+        var year = Number(match[1]);
+        var month = Number(match[2]);
+        var day = Number(match[3]);
+        if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+            return '';
+        }
+
+        if (year < 1900 || month < 1 || month > 12) {
+            return '';
+        }
+
+        var maxDay = getDaysInMonth(year, month);
+        if (day < 1 || day > maxDay) {
+            return '';
+        }
+
+        return String(year).padStart(4, '0') + '-' + String(month).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    }
+
+    function isValidCharacterDateOfBirth(value) {
+        var normalized = normalizeDateInput(value);
+        if (!normalized) {
+            return false;
+        }
+
+        var parts = normalized.split('-');
+        var year = Number(parts[0]);
+        var month = Number(parts[1]);
+        var day = Number(parts[2]);
+        var birthDate = new Date(year, month - 1, day);
+        if (birthDate.getFullYear() !== year || (birthDate.getMonth() + 1) !== month || birthDate.getDate() !== day) {
+            return false;
+        }
+
+        var latest = getLatestAllowedBirthDate();
+        if (birthDate > latest) {
+            return false;
+        }
+
+        var oldest = new Date(latest.getFullYear() - 84, latest.getMonth(), latest.getDate());
+        if (birthDate < oldest) {
+            return false;
+        }
+
+        return true;
+    }
+
+    function formatSex(value) {
+        if (!value) {
+            return '-';
+        }
+
+        return titleCase(String(value).toLowerCase());
+    }
+
+    function formatDateOfBirth(value) {
+        var raw = value;
+        if (raw === null || raw === undefined || raw === '') {
+            return '-';
+        }
+
+        if (typeof raw === 'number' || (/^\d+(\.\d+)?$/).test(String(raw))) {
+            var numeric = Number(raw);
+            if (Number.isFinite(numeric) && numeric > 0) {
+                if (Math.abs(numeric) >= 100000000000) {
+                    numeric = numeric / 1000;
+                }
+
+                var timestampDate = new Date(numeric * 1000);
+                if (!Number.isNaN(timestampDate.getTime())) {
+                    var year = String(timestampDate.getUTCFullYear()).padStart(4, '0');
+                    var month = String(timestampDate.getUTCMonth() + 1).padStart(2, '0');
+                    var day = String(timestampDate.getUTCDate()).padStart(2, '0');
+                    return year + '-' + month + '-' + day;
+                }
+            }
+        }
+
+        var normalized = normalizeDateInput(String(raw));
+        if (normalized) {
+            return normalized;
+        }
+
+        var dateMatch = String(raw).match(/^(\d{4}-\d{2}-\d{2})/);
+        if (dateMatch) {
+            return dateMatch[1];
+        }
+
+        return String(raw);
+    }
+
+    function updateCharacterPresentation() {
+        if (!currentCharacter) {
+            spawnCharacterSummaryEl.classList.add('hidden');
+            spawnCharacterNameEl.textContent = 'No character';
+            spawnCharacterMetaEl.textContent = 'Identity pending';
+            readyFullNameEl.textContent = 'No character loaded';
+            readyDateOfBirthEl.textContent = '-';
+            readySexEl.textContent = '-';
+            return;
+        }
+
+        var fullName = currentCharacter.fullName || ((currentCharacter.firstName || '') + ' ' + (currentCharacter.lastName || '')).trim();
+        var displayDateOfBirth = formatDateOfBirth(currentCharacter.dateOfBirth);
+        spawnCharacterSummaryEl.classList.remove('hidden');
+        spawnCharacterNameEl.textContent = fullName || 'Unnamed character';
+        spawnCharacterMetaEl.textContent = 'DOB ' + displayDateOfBirth + ' • ' + formatSex(currentCharacter.sex);
+        readyFullNameEl.textContent = fullName || 'Unnamed character';
+        readyDateOfBirthEl.textContent = displayDateOfBirth;
+        readySexEl.textContent = formatSex(currentCharacter.sex);
+    }
+
+    function setCurrentCharacter(character) {
+        currentCharacter = character || null;
+        hasCharacter = !!currentCharacter;
+        updateCharacterPresentation();
+        updateSpawnLockState();
+    }
+
     function updateSpawnLockState() {
-        spawnPanel.classList.toggle('locked', !isAuthenticated);
-        spawnGateEl.textContent = isAuthenticated ? 'Authenticated. Choose any spawn point.' : 'Log in to unlock spawn selection.';
+        var unlocked = isAuthenticated && hasCharacter;
+        spawnPanel.classList.toggle('locked', !unlocked);
+
+        if (!isAuthenticated) {
+            spawnGateEl.textContent = 'Log in to unlock character creation.';
+        } else if (!hasCharacter) {
+            spawnGateEl.textContent = 'Create a character to unlock spawn selection.';
+        } else {
+            spawnGateEl.textContent = 'Identity ready. Choose any spawn point.';
+        }
 
         Array.prototype.forEach.call(document.querySelectorAll('.spawn-card button'), function (button) {
-            button.disabled = !isAuthenticated;
+            button.disabled = !unlocked;
         });
     }
 
@@ -280,19 +475,52 @@
 
     function showAuth(spawns) {
         isAuthenticated = false;
+        setCurrentCharacter(null);
+        firstNameEl.value = '';
+        lastNameEl.value = '';
+        dateOfBirthEl.value = '';
+        sexEl.value = 'male';
         renderSpawns(spawns);
         showPrejoinShell();
-        authPanel.classList.remove('hidden');
+        setLeftStage('auth');
         setStatus('');
         loadRemembered();
         updateSpawnLockState();
     }
 
-    function showSpawnPanel() {
-        isAuthenticated = true;
-        saveRemembered();
-        setStatus('Authenticated. Choose a spawn point.');
+    function showCharacterCreation() {
+        setLeftStage('character');
+        setStatus('Create your first character to unlock spawn selection.');
         updateSpawnLockState();
+    }
+
+    function showSpawnPanel() {
+        saveRemembered();
+        setLeftStage('ready');
+        setStatus('Identity verified. Choose a spawn point.');
+        updateSpawnLockState();
+    }
+
+    function fetchCharacterState() {
+        setStatus('Loading character profile...');
+
+        return post('prejoinGetCharacter', {}).then(function (data) {
+            if (!data || !data.success) {
+                setStatus(friendlyReason(data && data.reason, 'Character lookup failed.'));
+                return;
+            }
+
+            if (data.hasCharacter && data.character) {
+                setCurrentCharacter(data.character);
+                showSpawnPanel();
+                return;
+            }
+
+            setCurrentCharacter(null);
+            showCharacterCreation();
+        }).catch(function () {
+            setStatus('Character lookup failed.');
+        });
     }
 
     function chooseSpawn(index) {
@@ -302,6 +530,11 @@
 
         if (!isAuthenticated) {
             setStatus('Log in before choosing a spawn point.');
+            return;
+        }
+
+        if (!hasCharacter) {
+            setStatus('Create a character before choosing a spawn point.');
             return;
         }
 
@@ -318,17 +551,35 @@
         });
     }
 
+    function findAirportSpawnIndex() {
+        var airportIndex = -1;
+
+        spawnPoints.some(function (point, pointIndex) {
+            var label = String(point && point.label || '');
+            var description = String(point && point.description || '');
+            if (/airport|international/i.test(label) || /airport|international/i.test(description)) {
+                airportIndex = pointIndex;
+                return true;
+            }
+
+            return false;
+        });
+
+        return airportIndex;
+    }
+
     document.getElementById('login').addEventListener('click', function () {
         post('prejoinLogin', {
             email: emailEl.value || '',
             password: passwordEl.value || ''
         }).then(function (data) {
             if (!data || !data.success) {
-                setStatus((data && data.reason) || 'Login failed.');
+                setStatus(friendlyReason(data && data.reason, 'Login failed.'));
                 return;
             }
 
-            showSpawnPanel();
+            isAuthenticated = true;
+            fetchCharacterState();
         }).catch(function () {
             setStatus('Login request failed.');
         });
@@ -350,12 +601,79 @@
         });
     });
 
+    document.getElementById('create-character').addEventListener('click', function () {
+        var payload = {
+            firstName: normalizeName(firstNameEl.value),
+            lastName: normalizeName(lastNameEl.value),
+            dateOfBirth: normalizeDateInput(dateOfBirthEl.value),
+            sex: sexEl.value || ''
+        };
+
+        if (!payload.firstName || !payload.lastName || !payload.dateOfBirth || !payload.sex) {
+            setStatus('Complete all character fields before continuing.');
+            return;
+        }
+
+        if (!isValidCharacterDateOfBirth(payload.dateOfBirth)) {
+            setStatus('Enter the date of birth as YYYY-MM-DD for a character aged 16 to 100.');
+            return;
+        }
+
+        setStatus('Creating character profile...');
+        post('prejoinCreateCharacter', payload).then(function (data) {
+            if (!data || !data.success || !data.character) {
+                setStatus(friendlyReason(data && data.reason, 'Character creation failed.'));
+                return;
+            }
+
+            setCurrentCharacter(data.character);
+            setStatus('Opening appearance editor...');
+            return post('prejoinBeginFirstCharacterCreation', {
+                sex: data.character.sex || payload.sex
+            }).then(function (startData) {
+                if (!startData || !startData.success) {
+                    setStatus('Could not start the appearance editor.');
+                    return;
+                }
+
+                hidePrejoinShell();
+            });
+        }).catch(function () {
+            setStatus('Character creation request failed.');
+        });
+    });
+
+    document.getElementById('back-to-login').addEventListener('click', function () {
+        isAuthenticated = false;
+        setCurrentCharacter(null);
+        setLeftStage('auth');
+        setStatus('Sign in to continue.');
+        updateSpawnLockState();
+    });
+
+    spawnAirportEl.addEventListener('click', function () {
+        var airportIndex = findAirportSpawnIndex();
+        if (airportIndex < 0) {
+            setStatus('Los Santos Airport spawn is unavailable.');
+            return;
+        }
+
+        chooseSpawn(airportIndex);
+    });
+
     window.addEventListener('message', function (event) {
         var data = event.data || {};
         if (data.action === 'showPrejoin') {
             showAuth(data.spawnPoints || []);
         } else if (data.action === 'updateSpawnPoints') {
             renderSpawns(data.spawnPoints || []);
+        }
+    });
+
+    dateOfBirthEl.addEventListener('blur', function () {
+        var normalized = normalizeDateInput(dateOfBirthEl.value);
+        if (normalized) {
+            dateOfBirthEl.value = normalized;
         }
     });
 

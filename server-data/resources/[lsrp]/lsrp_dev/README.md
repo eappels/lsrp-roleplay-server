@@ -17,6 +17,7 @@ It is not intended as a production gameplay system.
 ## Commands And Controls
 
 - `/pos`: print current coordinates and heading.
+- `/tp [x] [y] [z]`: teleport to world coordinates (admin only).
 - `/heal`: restore player health (admin only).
 - `/revive`: respawn the player through the spawner flow (admin only).
 - `/wep [name]`: give a predefined test weapon (admin only).
@@ -48,5 +49,5 @@ It is not intended as a production gameplay system.
 - Bootstrap the first admin from server console with `/devadmin add [playerId]` while the target player is online.
 - If you want the first admin to be seeded automatically after a reset, add either `setr lsrp_dev.bootstrap_license license:...` or `setr lsrp_dev.bootstrap_state_id ...` in `server.cfg`; when the admin table is empty, the matching player will be auto-added on join.
 - If you want to bootstrap the first admin in game without a convar, give that player ACE `lsrp.dev.manageadmins`; this ACE is only used while the admin list is still empty.
-- `/heal`, `/revive`, `/wep`, `/veh`, `/setplate`, `/devveh`, and `/identityaudit` all use the dev admin list.
+- `/tp`, `/heal`, `/revive`, `/wep`, `/veh`, `/setplate`, `/devveh`, and `/identityaudit` all use the dev admin list.
 - `/ids` and `F3` are client-side and available to everyone.

@@ -1,0 +1,327 @@
+:root {
+	--bg-shell: rgba(8, 14, 18, 0.68);
+	--bg-shell-deep: rgba(6, 10, 14, 0.84);
+	--bg-chip: rgba(255, 255, 255, 0.045);
+	--line-soft: rgba(226, 234, 239, 0.12);
+	--line-accent: rgba(121, 217, 193, 0.4);
+	--text-main: #eff7f6;
+	--text-muted: rgba(198, 214, 219, 0.76);
+	--accent: #79d9c1;
+	--accent-strong: #b7fff0;
+	--shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+}
+
+* {
+	box-sizing: border-box;
+	-webkit-font-smoothing: antialiased;
+}
+
+html,
+body {
+	margin: 0;
+	width: 100%;
+	height: 100%;
+	overflow: hidden;
+	background: transparent !important;
+	background-color: transparent !important;
+	font-family: "Bahnschrift SemiCondensed", "Trebuchet MS", "Segoe UI", sans-serif;
+}
+
+body::before,
+body::after {
+	content: none !important;
+	display: none !important;
+	background: transparent !important;
+}
+
+.hud-root {
+	position: fixed;
+	inset: 0;
+	width: 100vw;
+	height: 100vh;
+	pointer-events: none;
+	background: transparent !important;
+	background-color: transparent !important;
+	transition: opacity 140ms ease, visibility 140ms ease;
+}
+
+.hud-root--hidden {
+	opacity: 0;
+	visibility: hidden;
+}
+
+.hud-stage {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	justify-content: center;
+	align-items: flex-start;
+	padding: 0.75rem 0.75rem 0;
+	background: transparent !important;
+	background-color: transparent !important;
+}
+
+.hud-shell {
+	position: relative;
+	width: min(34rem, calc(100vw - 1rem));
+	padding: 0.7rem 0.8rem 0.78rem;
+	border: 1px solid var(--line-soft);
+	border-radius: 1.1rem;
+	background:
+		linear-gradient(180deg, rgba(13, 23, 29, 0.82), rgba(5, 10, 14, 0.6)),
+		radial-gradient(circle at 15% 0%, rgba(121, 217, 193, 0.14), transparent 34%),
+		radial-gradient(circle at 85% 100%, rgba(108, 186, 220, 0.12), transparent 30%);
+	box-shadow: var(--shadow);
+	backdrop-filter: blur(10px);
+	overflow: hidden;
+}
+
+.hud-shell::before {
+	content: "";
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: 0;
+	height: 2px;
+	background: linear-gradient(90deg, transparent, var(--accent), transparent);
+	opacity: 0.9;
+}
+
+.hud-shell__header,
+.hud-shell__footer {
+	position: relative;
+	z-index: 1;
+}
+
+.hud-shell__header {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	column-gap: 0.55rem;
+	align-items: center;
+	margin-bottom: 0.45rem;
+}
+
+.hud-shell__signal {
+	width: 0.52rem;
+	height: 0.52rem;
+	border-radius: 999px;
+	background: var(--accent);
+	box-shadow: 0 0 12px rgba(121, 217, 193, 0.65);
+	grid-row: span 2;
+}
+
+.hud-shell__eyebrow {
+	color: var(--accent);
+	font-size: 0.62rem;
+	font-weight: 700;
+	letter-spacing: 0.28em;
+	text-transform: uppercase;
+}
+
+.hud-shell__street {
+	color: var(--text-main);
+	font-size: 1rem;
+	font-weight: 700;
+	letter-spacing: 0.045em;
+	text-transform: uppercase;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hud-shell__street.is-hidden {
+	display: none;
+}
+
+.hud-compass {
+	position: relative;
+	height: 3.35rem;
+	margin-bottom: 0.58rem;
+	border-radius: 0.9rem;
+	overflow: hidden;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+}
+
+.hud-compass.is-hidden {
+	display: none;
+}
+
+.hud-compass__rail {
+	position: absolute;
+	inset: 0;
+	background: transparent;
+}
+
+.hud-compass__mask {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	width: 18%;
+	z-index: 2;
+	pointer-events: none;
+}
+
+.hud-compass__mask--left {
+	left: 0;
+	background: linear-gradient(90deg, rgba(6, 10, 14, 0.94), transparent);
+}
+
+.hud-compass__mask--right {
+	right: 0;
+	background: linear-gradient(270deg, rgba(6, 10, 14, 0.94), transparent);
+}
+
+.hud-compass__centerline {
+	position: absolute;
+	top: 0.4rem;
+	bottom: 0.4rem;
+	left: 50%;
+	width: 2px;
+	transform: translateX(-50%);
+	background: linear-gradient(180deg, rgba(183, 255, 240, 0.14), rgba(183, 255, 240, 0.92), rgba(183, 255, 240, 0.18));
+	box-shadow: 0 0 16px rgba(121, 217, 193, 0.22);
+	z-index: 3;
+}
+
+.hud-compass__tick {
+	position: absolute;
+	bottom: 0.58rem;
+	width: 2px;
+	height: 0.72rem;
+	transform: translateX(-50%);
+	border-radius: 999px;
+	background: rgba(220, 232, 236, 0.38);
+}
+
+.hud-compass__tick--major {
+	height: 0.98rem;
+	background: rgba(223, 236, 240, 0.68);
+}
+
+.hud-compass__tick--cardinal {
+	height: 1.28rem;
+	background: var(--accent);
+	box-shadow: 0 0 8px rgba(121, 217, 193, 0.24);
+}
+
+.hud-compass__label {
+	position: absolute;
+	top: 0.42rem;
+	transform: translateX(-50%);
+	color: rgba(234, 244, 246, 0.76);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.16em;
+	text-transform: uppercase;
+}
+
+.hud-compass__label--cardinal {
+	color: var(--accent-strong);
+}
+
+.hud-shell__footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 0.7rem;
+}
+
+.hud-metrics {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 0.42rem;
+	min-width: 0;
+	flex: 1 1 auto;
+}
+
+.hud-metric {
+	display: flex;
+	align-items: baseline;
+	gap: 0.35rem;
+	min-width: 0;
+	padding: 0.48rem 0.55rem;
+	border: 1px solid rgba(255, 255, 255, 0.06);
+	border-radius: 0.72rem;
+	background: var(--bg-chip);
+}
+
+.hud-metric__label {
+	color: var(--text-muted);
+	font-size: 0.62rem;
+	font-weight: 700;
+	letter-spacing: 0.18em;
+	text-transform: uppercase;
+	flex: 0 0 auto;
+}
+
+.hud-metric__value {
+	color: var(--text-main);
+	font-size: 0.86rem;
+	font-weight: 700;
+	letter-spacing: 0.03em;
+	min-width: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.hud-readouts {
+	display: flex;
+	gap: 0.42rem;
+	flex: 0 0 auto;
+}
+
+.hud-readout {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 3.5rem;
+	padding: 0.55rem 0.72rem;
+	border-radius: 999px;
+	border: 1px solid rgba(255, 255, 255, 0.08);
+	background: var(--bg-chip);
+	color: var(--text-main);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.hud-readout--accent {
+	border-color: var(--line-accent);
+	background: rgba(121, 217, 193, 0.12);
+	color: var(--accent-strong);
+}
+
+.hud-readout.is-hidden {
+	display: none;
+}
+
+@media (max-width: 900px) {
+	.hud-stage {
+		padding: 0.5rem 0.5rem 0;
+	}
+
+	.hud-shell {
+		width: calc(100vw - 1rem);
+		padding: 0.62rem 0.66rem 0.7rem;
+	}
+
+	.hud-shell__street {
+		font-size: 0.86rem;
+	}
+
+	.hud-compass {
+		height: 3rem;
+	}
+
+	.hud-shell__footer {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.hud-readouts {
+		justify-content: flex-end;
+	}
+}

@@ -28,11 +28,19 @@ local MIN_GROUND_DELTA_FOR_CORRECTION = 0.75
 local MAX_GROUND_DELTA_FOR_CORRECTION = 8.0
 local GROUND_SPAWN_Z_OFFSET = 1.0
 local DRIVER_SEAT_SHUFFLE_TIMEOUT_MS = 4000
+local FIRST_CHARACTER_CREATION_SPAWN = {
+	x = 403.16,
+	y = -996.28,
+	z = -99.00,
+	heading = 174.67
+}
 local manualDriverSeatShuffleVehicle = 0
 local manualDriverSeatShuffleExpiresAt = 0
 local prejoinUiOpen = false
 local prejoinAuthenticated = false
+local prejoinCharacterReady = false
 local prejoinStarted = false
+local firstCharacterCreationActive = false
 local freezeLocalPlayer
 local spawnPlayerDirect
 local prejoinSpawnPoints = {
@@ -96,6 +104,7 @@ local function openPrejoinUi()
 	prejoinStarted = true
 	prejoinUiOpen = true
 	prejoinAuthenticated = false
+	prejoinCharacterReady = false
 
 	keepClearingLoadingScreen(3000, 0)
 	SetNuiFocus(true, true)
@@ -111,6 +120,52 @@ local function openPrejoinUi()
 		ShutdownLoadingScreenNui()
 	end
 	DoScreenFadeIn(500)
+end
+
+local function getCharacterPreviewModel(sex)
+	local normalizedSex = tostring(sex or ''):lower()
+	if normalizedSex == 'female' then
+		return (lsrpConfig and lsrpConfig.defaultFemalePedModel) or 'mp_f_freemode_01'
+	end
+
+	return (lsrpConfig and lsrpConfig.defaultMalePedModel) or 'mp_m_freemode_01'
+end
+
+local function getAirportSpawnPoint()
+	for _, spawnPoint in ipairs(prejoinSpawnPoints) do
+		local label = tostring(spawnPoint.label or ''):lower()
+		local description = tostring(spawnPoint.description or ''):lower()
+		if label:find('airport', 1, true) or label:find('international', 1, true) or description:find('airport', 1, true) then
+			return spawnPoint
+		end
+	end
+
+	return prejoinSpawnPoints[1]
+end
+
+local function beginFirstCharacterCreationSession(payload)
+	payload = type(payload) == 'table' and payload or {}
+	local previewModelName = getCharacterPreviewModel(payload.sex)
+	local previewModelHash = tonumber(previewModelName) or GetHashKey(previewModelName)
+	firstCharacterCreationActive = true
+	prejoinUiOpen = false
+	SetNuiFocus(false, false)
+	SetNuiFocusKeepInput(false)
+
+	CreateThread(function()
+		spawnPlayerDirect({
+			x = FIRST_CHARACTER_CREATION_SPAWN.x,
+			y = FIRST_CHARACTER_CREATION_SPAWN.y,
+			z = FIRST_CHARACTER_CREATION_SPAWN.z,
+			heading = FIRST_CHARACTER_CREATION_SPAWN.heading,
+			model = previewModelHash,
+			skipFade = true,
+			suppressPositionSave = true
+		})
+
+		Wait(150)
+		TriggerEvent('lsrp_pededitor:openCharacterCreation')
+	end)
 end
 
 RegisterNetEvent('lsrp_spawner:receivePrejoinSpawnOptions')
@@ -191,6 +246,7 @@ RegisterNUICallback('prejoinLogin', function(data, cb)
 		responded = true
 		if success == true then
 			prejoinAuthenticated = true
+			prejoinCharacterReady = false
 		end
 		cb({ success = success == true, reason = reason })
 	end
@@ -203,6 +259,65 @@ RegisterNUICallback('prejoinLogin', function(data, cb)
 	TriggerServerEvent('lsrp_prejoin:login', requestId, { email = email, password = password })
 end)
 
+RegisterNUICallback('prejoinGetCharacter', function(_, cb)
+	local requestId = math.random(100000, 999999)
+	local responded = false
+
+	local function onResult(payload)
+		if responded then
+			return
+		end
+
+		responded = true
+		if payload and payload.success == true and payload.hasCharacter == true then
+			prejoinCharacterReady = true
+		else
+			prejoinCharacterReady = false
+		end
+
+		cb(payload or { success = false, reason = 'empty_response' })
+	end
+
+	RegisterNetEvent('lsrp_spawner:receiveCurrentCharacter' .. requestId)
+	AddEventHandler('lsrp_spawner:receiveCurrentCharacter' .. requestId, function(payload)
+		onResult(payload)
+	end)
+
+	TriggerServerEvent('lsrp_spawner:requestCurrentCharacter', requestId)
+end)
+
+RegisterNUICallback('prejoinCreateCharacter', function(data, cb)
+	local requestId = math.random(100000, 999999)
+	local responded = false
+
+	local function onResult(payload)
+		if responded then
+			return
+		end
+
+		responded = true
+		if payload and payload.success == true and type(payload.character) == 'table' then
+			prejoinCharacterReady = true
+		else
+			prejoinCharacterReady = false
+		end
+
+		cb(payload or { success = false, reason = 'empty_response' })
+	end
+
+	RegisterNetEvent('lsrp_spawner:createCharacterResult' .. requestId)
+	AddEventHandler('lsrp_spawner:createCharacterResult' .. requestId, function(payload)
+		onResult(payload)
+	end)
+
+	TriggerServerEvent('lsrp_spawner:createCharacter', requestId, data or {})
+end)
+
+RegisterNUICallback('prejoinBeginFirstCharacterCreation', function(data, cb)
+	beginFirstCharacterCreationSession(data or {})
+	cb({ success = true })
+end)
+
 RegisterNUICallback('prejoinSpawnSelect', function(data, cb)
 	local spawnIndex = tonumber(data.spawnIndex)
 	local spawn = spawnIndex and prejoinSpawnPoints[spawnIndex + 1] or nil
@@ -212,12 +327,18 @@ RegisterNUICallback('prejoinSpawnSelect', function(data, cb)
 		return
 	end
 
+	if not prejoinCharacterReady then
+		cb({ success = false, reason = 'Create a character first.' })
+		return
+	end
+
 	if not spawn then
 		cb({ success = false, reason = 'Invalid spawn.' })
 		return
 	end
 
 	prejoinUiOpen = false
+	firstCharacterCreationActive = false
 	SetNuiFocus(false, false)
 	SetNuiFocusKeepInput(false)
 	cb({ success = true })
@@ -394,17 +515,33 @@ spawnPlayerDirect = function(spawn)
 	end
 
 	freezeLocalPlayer(false)
-	TriggerServerEvent('lsrp_core:savePosition', {
-		x = spawnX,
-		y = spawnY,
-		z = spawnZ,
-		heading = spawnHeading
-	})
+	if not spawn.suppressPositionSave then
+		TriggerServerEvent('lsrp_core:savePosition', {
+			x = spawnX,
+			y = spawnY,
+			z = spawnZ,
+			heading = spawnHeading
+		})
+	end
 
 	TriggerEvent('playerSpawned', spawn)
 end
 
 exports('spawnPlayerDirect', spawnPlayerDirect)
+
+AddEventHandler('lsrp_pededitor:firstCharacterCreationFinished', function()
+	if not firstCharacterCreationActive then
+		return
+	end
+
+	local airportSpawn = getAirportSpawnPoint()
+	if not airportSpawn then
+		return
+	end
+
+	firstCharacterCreationActive = false
+	spawnPlayerDirect(airportSpawn)
+end)
 
 local function movePedToDriverSeat()
 	local ped = PlayerPedId()

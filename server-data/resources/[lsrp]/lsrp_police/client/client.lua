@@ -413,7 +413,7 @@ local function impoundFacingVehicle()
 		return
 	end
 
-	if not isPoliceOnDuty() then
+	if Config.RequireDutyForImpound ~= false and not isPoliceOnDuty() then
 		notify('Clock in for police duty before using /impound.')
 		return
 	end

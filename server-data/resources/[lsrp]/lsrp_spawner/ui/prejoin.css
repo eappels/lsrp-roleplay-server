@@ -43,6 +43,11 @@ body {
     justify-content: center;
 }
 
+.stage-view {
+    display: flex;
+    flex-direction: column;
+}
+
 .spawn-panel {
     padding: 26px;
     display: flex;
@@ -90,8 +95,24 @@ h2 {
 
 .status {
     min-height: 22px;
-    margin-bottom: 10px;
+    margin-top: 16px;
     color: #9fd7f0;
+}
+
+.field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.identity-note {
+    margin: 8px 0 18px;
+    padding: 14px 16px;
+    border-radius: 14px;
+    background: rgba(129, 170, 188, 0.11);
+    border: 1px solid rgba(129, 170, 188, 0.18);
+    color: rgba(245, 242, 234, 0.82);
+    line-height: 1.5;
 }
 
 .spawn-gate {
@@ -101,7 +122,31 @@ h2 {
     text-transform: uppercase;
 }
 
-input {
+.spawn-character-summary {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 14px;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(129, 170, 188, 0.11);
+    border: 1px solid rgba(129, 170, 188, 0.2);
+}
+
+.spawn-character-summary span:first-child {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.spawn-character-summary span:last-child {
+    color: rgba(245, 242, 234, 0.68);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+input,
+select {
     width: 100%;
     box-sizing: border-box;
     padding: 14px 16px;
@@ -111,6 +156,10 @@ input {
     background: rgba(255, 255, 255, 0.05);
     color: #ffffff;
     font-size: 15px;
+}
+
+select {
+    appearance: none;
 }
 
 .remember-row {
@@ -131,6 +180,10 @@ input {
     gap: 12px;
 }
 
+.ready-actions {
+    margin-top: 18px;
+}
+
 button {
     padding: 13px 16px;
     border: 0;
@@ -144,6 +197,44 @@ button {
 
 button.secondary {
     background: linear-gradient(135deg, #88c8de, #477b92);
+}
+
+.identity-card {
+    padding: 20px;
+    border-radius: 18px;
+    background:
+        linear-gradient(145deg, rgba(212, 178, 111, 0.16), rgba(61, 102, 120, 0.12)),
+        rgba(8, 14, 19, 0.46);
+    border: 1px solid rgba(212, 178, 111, 0.2);
+}
+
+.identity-card__eyebrow {
+    margin-bottom: 10px;
+    color: rgba(245, 242, 234, 0.56);
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+
+.identity-card__name {
+    margin-bottom: 16px;
+    font-size: clamp(24px, 3vw, 34px);
+    line-height: 1.08;
+}
+
+.identity-card__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.identity-card__label {
+    display: block;
+    margin-bottom: 6px;
+    color: rgba(245, 242, 234, 0.6);
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
 }
 
 .map-shell {
@@ -434,6 +525,11 @@ button.secondary {
     #app {
         grid-template-columns: 1fr;
         overflow: auto;
+    }
+
+    .field-row,
+    .identity-card__grid {
+        grid-template-columns: 1fr;
     }
 
     .map-shell {

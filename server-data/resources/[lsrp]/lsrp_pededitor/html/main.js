@@ -39,6 +39,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const closeBtn = document.getElementById('close-nui');
     const maleBtn = document.getElementById('male-btn');
     const femaleBtn = document.getElementById('female-btn');
+    const characterCreationBanner = document.getElementById('character-creation-banner');
+    const spawnCharacterBtn = document.getElementById('spawn-character-btn');
+    let characterCreationMode = false;
 
     const componentNames = [
         'Face', 'Mask', 'Hair', 'Torso', 'Legs', 'Bags/Parachutes', 'Shoes', 'Accessories', 'Undershirt', 'Body Armor', 'Decals', 'Torso 2'
@@ -345,6 +348,22 @@ window.addEventListener('DOMContentLoaded', () => {
         fetch(`https://${GetParentResourceName()}/closeNUI`, { method: 'POST', body: '{}' });
     });
 
+    if (spawnCharacterBtn) spawnCharacterBtn.addEventListener('click', async () => {
+        try {
+            spawnCharacterBtn.disabled = true;
+            const response = await fetch(`https://${GetParentResourceName()}/finishCharacterCreation`, { method: 'POST', body: '{}' });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || !payload || payload.ok !== true) {
+                throw new Error((payload && payload.error) || 'finish_failed');
+            }
+        } catch (error) {
+            console.error('Failed to finish character creation', error);
+            alert('Could not finish character creation.');
+        } finally {
+            spawnCharacterBtn.disabled = false;
+        }
+    });
+
     // gender selection
     function setGenderSelection(g) {
         if (maleBtn) maleBtn.classList.toggle('active', g === 'male');
@@ -387,6 +406,17 @@ window.addEventListener('DOMContentLoaded', () => {
     // when shown
     window.addEventListener('message', (event) => {
         if (event.data.type === 'show') {
+            characterCreationMode = event.data.characterCreationMode === true;
+            if (spawnCharacterBtn) {
+                spawnCharacterBtn.textContent = event.data.spawnLabel || 'Spawn Los Santos Airport';
+            }
+            if (characterCreationBanner) {
+                characterCreationBanner.classList.toggle('hidden', !characterCreationMode);
+                characterCreationBanner.setAttribute('aria-hidden', characterCreationMode ? 'false' : 'true');
+            }
+            if (closeBtn) {
+                closeBtn.classList.toggle('hidden', characterCreationMode);
+            }
             document.body.style.display = 'block';
             document.body.style.visibility = 'visible';
             document.body.style.opacity = '1';
@@ -401,6 +431,7 @@ window.addEventListener('DOMContentLoaded', () => {
             document.body.style.display = 'none';
             document.body.style.visibility = 'hidden';
             document.body.style.opacity = '0';
+            characterCreationMode = false;
         }
     });
 

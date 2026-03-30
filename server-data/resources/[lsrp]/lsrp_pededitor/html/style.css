@@ -157,6 +157,30 @@ button:focus-visible {
     outline: none;
 }
 
+.character-creation-banner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 14px 16px;
+    border: 1px solid rgba(118, 240, 207, 0.18);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(16, 48, 52, 0.98), rgba(10, 32, 36, 0.98));
+}
+
+.character-creation-banner strong,
+.character-creation-banner span {
+    display: block;
+}
+
+.character-creation-banner span {
+    margin-top: 4px;
+    color: var(--ink-1);
+    font-size: 13px;
+}
+
 .editor {
     position: relative;
     z-index: 1;
@@ -406,6 +430,11 @@ input[type="number"] {
     }
 
     .shell__header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .character-creation-banner {
         flex-direction: column;
         align-items: stretch;
     }

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+	<title>LSRP HUD</title>
+	<style>
+		html,
+		body {
+			margin: 0;
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			background: transparent !important;
+			background-color: transparent !important;
+		}
+
+		body {
+			display: none;
+			visibility: hidden;
+			opacity: 0;
+		}
+	</style>
+	<link rel="stylesheet" href="hud.css?v=3">
+</head>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+	<div id="hud-root" class="hud-root hud-root--hidden" aria-hidden="true">
+		<div class="hud-stage">
+			<section class="hud-shell">
+				<header class="hud-shell__header">
+					<div class="hud-shell__signal"></div>
+					<div class="hud-shell__eyebrow">LSRP NAV</div>
+					<div id="street-value" class="hud-shell__street">Integrity Way / Power Street</div>
+				</header>
+
+				<section id="compass-section" class="hud-compass" aria-hidden="true">
+					<div class="hud-compass__mask hud-compass__mask--left"></div>
+					<div id="compass-rail" class="hud-compass__rail"></div>
+					<div class="hud-compass__centerline"></div>
+					<div class="hud-compass__mask hud-compass__mask--right"></div>
+				</section>
+
+				<footer class="hud-shell__footer">
+					<div class="hud-metrics">
+						<div class="hud-metric">
+							<span class="hud-metric__label">X</span>
+							<span id="x-value" class="hud-metric__value">0.00</span>
+						</div>
+						<div class="hud-metric">
+							<span class="hud-metric__label">Y</span>
+							<span id="y-value" class="hud-metric__value">0.00</span>
+						</div>
+						<div class="hud-metric">
+							<span class="hud-metric__label">Z</span>
+							<span id="z-value" class="hud-metric__value">0.00</span>
+						</div>
+					</div>
+
+					<div class="hud-readouts">
+						<span id="direction-value" class="hud-readout">N</span>
+						<span id="heading-value" class="hud-readout hud-readout--accent">000°</span>
+					</div>
+				</footer>
+			</section>
+		</div>
+	</div>
+
+	<script src="hud.js?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>Vehicle Compass HUD</title>
+    <style>
+      :root {
+        color-scheme: normal !important;
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        background: transparent !important;
+        background-color: transparent !important;
+      }
+
+      html.hud-hidden,
+      body.hud-hidden,
+      body.hud-hidden #root {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+      }
+
+      body {
+        overflow: hidden;
+        color-scheme: normal !important;
+      }
+
+      #root {
+        display: none;
+      }
+    </style>
+    <script>
+      document.documentElement.classList.add('hud-hidden');
+
+      window.addEventListener('message', function (event) {
+        var payload = event && event.data;
+        var html = document.documentElement;
+        var body = document.body;
+        var root = document.getElementById('root');
+        if (!payload || typeof payload !== 'object' || !('action' in payload)) {
+          return;
+        }
+
+        if (payload.action === 'vehicleCompass:hide') {
+          if (root) {
+            root.style.display = 'none';
+          }
+
+          html.classList.add('hud-hidden');
+          if (body) {
+            body.classList.add('hud-hidden');
+          }
+
+          return;
+        }
+
+        if (payload.action === 'vehicleCompass:show' || payload.action === 'vehicleCompass:update') {
+          html.classList.remove('hud-hidden');
+          if (body) {
+            body.classList.remove('hud-hidden');
+          }
+
+          if (root) {
+            root.style.display = 'block';
+          }
+        }
+      });
+
+      window.addEventListener('DOMContentLoaded', function () {
+        if (document.body) {
+          document.body.classList.add('hud-hidden');
+        }
+      });
+    </script>
+    <script type="module" crossorigin src="./assets/app.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/app.css">
+  </head>
+  <body class="hud-hidden" style="background: transparent !important; background-color: transparent !important;">
+    <div id="root"></div>
+
+  </body>
+  </html>

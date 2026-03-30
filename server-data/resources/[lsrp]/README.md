@@ -4,6 +4,10 @@ This folder contains the custom LSRP resources plus a few third-party dependenci
 
 This index covers the custom `lsrp_*` resources.
 
+## Project Docs
+
+- [BUGS.md](BUGS.md): Central bug list and known gameplay/framework issues.
+
 ## Resource Docs
 
 - [lsrp_core](lsrp_core/README.md): Shared configuration and player position persistence.
@@ -11,6 +15,7 @@ This index covers the custom `lsrp_*` resources.
 - [lsrp_economy](lsrp_economy/README.md): Persistent LS$ balance and transaction system.
 - [lsrp_fuel](lsrp_fuel/README.md): Vehicle fuel consumption and gas-station refueling.
 - [lsrp_hacking](lsrp_hacking/README.md): Scaffold resource for future hacking gameplay systems.
+- [lsrp_hud](lsrp_hud/README.md): Standalone compass and coordinate HUD.
 - [lsrp_inventory](lsrp_inventory/README.md): NUI inventory scaffold and current vehicle key item.
 - [lsrp_jobcenter](lsrp_jobcenter/README.md): Job center kiosk and civilian job browser.
 - [lsrp_jobs](lsrp_jobs/README.md): Employment state, duty, payroll, and job permissions.

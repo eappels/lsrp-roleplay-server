@@ -34,6 +34,7 @@ local MODEL_HASH_INT32_MAX = 2147483647
 local MODEL_HASH_UINT32_WRAP = 4294967296
 
 local isEditorOpen = false
+local isCharacterCreationMode = false
 local previewCam = nil
 local initialAppearance = nil
 
@@ -455,12 +456,17 @@ end
 -- Editor open/close
 -- ---------------------------------------------------------------------------
 
-local function closeEditor()
+local function closeEditor(force)
 	if not isEditorOpen then
 		return
 	end
 
+	if isCharacterCreationMode and force ~= true then
+		return
+	end
+
 	isEditorOpen = false
+	isCharacterCreationMode = false
 	resetCameraKeys()
 	stopPreviewCamera()
 	SetNuiFocus(false, false)
@@ -473,12 +479,15 @@ local function closeEditor()
 	TriggerEvent('lsrp_pededitor:closed')
 end
 
-local function openEditor()
+local function openEditor(options)
 	if isEditorOpen then
 		return
 	end
 
+	options = type(options) == 'table' and options or {}
+
 	isEditorOpen = true
+	isCharacterCreationMode = options.characterCreationMode == true
 	initialAppearance = captureAppearance()
 
 	SetNuiFocus(true, true)
@@ -487,13 +496,17 @@ local function openEditor()
 	end
 
 	startPreviewCamera()
-	SendNUIMessage({ type = 'show' })
+	SendNUIMessage({
+		type = 'show',
+		characterCreationMode = isCharacterCreationMode,
+		spawnLabel = options.spawnLabel or 'Spawn Los Santos Airport'
+	})
 	TriggerEvent('lsrp_pededitor:opened')
 end
 
 local function toggleEditor()
 	if isEditorOpen then
-		closeEditor()
+		closeEditor(false)
 		return
 	end
 
@@ -642,7 +655,29 @@ RegisterNUICallback('deleteOutfit', function(data, cb)
 end)
 
 RegisterNUICallback('closeNUI', function(_, cb)
-	closeEditor()
+	if isCharacterCreationMode then
+		cb({ ok = false, error = 'character_creation_active' })
+		return
+	end
+
+	closeEditor(false)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('finishCharacterCreation', function(_, cb)
+	local response = awaitServerResponse('saveOutfit', {
+		slot = 1,
+		name = 'Current Look',
+		comps = captureComponents(PlayerPedId())
+	}, 7000)
+
+	if not response or response.ok ~= true then
+		cb(response or { ok = false, error = 'save_failed' })
+		return
+	end
+
+	closeEditor(true)
+	TriggerEvent('lsrp_pededitor:firstCharacterCreationFinished')
 	cb({ ok = true })
 end)
 
@@ -671,8 +706,8 @@ CreateThread(function()
 			DisableAllControlActions(0)
 			HideHudAndRadarThisFrame()
 
-			if IsDisabledControlJustPressed(0, 200) then
-				closeEditor()
+			if not isCharacterCreationMode and IsDisabledControlJustPressed(0, 200) then
+				closeEditor(false)
 			end
 
 			if cameraState.w then
@@ -734,8 +769,15 @@ RegisterNetEvent('lsrp_pededitor:open', function()
 	openEditor()
 end)
 
+RegisterNetEvent('lsrp_pededitor:openCharacterCreation', function()
+	openEditor({
+		characterCreationMode = true,
+		spawnLabel = 'Spawn Los Santos Airport'
+	})
+end)
+
 RegisterNetEvent('lsrp_pededitor:close', function()
-	closeEditor()
+	closeEditor(false)
 end)
 
 RegisterNetEvent('lsrp_pededitor:toggle', function()
@@ -761,6 +803,6 @@ AddEventHandler('onResourceStop', function(resourceName)
 		return
 	end
 
-	closeEditor()
+	closeEditor(true)
 	stopPreviewCamera()
 end)

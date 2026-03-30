@@ -3,6 +3,7 @@ Config = Config or {}
 Config.JobId = 'police_officer'
 Config.InteractionKey = 38
 Config.ImpoundCommand = 'impound'
+Config.RequireDutyForImpound = false
 Config.ImpoundParkingZone = 'Tow recovery unrepaired'
 Config.ImpoundRange = 3.5
 Config.DrawDistance = 30.0
