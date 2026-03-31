@@ -37,6 +37,17 @@
         color-scheme: normal !important;
       }
 
+      .speed-unit {
+        font-size: 0 !important;
+      }
+
+      .speed-unit::after {
+        content: 'KM/H';
+        font-size: 0.64rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+      }
+
       #root {
         display: none;
       }

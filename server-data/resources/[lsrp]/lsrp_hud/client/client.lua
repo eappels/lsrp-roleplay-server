@@ -1,5 +1,5 @@
 local COMPASS_HUD_FALLBACK_UPDATE_MS = 100
-local VEHICLE_SPEED_TO_MPH = 2.236936
+local VEHICLE_SPEED_TO_KMH = 3.6
 
 local DIRECTION_LABELS = {
 	[0] = 'N',
@@ -191,7 +191,7 @@ local function buildCompassPayload()
 	local payload = {
 		visible = true,
 		heading = compassHeading,
-		speed = math.max(0, math.floor((GetEntitySpeed(vehicle) * VEHICLE_SPEED_TO_MPH) + 0.5)),
+		speed = math.max(0, math.floor((GetEntitySpeed(vehicle) * VEHICLE_SPEED_TO_KMH) + 0.5)),
 		street = getCoordinateStreetLabel(coords),
 		area = getAreaLabel(coords),
 		vehicleName = getVehicleDisplayName(vehicle)
