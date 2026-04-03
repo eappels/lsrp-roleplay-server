@@ -34,6 +34,8 @@ lsrpConfig.coordinateHudEnabled = true
 lsrpConfig.coordinateHudShowHeading = true
 lsrpConfig.coordinateHudShowStreet = true
 lsrpConfig.coordinateHudUpdateIntervalMs = 200
+lsrpConfig.hungerHudEnabled = true
+lsrpConfig.hungerHudUpdateIntervalMs = 500
 
 lsrpConfig.pedEditorAutoRestoreEnabled = true
 -- Keep this nil to restore the most recently saved outfit.

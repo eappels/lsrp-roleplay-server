@@ -2,21 +2,22 @@
 
 ## Overview
 
-`lsrp_hud` owns the standalone client HUD for compass, heading, street name, and XYZ coordinates.
+`lsrp_hud` owns the standalone client HUD for the vehicle compass plus lightweight player status widgets such as hunger.
 
 It exists so HUD iterations can be restarted independently without restarting `lsrp_core`.
 
 ## Main Files
 
 - `client/client.lua`: client-side payload generation and HUD visibility control.
-- `ui/index.html`: HUD NUI markup.
-- `ui/style.css`: HUD styling and fullscreen transparent overlay layout.
-- `ui/app.js`: compass rendering and NUI message handling.
+- `ui/index.html`: HUD NUI markup entrypoint.
+- `ui/hud.css`: HUD styling and fullscreen transparent overlay layout.
+- `ui/hud.js`: compass and hunger widget rendering plus NUI message handling.
 
 ## Integration
 
 - Imports `@lsrp_core/shared/config.lua` to reuse existing HUD toggles and update interval settings.
 - Depends on `lsrp_core` for shared config availability.
+- Reads hunger state from `lsrp_hunger` when that resource is running.
 
 ## Notes
 

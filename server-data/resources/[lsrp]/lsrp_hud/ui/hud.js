@@ -1,9 +1,7 @@
 const COMPASS_VIEW_RANGE = 90;
-const COMPASS_TICK_INTERVAL = 15;
-const COMPASS_MAJOR_INTERVAL = 45;
-const COMPASS_CARDINAL_INTERVAL = 90;
+const COMPASS_TICK_INTERVAL = 5;
 
-const DIRECTION_LABELS = {
+const CARDINAL_LABELS = {
 	0: 'N',
 	45: 'NE',
 	90: 'E',
@@ -14,41 +12,65 @@ const DIRECTION_LABELS = {
 	315: 'NW'
 };
 
-const rootEl = document.getElementById('hud-root');
-const compassSectionEl = document.getElementById('compass-section');
-const compassRailEl = document.getElementById('compass-rail');
-const xValueEl = document.getElementById('x-value');
-const yValueEl = document.getElementById('y-value');
-const zValueEl = document.getElementById('z-value');
-const directionValueEl = document.getElementById('direction-value');
-const headingValueEl = document.getElementById('heading-value');
+const NEEDS_ANIMATION_DURATION_MS = 900;
+
+const hudRootEl = document.getElementById('hud-root');
+const vehicleShellEl = document.getElementById('vehicle-shell');
+const needsShellEl = document.getElementById('needs-shell');
+const compassTrackEl = document.getElementById('compass-track');
+const vehicleNameEl = document.getElementById('vehicle-name');
+const speedValueEl = document.getElementById('speed-value');
+const headingNumberEl = document.getElementById('heading-number');
+const headingCardinalEl = document.getElementById('heading-cardinal');
 const streetValueEl = document.getElementById('street-value');
+const areaValueEl = document.getElementById('area-value');
+const hungerIndicatorEl = document.getElementById('hunger-indicator');
+const thirstIndicatorEl = document.getElementById('thirst-indicator');
+const hungerFillRectEl = document.getElementById('hunger-fill-rect');
+const thirstFillRectEl = document.getElementById('thirst-fill-rect');
+const hungerLabelEl = document.getElementById('hunger-label');
+const thirstLabelEl = document.getElementById('thirst-label');
 
-document.documentElement.style.background = 'transparent';
-document.documentElement.style.backgroundColor = 'transparent';
-document.documentElement.style.width = '100%';
-document.documentElement.style.height = '100%';
-document.body.style.display = 'block';
-document.body.style.visibility = 'visible';
-document.body.style.opacity = '1';
-document.body.style.margin = '0';
-document.body.style.width = '100%';
-document.body.style.height = '100%';
-document.body.style.background = 'transparent';
-document.body.style.backgroundColor = 'transparent';
-document.body.style.overflow = 'hidden';
+const state = {
+	vehicleVisible: false,
+	vehicle: {
+		heading: 0,
+		speed: 0,
+		street: 'Unknown Road',
+		area: 'San Andreas',
+		vehicleName: 'Vehicle'
+	},
+	needsVisible: false,
+	needs: {
+		hunger: 100,
+		thirst: null
+	},
+	animatedNeeds: {
+		hunger: 100,
+		thirst: null
+	}
+};
 
-function setVisible(isVisible) {
-	rootEl.classList.toggle('hud-root--hidden', !isVisible);
-	rootEl.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+const needsAnimationState = {
+	frameId: null,
+	startedAt: 0,
+	from: {
+		hunger: 100,
+		thirst: null
+	},
+	to: {
+		hunger: 100,
+		thirst: null
+	}
+};
+
+function setText(element, value) {
+	element.textContent = String(value ?? '');
 }
 
 function setHidden(element, isHidden) {
 	element.classList.toggle('is-hidden', isHidden);
-}
-
-function setText(element, value) {
-	element.textContent = value || '';
+	element.setAttribute('aria-hidden', isHidden ? 'true' : 'false');
 }
 
 function normalizeHeading(heading) {
@@ -57,107 +79,206 @@ function normalizeHeading(heading) {
 	return normalized < 0 ? normalized + 360 : normalized;
 }
 
+function getCardinalLabel(heading) {
+	const snappedHeading = Math.round(normalizeHeading(heading) / 45) * 45;
+	return CARDINAL_LABELS[normalizeHeading(snappedHeading)] || 'N';
+}
+
 function getWrappedHeadingDelta(targetHeading, currentHeading) {
 	return ((normalizeHeading(targetHeading) - normalizeHeading(currentHeading) + 540) % 360) - 180;
 }
 
+function updateRootVisibility() {
+	const isVisible = state.vehicleVisible || state.needsVisible;
+	hudRootEl.classList.toggle('hud-root--hidden', !isVisible);
+	hudRootEl.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
+	setHidden(vehicleShellEl, !state.vehicleVisible);
+	setHidden(needsShellEl, !state.needsVisible);
+}
+
 function renderCompass(heading) {
 	if (!Number.isFinite(heading)) {
-		compassRailEl.replaceChildren();
+		compassTrackEl.replaceChildren();
 		return;
 	}
 
 	const fragment = document.createDocumentFragment();
-	const startHeading = Math.floor((heading - COMPASS_VIEW_RANGE) / COMPASS_TICK_INTERVAL) * COMPASS_TICK_INTERVAL;
-	const endHeading = Math.ceil((heading + COMPASS_VIEW_RANGE) / COMPASS_TICK_INTERVAL) * COMPASS_TICK_INTERVAL;
+	for (let tickOffset = -COMPASS_VIEW_RANGE; tickOffset <= COMPASS_VIEW_RANGE; tickOffset += COMPASS_TICK_INTERVAL) {
+		const tickHeading = normalizeHeading(heading + tickOffset);
+		const isMajor = tickHeading % 15 === 0;
+		const isCardinal = tickHeading % 45 === 0;
 
-	for (let tickHeading = startHeading; tickHeading <= endHeading; tickHeading += COMPASS_TICK_INTERVAL) {
-		const delta = getWrappedHeadingDelta(tickHeading, heading);
-		if (Math.abs(delta) > COMPASS_VIEW_RANGE) {
-			continue;
-		}
-
-		const normalizedTickHeading = normalizeHeading(tickHeading);
-		const positionPercent = 50 + (delta / COMPASS_VIEW_RANGE) * 50;
-		const isCardinal = normalizedTickHeading % COMPASS_CARDINAL_INTERVAL === 0;
-		const isMajor = normalizedTickHeading % COMPASS_MAJOR_INTERVAL === 0;
-
-		const tickEl = document.createElement('div');
-		tickEl.className = 'hud-compass__tick';
+		const markerEl = document.createElement('div');
+		markerEl.className = 'marker';
 		if (isMajor) {
-			tickEl.classList.add('hud-compass__tick--major');
+			markerEl.classList.add('marker--major');
 		}
 		if (isCardinal) {
-			tickEl.classList.add('hud-compass__tick--cardinal');
+			markerEl.classList.add('marker--bold');
 		}
-		tickEl.style.left = `${positionPercent}%`;
-		fragment.appendChild(tickEl);
+		markerEl.style.transform = `translateX(${tickOffset * 10}px)`;
 
-		if (isMajor) {
-			const labelEl = document.createElement('div');
-			labelEl.className = 'hud-compass__label';
-			if (isCardinal) {
-				labelEl.classList.add('hud-compass__label--cardinal');
-			}
-			labelEl.style.left = `${positionPercent}%`;
-			labelEl.textContent = DIRECTION_LABELS[normalizedTickHeading] || String(normalizedTickHeading);
-			fragment.appendChild(labelEl);
+		const lineEl = document.createElement('span');
+		lineEl.className = 'marker-line';
+		markerEl.appendChild(lineEl);
+
+		if (isCardinal) {
+			const labelEl = document.createElement('span');
+			labelEl.className = 'marker-label';
+			labelEl.textContent = CARDINAL_LABELS[tickHeading] || '';
+			markerEl.appendChild(labelEl);
 		}
+
+		fragment.appendChild(markerEl);
 	}
 
-	compassRailEl.replaceChildren(fragment);
+	compassTrackEl.replaceChildren(fragment);
 }
 
-function renderHud(payload) {
-	if (!payload || typeof payload !== 'object') {
-		return;
+function renderVehicle() {
+	const vehicle = state.vehicle;
+	const heading = normalizeHeading(vehicle.heading);
+
+	setText(vehicleNameEl, vehicle.vehicleName || 'Vehicle');
+	setText(speedValueEl, Math.max(0, Math.floor(Number(vehicle.speed) || 0)));
+	setText(headingNumberEl, Math.round(heading).toString().padStart(3, '0'));
+	setText(headingCardinalEl, getCardinalLabel(heading));
+	setText(streetValueEl, vehicle.street || 'Unknown Road');
+	setText(areaValueEl, vehicle.area || 'San Andreas');
+
+	renderCompass(heading);
+}
+
+function easeOutCubic(progress) {
+	const clamped = Math.max(0, Math.min(1, Number(progress) || 0));
+	return 1 - ((1 - clamped) ** 3);
+}
+
+function interpolateNeedsValue(fromValue, toValue, progress) {
+	if (toValue == null) {
+		return null;
 	}
 
-	const showCompass = payload.showCompass === true;
-	const showDirection = payload.showDirection === true && Boolean(payload.direction);
-	const showHeading = payload.showHeading === true && Boolean(payload.heading);
-	const showStreet = payload.showStreet === true && Boolean(payload.street);
+	const numericTo = Math.max(0, Math.min(100, Number(toValue) || 0));
+	const numericFrom = fromValue == null ? numericTo : Math.max(0, Math.min(100, Number(fromValue) || 0));
+	return numericFrom + ((numericTo - numericFrom) * progress);
+}
 
-	setHidden(compassSectionEl, !showCompass);
-	setHidden(directionValueEl, !showDirection);
-	setHidden(headingValueEl, !showHeading);
-	setHidden(streetValueEl, !showStreet);
-
-	if (showStreet) {
-		setText(streetValueEl, payload.street);
+function stopNeedsAnimation() {
+	if (needsAnimationState.frameId !== null) {
+		cancelAnimationFrame(needsAnimationState.frameId);
+		needsAnimationState.frameId = null;
 	}
+}
 
-	if (showDirection) {
-		setText(directionValueEl, payload.direction);
-	}
+function animateNeeds() {
+	stopNeedsAnimation();
 
-	if (showHeading) {
-		setText(headingValueEl, payload.heading);
-	}
+	needsAnimationState.startedAt = performance.now();
+	needsAnimationState.from = {
+		hunger: state.animatedNeeds.hunger,
+		thirst: state.animatedNeeds.thirst
+	};
+	needsAnimationState.to = {
+		hunger: state.needs.hunger,
+		thirst: state.needs.thirst
+	};
 
-	setText(xValueEl, payload.x || '0.00');
-	setText(yValueEl, payload.y || '0.00');
-	setText(zValueEl, payload.z || '0.00');
+	const step = (timestamp) => {
+		const elapsedMs = timestamp - needsAnimationState.startedAt;
+		const progress = easeOutCubic(elapsedMs / NEEDS_ANIMATION_DURATION_MS);
 
-	if (showCompass) {
-		renderCompass(Number(payload.compassHeading));
+		state.animatedNeeds = {
+			hunger: interpolateNeedsValue(needsAnimationState.from.hunger, needsAnimationState.to.hunger, progress),
+			thirst: interpolateNeedsValue(needsAnimationState.from.thirst, needsAnimationState.to.thirst, progress)
+		};
+
+		renderNeeds();
+
+		if (progress < 1) {
+			needsAnimationState.frameId = requestAnimationFrame(step);
+			return;
+		}
+
+		state.animatedNeeds = {
+			hunger: needsAnimationState.to.hunger,
+			thirst: needsAnimationState.to.thirst
+		};
+		renderNeeds();
+		needsAnimationState.frameId = null;
+	};
+
+	needsAnimationState.frameId = requestAnimationFrame(step);
+}
+
+function renderNeeds() {
+	const hungerPercent = Math.max(0, Math.min(100, Math.round(Number(state.animatedNeeds.hunger) || 0)));
+	const thirstPercent = state.animatedNeeds.thirst == null
+		? null
+		: Math.max(0, Math.min(100, Math.round(Number(state.animatedNeeds.thirst) || 0)));
+
+	const hungerFillHeight = (hungerPercent / 100) * 64;
+	hungerFillRectEl.setAttribute('y', String(64 - hungerFillHeight));
+	hungerFillRectEl.setAttribute('height', String(hungerFillHeight));
+	setText(hungerLabelEl, `${hungerPercent}%`);
+	hungerIndicatorEl.setAttribute('aria-label', `Hunger ${hungerPercent}%`);
+	hungerIndicatorEl.classList.toggle('is-low', hungerPercent > 10 && hungerPercent <= 25);
+	hungerIndicatorEl.classList.toggle('is-critical', hungerPercent <= 10);
+
+	if (thirstPercent == null) {
+		setHidden(thirstIndicatorEl, true);
 	}
 	else {
-		compassRailEl.replaceChildren();
+		setHidden(thirstIndicatorEl, false);
+		const thirstFillHeight = (thirstPercent / 100) * 64;
+		thirstFillRectEl.setAttribute('y', String(64 - thirstFillHeight));
+		thirstFillRectEl.setAttribute('height', String(thirstFillHeight));
+		setText(thirstLabelEl, `${thirstPercent}%`);
+		thirstIndicatorEl.setAttribute('aria-label', `Thirst ${thirstPercent}%`);
+		thirstIndicatorEl.classList.toggle('is-low', thirstPercent > 10 && thirstPercent <= 25);
+		thirstIndicatorEl.classList.toggle('is-critical', thirstPercent <= 10);
 	}
 }
 
 window.addEventListener('message', (event) => {
 	const message = event.data || {};
-
-	if (message.action === 'visibility') {
-		setVisible(message.visible === true);
+	if (!message || typeof message !== 'object' || !message.action) {
 		return;
 	}
 
-	if (message.action === 'hud') {
-		renderHud(message.payload || {});
+	if (message.action === 'vehicleCompass:show' || message.action === 'vehicleCompass:update') {
+		state.vehicleVisible = true;
+		state.vehicle = {
+			...state.vehicle,
+			...(message.data || {})
+		};
+		renderVehicle();
+		updateRootVisibility();
+		return;
+	}
+
+	if (message.action === 'vehicleCompass:hide') {
+		state.vehicleVisible = false;
+		updateRootVisibility();
+		return;
+	}
+
+	if (message.action === 'playerNeeds:show' || message.action === 'playerNeeds:update') {
+		state.needsVisible = true;
+		state.needs = {
+			...state.needs,
+			...(message.data || {})
+		};
+		animateNeeds();
+		updateRootVisibility();
+		return;
+	}
+
+	if (message.action === 'playerNeeds:hide') {
+		state.needsVisible = false;
+		stopNeedsAnimation();
+		updateRootVisibility();
 	}
 });
 
-setVisible(false);
+updateRootVisibility();

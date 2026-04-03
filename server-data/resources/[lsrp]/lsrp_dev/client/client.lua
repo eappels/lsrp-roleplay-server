@@ -470,6 +470,8 @@ end
 
 local function runReviveAction()
 	local ped = PlayerPedId()
+    TriggerEvent('lsrp_hunger:client:revive')
+    TriggerEvent('lsrp_thirst:client:revive')
 	if IsEntityDead(ped) then
 		local pos = GetEntityCoords(ped)
 		local heading = GetEntityHeading(ped)

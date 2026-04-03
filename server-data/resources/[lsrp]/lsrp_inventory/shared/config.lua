@@ -56,8 +56,8 @@ Config.Items = {
 			consumeAmount = 1,
 			requireOnFoot = true,
 			effect = {
-				type = 'hunger',
-				amount = 12
+				type = 'thirst',
+				amount = 50
 			}
 		}
 	},

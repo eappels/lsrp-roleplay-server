@@ -1,11 +1,11 @@
-local function getHungerConfig()
-	return (Config and Config.Hunger) or {}
+local function getThirstConfig()
+	return (Config and Config.Thirst) or {}
 end
 
-local currentHunger = nil
-local hungerCollapseActive = false
-local hungerCollapseStartedAt = 0
-local hungerKnockoutPoseApplied = false
+local currentThirst = nil
+local thirstCollapseActive = false
+local thirstCollapseStartedAt = 0
+local thirstKnockoutPoseApplied = false
 
 local KNOCKOUT_ANIM_DICT = 'dead'
 local KNOCKOUT_ANIM_NAME = 'dead_a'
@@ -16,32 +16,32 @@ local BLOCKED_CONTROLS = {
 	21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 44, 45, 75, 140, 141, 142, 143
 }
 
-local function getMaxHunger()
-	return math.max(1, math.floor(tonumber(getHungerConfig().maxHunger) or 100))
+local function getMaxThirst()
+	return math.max(1, math.floor(tonumber(getThirstConfig().maxThirst) or 100))
 end
 
-local function normalizeHunger(value)
-	local hunger = math.floor(tonumber(value) or getMaxHunger())
-	if hunger < 0 then
+local function normalizeThirst(value)
+	local thirst = math.floor(tonumber(value) or getMaxThirst())
+	if thirst < 0 then
 		return 0
 	end
 
-	local maxHunger = getMaxHunger()
-	if hunger > maxHunger then
-		return maxHunger
+	local maxThirst = getMaxThirst()
+	if thirst > maxThirst then
+		return maxThirst
 	end
 
-	return hunger
+	return thirst
 end
 
-local function getHungerPercentValue(hunger)
-	local maxHunger = getMaxHunger()
-	if maxHunger <= 0 then
-		maxHunger = 100
+local function getThirstPercentValue(thirst)
+	local maxThirst = getMaxThirst()
+	if maxThirst <= 0 then
+		maxThirst = 100
 	end
 
-	hunger = normalizeHunger(hunger)
-	return math.floor(((hunger / maxHunger) * 100.0) + 0.5)
+	thirst = normalizeThirst(thirst)
+	return math.floor(((thirst / maxThirst) * 100.0) + 0.5)
 end
 
 local function showNotification(message)
@@ -54,14 +54,14 @@ local function showNotification(message)
 	AddTextComponentSubstringPlayerName(text)
 	EndTextCommandThefeedPostTicker(false, false)
 	if text ~= '' then
-		print(('[lsrp_hunger] %s'):format(text))
+		print(('[lsrp_thirst] %s'):format(text))
 	end
 end
 
-local function clearHungerCollapseState()
-	hungerCollapseActive = false
-	hungerCollapseStartedAt = 0
-	hungerKnockoutPoseApplied = false
+local function clearThirstCollapseState()
+	thirstCollapseActive = false
+	thirstCollapseStartedAt = 0
+	thirstKnockoutPoseApplied = false
 
 	local ped = PlayerPedId()
 	if ped ~= 0 and DoesEntityExist(ped) and not IsEntityDead(ped) then
@@ -111,20 +111,20 @@ local function disableCollapseControls()
 	end
 end
 
-RegisterNetEvent('lsrp_hunger:client:update', function(hunger)
-	currentHunger = normalizeHunger(hunger)
-	TriggerEvent('lsrp_hud:client:setNeedPercent', 'hunger', getHungerPercentValue(currentHunger))
+RegisterNetEvent('lsrp_thirst:client:update', function(thirst)
+	currentThirst = normalizeThirst(thirst)
+	TriggerEvent('lsrp_hud:client:setNeedPercent', 'thirst', getThirstPercentValue(currentThirst))
 end)
 
-RegisterNetEvent('lsrp_hunger:client:notify', function(message)
+RegisterNetEvent('lsrp_thirst:client:notify', function(message)
 	showNotification(message)
 end)
 
-RegisterNetEvent('lsrp_hunger:client:revive', function()
-	clearHungerCollapseState()
+RegisterNetEvent('lsrp_thirst:client:revive', function()
+	clearThirstCollapseState()
 end)
 
-RegisterNetEvent('lsrp_hunger:client:applyDamage', function(amount)
+RegisterNetEvent('lsrp_thirst:client:applyDamage', function(amount)
 	local damage = math.max(0, math.floor(tonumber(amount) or 0))
 	if damage <= 0 then
 		return
@@ -148,31 +148,31 @@ AddEventHandler('onClientResourceStart', function(resourceName)
 		return
 	end
 
-	TriggerServerEvent('lsrp_hunger:server:requestSync')
+	TriggerServerEvent('lsrp_thirst:server:requestSync')
 end)
 
 AddEventHandler('playerSpawned', function()
-	clearHungerCollapseState()
-	TriggerServerEvent('lsrp_hunger:server:requestSync')
+	clearThirstCollapseState()
+	TriggerServerEvent('lsrp_thirst:server:requestSync')
 end)
 
-exports('getCurrentHunger', function()
-	if currentHunger ~= nil then
-		return currentHunger
+exports('getCurrentThirst', function()
+	if currentThirst ~= nil then
+		return currentThirst
 	end
 
-	return normalizeHunger(LocalPlayer and LocalPlayer.state and LocalPlayer.state.lsrp_hunger)
+	return normalizeThirst(LocalPlayer and LocalPlayer.state and LocalPlayer.state.lsrp_thirst)
 end)
 
-exports('getMaxHunger', function()
-	return getMaxHunger()
+exports('getMaxThirst', function()
+	return getMaxThirst()
 end)
 
 CreateThread(function()
 	while true do
 		Wait(0)
 
-		if currentHunger == nil then
+		if currentThirst == nil then
 			goto continue
 		end
 
@@ -181,23 +181,23 @@ CreateThread(function()
 			goto continue
 		end
 
-		if currentHunger <= 0 and not hungerCollapseActive then
-			hungerCollapseActive = true
-			hungerCollapseStartedAt = GetGameTimer()
-			hungerKnockoutPoseApplied = false
-			showNotification('You collapse from starvation and cannot move.')
+		if currentThirst <= 0 and not thirstCollapseActive then
+			thirstCollapseActive = true
+			thirstCollapseStartedAt = GetGameTimer()
+			thirstKnockoutPoseApplied = false
+			showNotification('You collapse from dehydration and cannot move.')
 			FreezeEntityPosition(ped, false)
 			SetPedCanRagdoll(ped, true)
 			applyCollapseRagdoll(ped)
 		end
 
-		if not hungerCollapseActive then
+		if not thirstCollapseActive then
 			goto continue
 		end
 
 		disableCollapseControls()
-		if not hungerKnockoutPoseApplied and hungerCollapseStartedAt > 0 and (GetGameTimer() - hungerCollapseStartedAt) >= COLLAPSE_POSE_DELAY_MS then
-			hungerKnockoutPoseApplied = true
+		if not thirstKnockoutPoseApplied and thirstCollapseStartedAt > 0 and (GetGameTimer() - thirstCollapseStartedAt) >= COLLAPSE_POSE_DELAY_MS then
+			thirstKnockoutPoseApplied = true
 			applyKnockedOutPose(ped)
 		end
 

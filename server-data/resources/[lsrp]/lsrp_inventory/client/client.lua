@@ -312,6 +312,116 @@ local function clampNumber(value, minValue, maxValue)
 	return value
 end
 
+local function getNeedPreviewState(effect)
+	if type(effect) ~= 'table' then
+		return nil
+	end
+
+	local effectType = tostring(effect.type or '')
+	local amount = math.max(0, math.floor(tonumber(effect.amount) or 0))
+	if amount <= 0 then
+		return nil
+	end
+
+	if effectType == 'hunger' and GetResourceState('lsrp_hunger') == 'started' then
+		local okCurrent, currentHunger = pcall(function()
+			return exports['lsrp_hunger']:getCurrentHunger()
+		end)
+		local okMax, maxHunger = pcall(function()
+			return exports['lsrp_hunger']:getMaxHunger()
+		end)
+		if okCurrent then
+			local currentValue = math.max(0, math.floor(tonumber(currentHunger) or 0))
+			local maxValue = math.max(1, math.floor(tonumber(okMax and maxHunger or 100) or 100))
+			return {
+				needType = 'hunger',
+				startValue = currentValue,
+				targetValue = math.min(maxValue, currentValue + amount),
+				maxValue = maxValue
+			}
+		end
+		return nil
+	end
+
+	if effectType == 'thirst' and GetResourceState('lsrp_thirst') == 'started' then
+		local okCurrent, currentThirst = pcall(function()
+			return exports['lsrp_thirst']:getCurrentThirst()
+		end)
+		local okMax, maxThirst = pcall(function()
+			return exports['lsrp_thirst']:getMaxThirst()
+		end)
+		if okCurrent then
+			local currentValue = math.max(0, math.floor(tonumber(currentThirst) or 0))
+			local maxValue = math.max(1, math.floor(tonumber(okMax and maxThirst or 100) or 100))
+			return {
+				needType = 'thirst',
+				startValue = currentValue,
+				targetValue = math.min(maxValue, currentValue + amount),
+				maxValue = maxValue
+			}
+		end
+		return nil
+	end
+
+	return nil
+end
+
+local function pushNeedPreview(previewState, progress)
+	if type(previewState) ~= 'table' then
+		return
+	end
+
+	local clampedProgress = clampNumber(tonumber(progress) or 0.0, 0.0, 1.0)
+	local startValue = math.max(0, math.floor(tonumber(previewState.startValue) or 0))
+	local targetValue = math.max(startValue, math.floor(tonumber(previewState.targetValue) or startValue))
+	local maxValue = math.max(1, math.floor(tonumber(previewState.maxValue) or 100))
+	local previewValue = math.floor(startValue + ((targetValue - startValue) * clampedProgress) + 0.5)
+	local previewPercent = math.floor(((previewValue / maxValue) * 100.0) + 0.5)
+
+	TriggerEvent('lsrp_hud:client:setNeedPercent', tostring(previewState.needType or ''), previewPercent)
+	if tostring(previewState.needType or '') == 'hunger' then
+		TriggerEvent('lsrp_hunger:client:update', previewValue)
+	elseif tostring(previewState.needType or '') == 'thirst' then
+		TriggerEvent('lsrp_thirst:client:update', previewValue)
+	end
+	end
+
+local function pushCurrentNeedPercent(needType)
+	local normalizedType = tostring(needType or '')
+	if normalizedType == 'hunger' and GetResourceState('lsrp_hunger') == 'started' then
+		local okCurrent, currentValue = pcall(function()
+			return exports['lsrp_hunger']:getCurrentHunger()
+		end)
+		local okMax, maxValue = pcall(function()
+			return exports['lsrp_hunger']:getMaxHunger()
+		end)
+		if okCurrent then
+			local maxHunger = math.max(1, math.floor(tonumber(okMax and maxValue or 100) or 100))
+			local hunger = math.max(0, math.min(maxHunger, math.floor(tonumber(currentValue) or 0)))
+			local percent = math.floor(((hunger / maxHunger) * 100.0) + 0.5)
+			TriggerEvent('lsrp_hunger:client:update', hunger)
+			TriggerEvent('lsrp_hud:client:setNeedPercent', 'hunger', percent)
+		end
+		return
+	end
+
+	if normalizedType == 'thirst' and GetResourceState('lsrp_thirst') == 'started' then
+		local okCurrent, currentValue = pcall(function()
+			return exports['lsrp_thirst']:getCurrentThirst()
+		end)
+		local okMax, maxValue = pcall(function()
+			return exports['lsrp_thirst']:getMaxThirst()
+		end)
+		if okCurrent then
+			local maxThirst = math.max(1, math.floor(tonumber(okMax and maxValue or 100) or 100))
+			local thirst = math.max(0, math.min(maxThirst, math.floor(tonumber(currentValue) or 0)))
+			local percent = math.floor(((thirst / maxThirst) * 100.0) + 0.5)
+			TriggerEvent('lsrp_thirst:client:update', thirst)
+			TriggerEvent('lsrp_hud:client:setNeedPercent', 'thirst', percent)
+		end
+	end
+end
+
 local function getVehicleDistanceFromPoint(vehicle, worldPoint)
 	if vehicle == 0 or not DoesEntityExist(vehicle) or type(worldPoint) ~= 'vector3' then
 		return math.huge
@@ -864,6 +974,34 @@ local function canApplyUseEffect(effect, context)
 		return true, nil
 	end
 
+	if tostring(effect.type or '') == 'thirst' then
+		if GetResourceState('lsrp_thirst') ~= 'started' then
+			return false, 'Thirst service is unavailable right now.'
+		end
+
+		local maxThirst = 100
+		local okMaxThirst, exportedMaxThirst = pcall(function()
+			return exports['lsrp_thirst']:getMaxThirst()
+		end)
+		if okMaxThirst then
+			maxThirst = math.max(1, math.floor(tonumber(exportedMaxThirst) or maxThirst))
+		end
+
+		local currentThirst = nil
+		local okCurrentThirst, exportedCurrentThirst = pcall(function()
+			return exports['lsrp_thirst']:getCurrentThirst()
+		end)
+		if okCurrentThirst then
+			currentThirst = tonumber(exportedCurrentThirst)
+		end
+
+		if currentThirst and currentThirst >= maxThirst then
+			return false, 'You are not thirsty right now.'
+		end
+
+		return true, nil
+	end
+
 	return true, nil
 end
 
@@ -1196,9 +1334,14 @@ RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
 		end
 
 		local deadline = GetGameTimer() + durationMs
+		local previewState = getNeedPreviewState(useData.effect)
 		local cancelled = false
 		while GetGameTimer() < deadline do
 			Citizen.Wait(0)
+			if previewState then
+				local progress = clampNumber(1.0 - ((deadline - GetGameTimer()) / durationMs), 0.0, 1.0)
+				pushNeedPreview(previewState, progress)
+			end
 			DisableControlAction(0, 24, true)
 			DisableControlAction(0, 25, true)
 			DisableControlAction(0, 37, true)
@@ -1216,6 +1359,9 @@ RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
 
 		finishUseAnimation()
 		if cancelled then
+			if previewState then
+				pushCurrentNeedPercent(previewState.needType)
+			end
 			activeUseContext = nil
 			TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
 			notifyLocal(('Using %s was interrupted.'):format(itemLabel))
@@ -1224,12 +1370,18 @@ RegisterNetEvent('lsrp_inventory:client:startUseItem', function(payload)
 
 		local effectAllowed, effectError = canApplyUseEffect(useData.effect, activeUseContext)
 		if effectAllowed ~= true then
+			if previewState then
+				pushCurrentNeedPercent(previewState.needType)
+			end
 			activeUseContext = nil
 			TriggerServerEvent('lsrp_inventory:server:cancelUseItem', token)
 			notifyLocal(effectError or ('Could not use %s right now.'):format(itemLabel))
 			return
 		end
 
+		if previewState then
+			pushNeedPreview(previewState, 1.0)
+		end
 		TriggerServerEvent('lsrp_inventory:server:completeUseItem', token)
 	end)
 end)

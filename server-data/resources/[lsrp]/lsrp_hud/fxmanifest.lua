@@ -16,6 +16,8 @@ client_scripts {
 
 files {
 	'ui/index.html',
+	'ui/hud.css',
+	'ui/hud.js',
 	'ui/assets/app.css',
 	'ui/assets/app.js'
 }
