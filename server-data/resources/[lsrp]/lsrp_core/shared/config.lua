@@ -5,6 +5,12 @@
 
 lsrpConfig = {}
 
+-- When false, only players with the maintenance bypass ACE may connect.
+lsrpConfig.allowPlayerConnections = true
+lsrpConfig.connectionClosedBypassAce = 'lsrp.core.connect_when_closed'
+lsrpConfig.enableConnectionQueue = true
+lsrpConfig.connectionQueueUpdateIntervalMs = 3000
+
 -- Default ped model used when no saved outfit is found.
 lsrpConfig.defaultMalePedModel = 'mp_m_freemode_01'
 lsrpConfig.defaultFemalePedModel = 'mp_f_freemode_01'

@@ -740,6 +740,31 @@ body.show-phone .phone {
     letter-spacing: -0.04em;
 }
 
+.balance-breakdown {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(184, 214, 242, 0.12);
+}
+
+.balance-breakdown-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.balance-breakdown-label {
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.balance-breakdown-value {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+}
+
 .balance-status,
 .balance-meta,
 .call-meta,

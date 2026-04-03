@@ -836,6 +836,34 @@ local function canApplyUseEffect(effect, context)
 		return false, 'Stand next to an ATM to use the hacking device.'
 	end
 
+	if tostring(effect.type or '') == 'hunger' then
+		if GetResourceState('lsrp_hunger') ~= 'started' then
+			return false, 'Hunger service is unavailable right now.'
+		end
+
+		local maxHunger = 100
+		local okMaxHunger, exportedMaxHunger = pcall(function()
+			return exports['lsrp_hunger']:getMaxHunger()
+		end)
+		if okMaxHunger then
+			maxHunger = math.max(1, math.floor(tonumber(exportedMaxHunger) or maxHunger))
+		end
+
+		local currentHunger = nil
+		local okCurrentHunger, exportedCurrentHunger = pcall(function()
+			return exports['lsrp_hunger']:getCurrentHunger()
+		end)
+		if okCurrentHunger then
+			currentHunger = tonumber(exportedCurrentHunger)
+		end
+
+		if currentHunger and currentHunger >= maxHunger then
+			return false, 'You are not hungry right now.'
+		end
+
+		return true, nil
+	end
+
 	return true, nil
 end
 
@@ -919,6 +947,13 @@ RegisterNetEvent('lsrp_inventory:client:receiveInventory', function(inventory)
 	else
 		setUiOpen(true)
 	end
+end)
+
+RegisterNetEvent('lsrp_inventory:client:openInventoryWithStash', function(inventory, targetPayload)
+	latestInventory = normalizeInventoryPayload(inventory)
+	latestTransferTarget = nil
+	latestStashTarget = type(targetPayload) == 'table' and targetPayload or nil
+	setUiOpen(true)
 end)
 
 RegisterNetEvent('lsrp_inventory:client:syncInventory', function(inventory)

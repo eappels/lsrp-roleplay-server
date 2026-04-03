@@ -33,7 +33,11 @@ Config.Items = {
 			flag = 49,
 			durationMs = 10000,
 			consumeAmount = 1,
-			requireOnFoot = true
+			requireOnFoot = true,
+			effect = {
+				type = 'hunger',
+				amount = 35
+			}
 		}
 	},
 	cola = {
@@ -41,7 +45,21 @@ Config.Items = {
 		weight = 150,
 		maxStack = 10,
 		image = 'cola-Db24EFMX.png',
-		description = 'Cold sugar in a can.'
+		description = 'Cold sugar in a can.',
+		use = {
+			label = 'Drink',
+			mode = 'anim',
+			animDict = 'mp_player_intdrink',
+			animName = 'loop_bottle',
+			flag = 49,
+			durationMs = 7000,
+			consumeAmount = 1,
+			requireOnFoot = true,
+			effect = {
+				type = 'hunger',
+				amount = 12
+			}
+		}
 	},
 	bandage = {
 		label = 'Bandage',

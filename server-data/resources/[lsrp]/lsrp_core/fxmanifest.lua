@@ -10,6 +10,7 @@ shared_scripts {
 
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
+    'server/connection_gate.lua',
     'server/identity.lua',
     'server/characters.lua',
     'server/prejoin_auth.lua',

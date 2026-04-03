@@ -27,7 +27,9 @@ const uiState = {
 
 const balanceState = {
     rawBalance: 0,
+    rawCash: 0,
     formattedBalance: 'LS$0',
+    formattedCash: 'LS$0',
     available: true,
     updatedAt: null
 };
@@ -292,19 +294,27 @@ function loadBalance() {
     postNui('getBalance');
 }
 
-function setBalance(balance, formattedBalance, available) {
+function setBalance(balance, formattedBalance, cash, formattedCash, available) {
     const numericBalance = Number.isFinite(Number(balance))
         ? Math.max(0, Math.floor(Number(balance)))
         : 0;
+    const numericCash = Number.isFinite(Number(cash))
+        ? Math.max(0, Math.floor(Number(cash)))
+        : 0;
 
     balanceState.rawBalance = numericBalance;
+    balanceState.rawCash = numericCash;
     balanceState.formattedBalance = typeof formattedBalance === 'string' && formattedBalance
         ? formattedBalance
         : `LS$${numericBalance}`;
+    balanceState.formattedCash = typeof formattedCash === 'string' && formattedCash
+        ? formattedCash
+        : `LS$${numericCash}`;
     balanceState.available = available !== false;
     balanceState.updatedAt = new Date();
 
     const balanceValue = document.getElementById('balance-value');
+    const cashValue = document.getElementById('cash-value');
     const balanceStatus = document.getElementById('balance-status');
     const balanceMeta = document.getElementById('balance-meta');
 
@@ -312,9 +322,13 @@ function setBalance(balance, formattedBalance, available) {
         balanceValue.innerText = balanceState.formattedBalance;
     }
 
+    if (cashValue) {
+        cashValue.innerText = balanceState.formattedCash;
+    }
+
     if (balanceStatus) {
         balanceStatus.innerText = balanceState.available
-            ? 'Synced with your LS$ account.'
+            ? 'Synced with your LS$ account and carried cash.'
             : 'Economy service is unavailable right now.';
     }
 
@@ -1863,7 +1877,7 @@ window.addEventListener('message', (event) => {
         setCallStatus(data.message || '');
         updateCallUI();
     } else if (data.action === 'setBalance') {
-        setBalance(data.balance, data.formattedBalance, data.available);
+        setBalance(data.balance, data.formattedBalance, data.cash, data.formattedCash, data.available);
     } else if (data.action === 'setPhoneNumber') {
         setMyPhoneNumber(data.phoneNumber);
     }

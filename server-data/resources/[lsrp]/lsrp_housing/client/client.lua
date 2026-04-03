@@ -8,6 +8,8 @@ local pendingListAction = nil
 local housingBlips = {}
 local nuiReady = false
 local pendingUiOpenRequest = nil
+local pendingSpawnApartmentRestoreLocation = nil
+local nextSpawnApartmentRestoreAttemptAt = 0
 
 local function isHousingNuiEnabled()
 	return Config and Config.EnableNui == true
@@ -285,6 +287,16 @@ local function isInteractControlJustPressed()
 		or IsDisabledControlJustPressed(1, control)
 end
 
+local function requestApartmentStorageAccess(locationIndex)
+	if not (currentApartment and trimString(currentApartment.apartment_number)) then
+		notify('Apartment storage is still loading. Try again in a moment.')
+		return
+	end
+
+	TriggerServerEvent('lsrp_housing:requestStorageAccess', currentApartment.apartment_number, tonumber(locationIndex)
+		or tonumber(currentApartment.location_index))
+end
+
 local function drawInteractionMarker(point)
 	if type(point) ~= 'table' then
 		return
@@ -559,7 +571,7 @@ local function leaveApartment(locationIndexOverride)
 
 	local location = getLocation(locationIndex)
 	local destination = location and (location.exteriorSpawn or location.entry) or nil
-	TriggerServerEvent('lsrp_housing:setBucket', 0)
+	TriggerServerEvent('lsrp_housing:leaveCurrentApartment')
 	if destination then
 		local exteriorDestination = {
 			x = destination.x,
@@ -570,6 +582,8 @@ local function leaveApartment(locationIndexOverride)
 		teleportPlayer(exteriorDestination)
 	end
 	currentApartment = nil
+	pendingSpawnApartmentRestoreLocation = nil
+	nextSpawnApartmentRestoreAttemptAt = 0
 end
 
 RegisterNetEvent('lsrp_housing:ownedList', function(apartments)
@@ -657,6 +671,19 @@ RegisterNetEvent('lsrp_housing:enterResult', function(success, message, apartmen
 	end
 
 	enterApartment(apartment)
+end)
+
+RegisterNetEvent('lsrp_housing:restoreApartmentContext', function(locationIndex, apartment)
+	locationIndex = tonumber(locationIndex) or locationIndex
+	pendingSpawnApartmentRestoreLocation = nil
+
+	if type(apartment) ~= 'table' then
+		nextSpawnApartmentRestoreAttemptAt = GetGameTimer() + 2000
+		return
+	end
+
+	currentApartment = apartment
+	nextSpawnApartmentRestoreAttemptAt = 0
 end)
 
 RegisterNUICallback('close', function(_, cb)
@@ -820,6 +847,8 @@ AddEventHandler('onResourceStop', function(resourceName)
 		TriggerServerEvent('lsrp_housing:setBucket', 0)
 		currentApartment = nil
 	end
+	pendingSpawnApartmentRestoreLocation = nil
+	nextSpawnApartmentRestoreAttemptAt = 0
 	nuiReady = false
 
 	for _, blip in ipairs(housingBlips) do
@@ -845,6 +874,8 @@ AddEventHandler('onClientResourceStart', function(resourceName)
 	createHousingBlips()
 	TriggerServerEvent('lsrp_housing:setBucket', 0)
 	currentApartment = nil
+	pendingSpawnApartmentRestoreLocation = nil
+	nextSpawnApartmentRestoreAttemptAt = 0
 	TriggerServerEvent('lsrp_housing:requestOwned')
 	TriggerServerEvent('lsrp_housing:requestAvailable')
 	TriggerEvent('chat:addSuggestion', ('/%s'):format(getCommandName('available', 'housingavailable')), 'List available apartments', {
@@ -889,18 +920,16 @@ CreateThread(function()
 			if inferredLocationIndex and activeLocation then
 				activeApartment = { location_index = inferredLocationIndex }
 
-				-- If we detect the player is inside an interior shell for a location
-				-- and the client knows exactly one owned apartment at that location,
-				-- assume the player spawned inside that apartment and set the
-				-- routing bucket on the server so storage access works immediately.
-				if not currentApartment then
-					local ownedAtLocation = findOwnedApartmentsForLocation(inferredLocationIndex)
-					if type(ownedAtLocation) == 'table' and #ownedAtLocation == 1 then
-						currentApartment = ownedAtLocation[1]
-						TriggerServerEvent('lsrp_housing:setBucket', currentApartment.bucket)
-					end
+				if not currentApartment
+					and pendingSpawnApartmentRestoreLocation ~= inferredLocationIndex
+					and GetGameTimer() >= nextSpawnApartmentRestoreAttemptAt then
+					pendingSpawnApartmentRestoreLocation = inferredLocationIndex
+					TriggerServerEvent('lsrp_housing:requestSpawnApartmentContext')
 				end
 			end
+		else
+			pendingSpawnApartmentRestoreLocation = nil
+			nextSpawnApartmentRestoreAttemptAt = 0
 		end
 
 		if activeApartment and activeLocation then
@@ -924,7 +953,7 @@ CreateThread(function()
 			end
 
 			local storageCoords = toVector3(storagePoint)
-			if currentApartment and storageCoords then
+			if storageCoords then
 				local distance = #(playerCoords - storageCoords)
 				if distance <= markerDistance then
 					waitMs = 0
@@ -938,7 +967,7 @@ CreateThread(function()
 			if storageDistance and (not nearestExitDistance or storageDistance <= nearestExitDistance) then
 				showHelpText((Config and Config.Text and Config.Text.storagePrompt) or 'Press ~INPUT_CONTEXT~ to open apartment storage')
 				if isInteractControlJustPressed() then
-					TriggerServerEvent('lsrp_housing:requestStorageAccess', currentApartment.apartment_number)
+					requestApartmentStorageAccess(activeApartment and activeApartment.location_index or nil)
 				end
 			elseif nearestExitDistance then
 				showHelpText((Config and Config.Text and Config.Text.exitPrompt) or 'Press ~INPUT_CONTEXT~ to leave your apartment')

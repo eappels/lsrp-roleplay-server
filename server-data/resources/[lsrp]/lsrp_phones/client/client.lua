@@ -65,12 +65,15 @@ local function formatFallbackBalance(balance)
 	return 'LS$' .. formatted
 end
 
--- Returns the current player balance as (number, formattedString, economyAvailable).
--- Prefers the lsrp_economy export when that resource is running; falls back to the
--- ls_balance player state bag otherwise.
+-- Returns the current player finances as
+-- (balance, formattedBalance, cash, formattedCash, economyAvailable).
+-- Prefers the lsrp_economy exports when that resource is running; falls back to
+-- player state bag values otherwise.
 local function getBalanceSnapshot()
 	local balance = math.max(0, math.floor(tonumber(LocalPlayer.state.ls_balance) or 0))
+	local cash = math.max(0, math.floor(tonumber(LocalPlayer.state.ls_cash) or 0))
 	local formattedBalance = formatFallbackBalance(balance)
+	local formattedCash = formatFallbackBalance(cash)
 	local economyAvailable = GetResourceState('lsrp_economy') == 'started'
 
 	if economyAvailable then
@@ -82,6 +85,14 @@ local function getBalanceSnapshot()
 			balance = math.max(0, math.floor(tonumber(exportedBalance) or 0))
 		end
 
+		local okCash, exportedCash = pcall(function()
+			return exports['lsrp_economy']:getCash()
+		end)
+
+		if okCash and exportedCash ~= nil then
+			cash = math.max(0, math.floor(tonumber(exportedCash) or 0))
+		end
+
 		local okFormatted, exportedFormatted = pcall(function()
 			return exports['lsrp_economy']:formatCurrency(balance)
 		end)
@@ -91,9 +102,19 @@ local function getBalanceSnapshot()
 		else
 			formattedBalance = formatFallbackBalance(balance)
 		end
+
+		local okFormattedCash, exportedFormattedCash = pcall(function()
+			return exports['lsrp_economy']:formatCurrency(cash)
+		end)
+
+		if okFormattedCash and type(exportedFormattedCash) == 'string' and exportedFormattedCash ~= '' then
+			formattedCash = exportedFormattedCash
+		else
+			formattedCash = formatFallbackBalance(cash)
+		end
 	end
 
-	return balance, formattedBalance, economyAvailable
+	return balance, formattedBalance, cash, formattedCash, economyAvailable
 end
 
 -- ---------------------------------------------------------------------------
@@ -203,12 +224,14 @@ local function pushBalanceToNui()
 		return
 	end
 
-	local balance, formattedBalance, economyAvailable = getBalanceSnapshot()
+	local balance, formattedBalance, cash, formattedCash, economyAvailable = getBalanceSnapshot()
 
 	SendNUIMessage({
 		action = 'setBalance',
 		balance = balance,
+		cash = cash,
 		formattedBalance = formattedBalance,
+		formattedCash = formattedCash,
 		available = economyAvailable
 	})
 end
@@ -913,6 +936,11 @@ end)
 
 RegisterNetEvent('lsrp_economy:client:balanceUpdated')
 AddEventHandler('lsrp_economy:client:balanceUpdated', function()
+	pushBalanceToNui()
+end)
+
+RegisterNetEvent('lsrp_economy:client:cashUpdated')
+AddEventHandler('lsrp_economy:client:cashUpdated', function()
 	pushBalanceToNui()
 end)
 

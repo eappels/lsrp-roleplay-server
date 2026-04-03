@@ -241,64 +241,120 @@ local function normalize2d(x, y)
 	return x / length, y / length
 end
 
+local function getModelHorizontalExtents(model)
+	if not model or model == 0 then
+		return nil
+	end
+
+	local minimum, maximum = GetModelDimensions(model)
+	if not minimum or not maximum then
+		return nil
+	end
+
+	return {
+		minimum = minimum,
+		maximum = maximum,
+		x = math.max(math.abs(minimum.x), math.abs(maximum.x)),
+		y = math.max(math.abs(minimum.y), math.abs(maximum.y))
+	}
+end
+
+local function getAtmFaceData(atmEntity, referenceCoords, atmCoords)
+	if atmEntity == 0 or not DoesEntityExist(atmEntity) or type(referenceCoords) ~= 'vector3' then
+		return nil
+	end
+
+	local extents = getModelHorizontalExtents(GetEntityModel(atmEntity))
+	if not extents then
+		return nil
+	end
+
+	local origin = type(atmCoords) == 'vector3' and atmCoords or GetEntityCoords(atmEntity)
+	local toReferenceX, toReferenceY = normalize2d(referenceCoords.x - origin.x, referenceCoords.y - origin.y)
+	local forward = GetEntityForwardVector(atmEntity)
+	local forwardX, forwardY = normalize2d(forward.x, forward.y)
+	local rightX, rightY = forwardY, -forwardX
+	local candidates = {
+		{ offsetX = extents.maximum.x, offsetY = 0.0, normalX = rightX, normalY = rightY, extent = math.abs(extents.maximum.x) },
+		{ offsetX = extents.minimum.x, offsetY = 0.0, normalX = -rightX, normalY = -rightY, extent = math.abs(extents.minimum.x) },
+		{ offsetX = 0.0, offsetY = extents.maximum.y, normalX = forwardX, normalY = forwardY, extent = math.abs(extents.maximum.y) },
+		{ offsetX = 0.0, offsetY = extents.minimum.y, normalX = -forwardX, normalY = -forwardY, extent = math.abs(extents.minimum.y) }
+	}
+	local bestFace = nil
+	local bestAlignment = -math.huge
+	local bestDistance = math.huge
+
+	for _, candidate in ipairs(candidates) do
+		local normalX, normalY = normalize2d(candidate.normalX, candidate.normalY)
+		local faceCoords = GetOffsetFromEntityInWorldCoords(atmEntity, candidate.offsetX, candidate.offsetY, 0.0)
+		local planarDistance = math.sqrt(((referenceCoords.x - faceCoords.x) * (referenceCoords.x - faceCoords.x)) + ((referenceCoords.y - faceCoords.y) * (referenceCoords.y - faceCoords.y)))
+		local alignment = (normalX * toReferenceX) + (normalY * toReferenceY)
+
+		if alignment > bestAlignment + 0.01 or (math.abs(alignment - bestAlignment) <= 0.01 and planarDistance < bestDistance) then
+			bestAlignment = alignment
+			bestDistance = planarDistance
+			bestFace = {
+				normalX = normalX,
+				normalY = normalY,
+				faceExtent = candidate.extent,
+				faceCenter = vector3(faceCoords.x, faceCoords.y, faceCoords.z)
+			}
+		end
+	end
+
+	return bestFace
+end
+
 local function getHackApproachDirection(atmEntity, atmCoords)
 	local ped = PlayerPedId()
 	local pedCoords = GetEntityCoords(ped)
 	local toPedX, toPedY = normalize2d(pedCoords.x - atmCoords.x, pedCoords.y - atmCoords.y)
 
 	if atmEntity ~= 0 and DoesEntityExist(atmEntity) then
-		local atmForward = GetEntityForwardVector(atmEntity)
-		local forwardX, forwardY = normalize2d(atmForward.x, atmForward.y)
-		if ((forwardX * toPedX) + (forwardY * toPedY)) < 0.0 then
-			forwardX = -forwardX
-			forwardY = -forwardY
+		local faceData = getAtmFaceData(atmEntity, pedCoords, atmCoords)
+		if faceData then
+			return faceData.normalX, faceData.normalY
 		end
-		return forwardX, forwardY
 	end
 
 	return toPedX, toPedY
 end
 
-local function getHackSceneDistance(atmEntity)
-	local baseDistance = 0.56
-	if atmEntity == 0 or not DoesEntityExist(atmEntity) then
-		return math.max(0.05, baseDistance - HACK_SCENE_FORWARD_ADJUST)
-	end
-
-	local model = GetEntityModel(atmEntity)
-	if not model or model == 0 then
-		return baseDistance
-	end
-
-	local minimum, maximum = GetModelDimensions(model)
-	if not minimum or not maximum then
-		return math.max(0.05, baseDistance - HACK_SCENE_FORWARD_ADJUST)
-	end
-
-	local frontExtent = math.max(math.abs(minimum.y), math.abs(maximum.y))
-	return math.max(0.05, math.max(baseDistance, frontExtent + 0.03) - HACK_SCENE_FORWARD_ADJUST)
-end
-
 local function buildHackSceneOrigin(atmCoords, atmEntity)
 	local ped = PlayerPedId()
 	local pedCoords = GetEntityCoords(ped)
+	local faceData = atmEntity ~= 0 and DoesEntityExist(atmEntity) and getAtmFaceData(atmEntity, pedCoords, atmCoords) or nil
 	local approachX, approachY = getHackApproachDirection(atmEntity, atmCoords)
-	local sceneDistance = getHackSceneDistance(atmEntity)
 	local rightX = -approachY
 	local rightY = approachX
-	local baseSceneX = atmCoords.x + (approachX * sceneDistance)
-	local baseSceneY = atmCoords.y + (approachY * sceneDistance)
-	local baseSceneZ = HACK_SCENE_BASE_Z + HACK_SCENE_Z_LIFT
-	local sceneX = baseSceneX + (rightX * HACK_SCENE_RIGHT_ADJUST)
-	local sceneY = baseSceneY + (rightY * HACK_SCENE_RIGHT_ADJUST)
-	local sceneZ = baseSceneZ
+	local anchorCoords = faceData and faceData.faceCenter or atmCoords
+	local desiredPedX = anchorCoords.x + (approachX * HACK_SCENE_FORWARD_ADJUST) + (rightX * HACK_SCENE_RIGHT_ADJUST)
+	local desiredPedY = anchorCoords.y + (approachY * HACK_SCENE_FORWARD_ADJUST) + (rightY * HACK_SCENE_RIGHT_ADJUST)
+	local desiredPedZ = pedCoords.z
+	local heading = GetHeadingFromVector_2d(anchorCoords.x - desiredPedX, anchorCoords.y - desiredPedY)
+	local rotation = vector3(0.0, 0.0, heading)
+	local pedOffset = GetAnimInitialOffsetPosition(
+		HACK_ANIM_DICT,
+		'hack_enter',
+		0.0,
+		0.0,
+		0.0,
+		rotation.x,
+		rotation.y,
+		rotation.z,
+		0,
+		2
+	)
+	local sceneOrigin = vector3(
+		desiredPedX - pedOffset.x,
+		desiredPedY - pedOffset.y,
+		desiredPedZ - pedOffset.z
+	)
 
-	local heading = GetHeadingFromVector_2d(atmCoords.x - baseSceneX, atmCoords.y - baseSceneY)
 	return {
-		baseOrigin = vector3(baseSceneX, baseSceneY, baseSceneZ),
-		shiftedOrigin = vector3(sceneX, sceneY, sceneZ),
-		rotation = vector3(0.0, 0.0, heading),
-		shift = vector3(rightX * HACK_SCENE_RIGHT_ADJUST, rightY * HACK_SCENE_RIGHT_ADJUST, 0.0)
+		sceneOrigin = sceneOrigin,
+		rotation = rotation,
+		anchorCoords = anchorCoords
 	}
 end
 
@@ -505,18 +561,16 @@ local function playHackScene(atmCoords, atmEntity)
 	end
 
 	local sceneData = buildHackSceneOrigin(atmCoords, atmEntity)
-	local sceneOrigin = sceneData.shiftedOrigin
+	local sceneOrigin = sceneData.sceneOrigin
 	local sceneRotation = sceneData.rotation
-	local baseOrigin = sceneData.baseOrigin
-	local sceneShift = sceneData.shift
 	local pedBagVariation = nil
 	local hackCamera = nil
 	local pedStartPosition = GetAnimInitialOffsetPosition(
 		HACK_ANIM_DICT,
 		'hack_enter',
-		baseOrigin.x,
-		baseOrigin.y,
-		baseOrigin.z,
+		sceneOrigin.x,
+		sceneOrigin.y,
+		sceneOrigin.z,
 		sceneRotation.x,
 		sceneRotation.y,
 		sceneRotation.z,
@@ -526,9 +580,9 @@ local function playHackScene(atmCoords, atmEntity)
 	local pedStartRotation = GetAnimInitialOffsetRotation(
 		HACK_ANIM_DICT,
 		'hack_enter',
-		baseOrigin.x,
-		baseOrigin.y,
-		baseOrigin.z,
+		sceneOrigin.x,
+		sceneOrigin.y,
+		sceneOrigin.z,
 		sceneRotation.x,
 		sceneRotation.y,
 		sceneRotation.z,
@@ -545,7 +599,7 @@ local function playHackScene(atmCoords, atmEntity)
 
 	hackCamera = createHackCamera()
 	pedBagVariation = hidePedBagVariation(ped)
-	SetEntityCoordsNoOffset(ped, pedStartPosition.x + sceneShift.x, pedStartPosition.y + sceneShift.y, pedStartPosition.z, false, false, false)
+	SetEntityCoordsNoOffset(ped, pedStartPosition.x, pedStartPosition.y, pedStartPosition.z, false, false, false)
 	SetEntityRotation(ped, pedStartRotation.x, pedStartRotation.y, pedStartRotation.z, 2, true)
 	FreezeEntityPosition(ped, true)
 
@@ -598,21 +652,14 @@ local function getAtmInteractionDistance(playerCoords, atmEntity, atmCoords)
 		return directDistance
 	end
 
-	local model = GetEntityModel(atmEntity)
-	if not model or model == 0 then
+	local faceData = getAtmFaceData(atmEntity, playerCoords, atmCoords)
+	if not faceData then
 		return directDistance
 	end
 
-	local minimum, maximum = GetModelDimensions(model)
-	if not minimum or not maximum then
-		return directDistance
-	end
-
-	local approachX, approachY = getHackApproachDirection(atmEntity, atmCoords)
-	local frontExtent = math.max(math.abs(minimum.y), math.abs(maximum.y))
 	local interactionPoint = vector3(
-		atmCoords.x + (approachX * frontExtent),
-		atmCoords.y + (approachY * frontExtent),
+		faceData.faceCenter.x,
+		faceData.faceCenter.y,
 		atmCoords.z
 	)
 

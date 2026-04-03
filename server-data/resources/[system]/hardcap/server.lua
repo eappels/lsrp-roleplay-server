@@ -1,6 +1,18 @@
 local playerCount = 0
 local list = {}
 
+local function isQueueHandlingFullServer()
+  if GetResourceState('lsrp_core') ~= 'started' then
+    return false
+  end
+
+  local ok, result = pcall(function()
+    return exports['lsrp_core']:isConnectionQueueEnabled()
+  end)
+
+  return ok and result == true
+end
+
 RegisterServerEvent('hardcap:playerActivated')
 
 AddEventHandler('hardcap:playerActivated', function()
@@ -21,6 +33,10 @@ AddEventHandler('playerConnecting', function(name, setReason)
   local cv = GetConvarInt('sv_maxclients', 32)
 
   print('Connecting: ' .. name .. '^7')
+
+  if isQueueHandlingFullServer() then
+    return
+  end
 
   if playerCount >= cv then
     print('Full. :(')
