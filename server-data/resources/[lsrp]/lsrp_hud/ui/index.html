@@ -55,39 +55,41 @@
 		</section>
 
 		<aside id="needs-shell" class="needs-shell is-hidden" aria-hidden="true">
-			<div class="needs-icons">
-				<div id="hunger-indicator" class="needs-indicator" aria-label="Hunger">
-					<div class="needs-indicator__icon-wrap">
-						<svg class="needs-indicator__svg" viewBox="0 0 64 64" aria-hidden="true">
-							<defs>
-								<clipPath id="hunger-fill-clip">
-									<rect id="hunger-fill-rect" x="0" y="0" width="64" height="64"></rect>
-								</clipPath>
-							</defs>
-							<path class="needs-indicator__icon-base" d="M18 16c0-2.21 1.79-4 4-4h20c2.21 0 4 1.79 4 4v6c3.87 1.41 6.78 5.02 7.39 9.35l1.25 8.72A6 6 0 0 1 48.7 47H15.3a6 6 0 0 1-5.94-6.93l1.25-8.72C11.22 27.02 14.13 23.41 18 22v-6Zm6 0v5h16v-5H24Zm-6.24 13.77-.95 6.64h30.38l-.95-6.64A4.04 4.04 0 0 0 42.28 26H21.72a4.04 4.04 0 0 0-3.96 3.77ZM18.5 41.41a2.5 2.5 0 1 0 0 5h27a2.5 2.5 0 1 0 0-5h-27Z" />
-							<g clip-path="url(#hunger-fill-clip)">
-								<path class="needs-indicator__icon-fill" d="M18 16c0-2.21 1.79-4 4-4h20c2.21 0 4 1.79 4 4v6c3.87 1.41 6.78 5.02 7.39 9.35l1.25 8.72A6 6 0 0 1 48.7 47H15.3a6 6 0 0 1-5.94-6.93l1.25-8.72C11.22 27.02 14.13 23.41 18 22v-6Zm6 0v5h16v-5H24Zm-6.24 13.77-.95 6.64h30.38l-.95-6.64A4.04 4.04 0 0 0 42.28 26H21.72a4.04 4.04 0 0 0-3.96 3.77ZM18.5 41.41a2.5 2.5 0 1 0 0 5h27a2.5 2.5 0 1 0 0-5h-27Z" />
-							</g>
-						</svg>
+				<div class="needs-panel">
+					<div id="hunger-indicator" class="needs-indicator" aria-label="Hunger 100%">
+						<div class="needs-indicator__icon-wrap" aria-hidden="true">
+							<svg class="needs-indicator__svg" viewBox="0 0 64 64">
+								<path class="needs-indicator__icon-base" d="M18 16c0-2.21 1.79-4 4-4h20c2.21 0 4 1.79 4 4v6c3.87 1.41 6.78 5.02 7.39 9.35l1.25 8.72A6 6 0 0 1 48.7 47H15.3a6 6 0 0 1-5.94-6.93l1.25-8.72C11.22 27.02 14.13 23.41 18 22v-6Zm6 0v5h16v-5H24Zm-6.24 13.77-.95 6.64h30.38l-.95-6.64A4.04 4.04 0 0 0 42.28 26H21.72a4.04 4.04 0 0 0-3.96 3.77ZM18.5 41.41a2.5 2.5 0 1 0 0 5h27a2.5 2.5 0 1 0 0-5h-27Z" />
+							</svg>
+						</div>
+						<div class="needs-indicator__meter-wrap">
+							<div class="needs-indicator__label-row">
+								<span class="needs-indicator__label">Hunger</span>
+								<span id="hunger-value" class="needs-indicator__value">100%</span>
+							</div>
+							<div class="needs-indicator__meter">
+								<div id="hunger-fill-bar" class="needs-indicator__fill"></div>
+							</div>
+						</div>
 					</div>
-				</div>
 
-				<div id="thirst-indicator" class="needs-indicator is-hidden" aria-label="Thirst">
-					<div class="needs-indicator__icon-wrap">
-						<svg class="needs-indicator__svg" viewBox="0 0 64 64" aria-hidden="true">
-							<defs>
-								<clipPath id="thirst-fill-clip">
-									<rect id="thirst-fill-rect" x="0" y="0" width="64" height="64"></rect>
-								</clipPath>
-							</defs>
-							<path class="needs-indicator__icon-base" d="M37.67 8.68a4 4 0 0 1 5.66 0l2 2a4 4 0 0 1 0 5.66l-4.6 4.6 7.54 20.52A10 10 0 0 1 38.89 55H25.11a10 10 0 0 1-9.38-13.54l7.54-20.52-4.6-4.6a4 4 0 0 1 0-5.66l2-2a4 4 0 0 1 5.66 0L32 14.34l5.67-5.66ZM27.9 22.98l-8.67 23.58A4 4 0 0 0 22.98 52h18.04a4 4 0 0 0 3.75-5.44L36.1 22.98a4 4 0 0 1 .95-4.14l5.45-5.45-1.66-1.66-5.45 5.44a4 4 0 0 1-5.66 0l-5.45-5.44-1.66 1.66 5.45 5.45a4 4 0 0 1 .95 4.14Z" />
-							<g clip-path="url(#thirst-fill-clip)">
-								<path class="needs-indicator__icon-fill" d="M37.67 8.68a4 4 0 0 1 5.66 0l2 2a4 4 0 0 1 0 5.66l-4.6 4.6 7.54 20.52A10 10 0 0 1 38.89 55H25.11a10 10 0 0 1-9.38-13.54l7.54-20.52-4.6-4.6a4 4 0 0 1 0-5.66l2-2a4 4 0 0 1 5.66 0L32 14.34l5.67-5.66ZM27.9 22.98l-8.67 23.58A4 4 0 0 0 22.98 52h18.04a4 4 0 0 0 3.75-5.44L36.1 22.98a4 4 0 0 1 .95-4.14l5.45-5.45-1.66-1.66-5.45 5.44a4 4 0 0 1-5.66 0l-5.45-5.44-1.66 1.66 5.45 5.45a4 4 0 0 1 .95 4.14Z" />
-							</g>
-						</svg>
+					<div id="thirst-indicator" class="needs-indicator is-hidden" aria-label="Thirst 100%">
+						<div class="needs-indicator__icon-wrap" aria-hidden="true">
+							<svg class="needs-indicator__svg" viewBox="0 0 64 64">
+								<path class="needs-indicator__icon-base" d="M37.67 8.68a4 4 0 0 1 5.66 0l2 2a4 4 0 0 1 0 5.66l-4.6 4.6 7.54 20.52A10 10 0 0 1 38.89 55H25.11a10 10 0 0 1-9.38-13.54l7.54-20.52-4.6-4.6a4 4 0 0 1 0-5.66l2-2a4 4 0 0 1 5.66 0L32 14.34l5.67-5.66ZM27.9 22.98l-8.67 23.58A4 4 0 0 0 22.98 52h18.04a4 4 0 0 0 3.75-5.44L36.1 22.98a4 4 0 0 1 .95-4.14l5.45-5.45-1.66-1.66-5.45 5.44a4 4 0 0 1-5.66 0l-5.45-5.44-1.66 1.66 5.45 5.45a4 4 0 0 1 .95 4.14Z" />
+							</svg>
+						</div>
+						<div class="needs-indicator__meter-wrap">
+							<div class="needs-indicator__label-row">
+								<span class="needs-indicator__label">Thirst</span>
+								<span id="thirst-value" class="needs-indicator__value">100%</span>
+							</div>
+							<div class="needs-indicator__meter">
+								<div id="thirst-fill-bar" class="needs-indicator__fill"></div>
+							</div>
+						</div>
 					</div>
 				</div>
-			</div>
 		</aside>
 	</div>
 
