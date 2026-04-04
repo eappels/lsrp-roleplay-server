@@ -1591,7 +1591,7 @@ function renderMessageConversations() {
 
         const openLabel = document.createElement('span');
         openLabel.className = 'messages-conversation-open';
-        openLabel.innerText = 'Open';
+        openLabel.innerText = '›';
 
         meta.appendChild(number);
         meta.appendChild(status);
@@ -1621,6 +1621,17 @@ function renderMessageConversations() {
 function displayMessageConversations(conversations, unreadTotal) {
     messagesState.conversations = Array.isArray(conversations) ? conversations : [];
     messagesState.unreadTotal = Number.isFinite(Number(unreadTotal)) ? Math.max(0, Number(unreadTotal)) : 0;
+
+    const iosSummary = document.getElementById('messages-ios-summary');
+    if (iosSummary) {
+        if (!messagesState.conversations.length) {
+            iosSummary.innerText = 'No conversations yet. Start a new message by number.';
+        } else if (messagesState.unreadTotal > 0) {
+            iosSummary.innerText = `${messagesState.unreadTotal} unread ${messagesState.unreadTotal === 1 ? 'message' : 'messages'}.`;
+        } else {
+            iosSummary.innerText = 'Your latest conversations are ready below.';
+        }
+    }
 
     const activeConversation = messagesState.activeThreadNumber
         ? findConversationEntry(messagesState.activeThreadNumber)

@@ -918,7 +918,7 @@ body.show-phone .phone {
 .messages-overview {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     overflow: hidden;
 }
 
@@ -933,6 +933,44 @@ body.show-phone .phone {
     background: linear-gradient(180deg, rgba(11, 23, 38, 0.76), rgba(9, 17, 29, 0.58));
     backdrop-filter: blur(18px);
     box-shadow: var(--shadow-panel);
+}
+
+.messages-app-screen {
+    gap: 10px;
+}
+
+.messages-app-screen .app-header {
+    padding-inline: 14px;
+}
+
+.messages-app-screen .app-header-copy {
+    text-align: center;
+}
+
+.messages-app-screen .app-kicker {
+    color: rgba(255, 255, 255, 0.56);
+    letter-spacing: 0.12em;
+}
+
+.messages-app-screen .app-header h3 {
+    font-size: 30px;
+    letter-spacing: -0.04em;
+}
+
+.messages-app-screen .app-accent {
+    min-width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    background: rgba(0, 122, 255, 0.16);
+    border-color: rgba(112, 191, 255, 0.24);
+    color: #8fd0ff;
+}
+
+.messages-ios-card {
+    border-radius: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(26, 26, 28, 0.94), rgba(14, 14, 16, 0.94));
+    box-shadow: 0 20px 42px rgba(0, 0, 0, 0.3);
 }
 
 .messages-inbox-hero {
@@ -958,15 +996,28 @@ body.show-phone .phone {
 }
 
 .messages-inbox-copy h4 {
-    font-size: 20px;
-    line-height: 1.1;
-    color: var(--text-primary);
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: #fff;
 }
 
 .messages-inbox-copy p:last-child {
-    color: var(--text-secondary);
+    color: rgba(235, 239, 244, 0.62);
     font-size: 13px;
     line-height: 1.45;
+}
+
+.messages-compose-pill {
+    padding: 10px 15px;
+    border-radius: 999px;
+    background: rgba(0, 122, 255, 0.16);
+    border-color: rgba(98, 182, 255, 0.24);
+    color: #8fd0ff;
+}
+
+.messages-ios-label {
+    color: rgba(235, 239, 244, 0.62);
 }
 
 .messages-quickstart-row {
@@ -977,8 +1028,11 @@ body.show-phone .phone {
 
 .messages-open-chat-btn {
     flex: 0 0 auto;
-    min-width: 118px;
+    min-width: 96px;
     padding-inline: 18px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #1f8bff, #007aff);
+    box-shadow: 0 12px 20px rgba(0, 122, 255, 0.22);
 }
 
 .calls-hero,
@@ -1011,17 +1065,25 @@ body.show-phone .phone {
 }
 
 #message-target-id {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     text-align: left;
+    border-radius: 16px;
+    background: rgba(44, 44, 46, 0.92);
+    border-color: rgba(255, 255, 255, 0.05);
+    letter-spacing: 0.03em;
 }
 
 #message-reply-body {
-    min-height: 84px;
-    padding: 14px 16px;
+    min-height: 48px;
+    max-height: 108px;
+    padding: 14px 18px;
     resize: none;
     font-size: 14px;
     line-height: 1.45;
+    border-radius: 22px;
+    background: rgba(44, 44, 46, 0.96);
+    border-color: rgba(255, 255, 255, 0.06);
 }
 
 #call-target-id::placeholder,
@@ -1122,17 +1184,17 @@ body.show-phone .phone {
 .messages-list-header-copy {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 2px;
     min-width: 0;
 }
 
 .phonebook-header h4,
 .messages-list-header h4 {
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 700;
-    letter-spacing: 0.16em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(193, 216, 239, 0.76);
+    color: rgba(235, 239, 244, 0.48);
 }
 
 .identity-orb {
@@ -1149,6 +1211,14 @@ body.show-phone .phone {
     font-size: 14px;
     font-weight: 800;
     letter-spacing: 0.08em;
+}
+
+.messages-conversation .identity-orb,
+.messages-thread-avatar {
+    border-radius: 50%;
+    background: linear-gradient(160deg, #7a7f8d, #595d68);
+    color: #f5f7fb;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 .phonebook-entry-card,
@@ -1174,16 +1244,22 @@ body.show-phone .phone {
     display: grid;
     grid-template-columns: auto 1fr;
     gap: 12px;
-    padding: 14px;
+    padding: 14px 0;
     text-align: left;
     cursor: pointer;
-    transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+    border-radius: 0;
+    border-width: 0 0 1px;
+    border-color: rgba(255, 255, 255, 0.08);
+    background: transparent;
+    box-shadow: none;
+    transition: background 0.18s ease, border-color 0.18s ease;
 }
 
 .phonebook-entry-card:hover,
 .messages-conversation:hover {
-    transform: translateY(-2px);
-    border-color: var(--border-strong);
+    transform: none;
+    border-color: rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.025);
 }
 
 .phonebook-entry-copy,
@@ -1198,7 +1274,7 @@ body.show-phone .phone {
 
 .phonebook-entry-name,
 .messages-conversation-name {
-    font-size: 15px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1.2;
 }
@@ -1304,52 +1380,59 @@ body.show-phone .phone {
 }
 
 .messages-conversation-time {
-    font-size: 11px;
+    font-size: 12px;
     white-space: nowrap;
-    color: var(--text-muted);
+    color: rgba(235, 239, 244, 0.46);
 }
 
 .messages-conversation-preview {
-    color: var(--text-secondary);
-    font-size: 12px;
-    line-height: 1.45;
-    white-space: pre-wrap;
-    word-break: break-word;
+    color: rgba(235, 239, 244, 0.56);
+    font-size: 13px;
+    line-height: 1.38;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .messages-unread-badge {
     align-self: center;
-    min-width: 26px;
-    height: 26px;
-    padding: 0 8px;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 999px;
-    background: linear-gradient(180deg, #ff8073, #ff5959);
+    background: #007aff;
     color: #fff;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
 }
 
 .messages-conversation.active {
-    border-color: rgba(146, 214, 255, 0.3);
+    border-color: rgba(0, 122, 255, 0.44);
+    background: rgba(0, 122, 255, 0.08);
 }
 
 .messages-thread-view {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     overflow: hidden;
 }
 
 .messages-thread-header {
     justify-content: space-between;
     padding: 14px 16px;
-    border-radius: 22px;
-    border: 1px solid var(--border-soft);
-    background: linear-gradient(180deg, rgba(9, 19, 33, 0.76), rgba(7, 15, 26, 0.58));
-    box-shadow: var(--shadow-panel);
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(26, 26, 28, 0.96), rgba(20, 20, 22, 0.96));
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
+}
+
+.messages-thread-back {
+    min-width: 52px;
+    background: rgba(255, 255, 255, 0.06);
 }
 
 .messages-thread-contact {
@@ -1361,43 +1444,49 @@ body.show-phone .phone {
     flex: 1;
     min-height: 0;
     padding: 16px;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    background:
+        radial-gradient(circle at top center, rgba(255, 255, 255, 0.03), transparent 26%),
+        linear-gradient(180deg, rgba(18, 18, 20, 0.98), rgba(13, 13, 15, 0.98));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
 }
 
 .messages-thread-meta h4 {
-    font-size: 16px;
-    line-height: 1.15;
+    font-size: 17px;
+    line-height: 1.1;
 }
 
 .messages-thread-meta p {
     font-size: 12px;
-    color: var(--text-secondary);
+    color: rgba(235, 239, 244, 0.56);
 }
 
 .messages-bubble {
-    max-width: 82%;
+    max-width: 78%;
     display: flex;
     flex-direction: column;
-    gap: 7px;
-    padding: 12px 14px;
-    border-radius: 20px;
-    box-shadow: 0 14px 24px rgba(0, 0, 0, 0.18);
+    gap: 6px;
+    padding: 10px 13px;
+    border-radius: 22px;
+    box-shadow: none;
 }
 
 .messages-bubble-other {
     align-self: flex-start;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: #2c2c2e;
+    border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .messages-bubble-mine {
     align-self: flex-end;
-    background: linear-gradient(160deg, rgba(46, 136, 255, 0.96), rgba(30, 98, 207, 0.92));
-    border: 1px solid rgba(150, 211, 255, 0.28);
+    background: #0a84ff;
+    border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .messages-bubble-body {
-    font-size: 14px;
-    line-height: 1.45;
+    font-size: 15px;
+    line-height: 1.4;
     white-space: pre-wrap;
     word-break: break-word;
 }
@@ -1405,7 +1494,7 @@ body.show-phone .phone {
 .messages-bubble-meta {
     align-self: flex-end;
     font-size: 11px;
-    color: rgba(228, 240, 255, 0.76);
+    color: rgba(255, 255, 255, 0.62);
 }
 
 .messages-status,
@@ -1414,7 +1503,35 @@ body.show-phone .phone {
 }
 
 #message-reply-body {
-    min-height: 76px;
+    min-height: 54px;
+}
+
+.messages-reply-box {
+    flex-direction: row;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: linear-gradient(180deg, rgba(28, 28, 30, 0.96), rgba(18, 18, 20, 0.96));
+}
+
+.messages-reply-actions {
+    flex: 0 0 auto;
+    align-items: flex-end;
+}
+
+.messages-send-btn {
+    flex: 0 0 auto;
+    min-width: 74px;
+    padding: 12px 16px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #1f8bff, #007aff);
+    box-shadow: none;
+}
+
+#messages-thread-status {
+    display: none;
 }
 
 .loading,

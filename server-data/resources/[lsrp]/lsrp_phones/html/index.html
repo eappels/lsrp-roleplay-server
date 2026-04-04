@@ -128,31 +128,31 @@
                     </div>
                 </section>
 
-                <section id="messages-app" class="app-screen" style="display: none;">
+                <section id="messages-app" class="app-screen messages-app-screen" style="display: none;">
                     <div class="app-header">
                         <button type="button" class="back-btn" onclick="closeApp()">Back</button>
                         <div class="app-header-copy">
-                            <p class="app-kicker">Communication</p>
+                            <p class="app-kicker">Messages</p>
                             <h3>Messages</h3>
                         </div>
-                        <div class="app-accent">SMS</div>
+                        <div class="app-accent">iM</div>
                     </div>
 
                     <div id="messages-overview" class="messages-overview">
-                        <div class="messages-inbox-hero">
+                        <div class="messages-inbox-hero messages-ios-card">
                             <div class="messages-inbox-copy">
                                 <p class="messages-inbox-kicker">Inbox</p>
-                                <h4>Recent conversations</h4>
-                                <p>Pick a thread from your inbox or start a new text by number.</p>
+                                <h4>All Messages</h4>
+                                <p id="messages-ios-summary">Open an existing thread or start a new message.</p>
                             </div>
-                            <button type="button" class="phonebook-refresh" onclick="focusMessagesQuickStart()">New Text</button>
+                            <button type="button" class="phonebook-refresh messages-compose-pill" onclick="focusMessagesQuickStart()">Compose</button>
                         </div>
 
-                        <div class="messages-quickstart-card">
-                            <label class="field-label" for="message-target-id">Phone Number</label>
+                        <div class="messages-quickstart-card messages-ios-card">
+                            <label class="field-label messages-ios-label" for="message-target-id">New Message</label>
                             <div class="messages-quickstart-row">
-                                <input id="message-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
-                                <button type="button" class="btn messages-open-chat-btn" onclick="openQuickMessageThread()">Open Chat</button>
+                                <input id="message-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="To: 555-0001">
+                                <button type="button" class="btn messages-open-chat-btn" onclick="openQuickMessageThread()">Open</button>
                             </div>
 
                             <p id="messages-status" class="messages-status">Open a conversation to start texting.</p>
@@ -173,7 +173,7 @@
 
                     <div id="messages-thread-view" class="messages-thread-view" style="display: none;">
                         <div class="messages-thread-header">
-                            <button type="button" class="back-btn" onclick="closeMessagesThread()">Back</button>
+                            <button type="button" class="back-btn messages-thread-back" onclick="closeMessagesThread()">Back</button>
                             <div class="messages-thread-contact">
                                 <span id="messages-thread-avatar" class="identity-orb messages-thread-avatar">--</span>
                                 <div class="messages-thread-meta">
@@ -189,9 +189,9 @@
                         </div>
 
                         <div class="messages-reply-box">
-                            <textarea id="message-reply-body" maxlength="280" placeholder="Write a reply..."></textarea>
+                            <textarea id="message-reply-body" maxlength="280" placeholder="iMessage"></textarea>
                             <div class="messages-reply-actions">
-                                <button type="button" class="btn" onclick="sendThreadReply()">Send</button>
+                                <button type="button" class="btn messages-send-btn" onclick="sendThreadReply()">Send</button>
                             </div>
                             <p id="messages-thread-status" class="messages-status">Open a conversation to reply.</p>
                         </div>
