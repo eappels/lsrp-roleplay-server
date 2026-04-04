@@ -24,12 +24,14 @@ It stores one hunger value per player identity, decays that value over time whil
 - Exposes server exports so other resources can add, remove, set, or read hunger.
 - Exposes client exports so other resources can read the local hunger value.
 - `lsrp_inventory` food items can restore hunger through this resource.
+- Pushes percentage updates into `lsrp_hud` so the hunger indicator stays in sync.
 
 ## Commands
 
 - `/hunger`: shows your current hunger value.
+- `/sethunger <0-100|empty|critical|low|default|full> [playerId]`: test or admin-only hunger override, gated by ACE `lsrp.hunger.test`.
 
 ## Notes
 
 - Decay and starvation settings are intentionally conservative and should be tuned in `shared/config.lua` for your server.
-- No dedicated HUD widget is included yet; hunger is published via the player state bag as `lsrp_hunger` for future UI work.
+- Hunger is mirrored into the HUD and the player state bag as `lsrp_hunger` for other resources to consume.

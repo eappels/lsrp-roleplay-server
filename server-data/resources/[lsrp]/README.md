@@ -2,11 +2,12 @@
 
 This folder contains the custom LSRP resources plus a few third-party dependencies.
 
-This index covers the custom `lsrp_*` resources.
+This index covers the custom `lsrp_*` resources. Every custom LSRP resource in this folder now has a local `README.md` with resource-specific notes.
 
 ## Project Docs
 
 - [BUGS.md](BUGS.md): Central bug list and known gameplay/framework issues.
+- [TODO.md](TODO.md): Short project task list for planned LSRP work.
 
 ## Resource Docs
 
@@ -14,9 +15,10 @@ This index covers the custom `lsrp_*` resources.
 - [lsrp_dev](lsrp_dev/README.md): Developer and admin test utilities.
 - [lsrp_economy](lsrp_economy/README.md): Persistent LS$ balance and transaction system.
 - [lsrp_fuel](lsrp_fuel/README.md): Vehicle fuel consumption and gas-station refueling.
-- [lsrp_hacking](lsrp_hacking/README.md): Scaffold resource for future hacking gameplay systems.
-- [lsrp_hunger](lsrp_hunger/README.md): Persistent player hunger with decay, starvation damage, and food integration.
-- [lsrp_hud](lsrp_hud/README.md): Standalone compass and coordinate HUD.
+- [lsrp_hacking](lsrp_hacking/README.md): ATM hacking gameplay with vendor flow, puzzle UI, and payouts.
+- [lsrp_housing](lsrp_housing/README.md): Apartment rental, entry, and management flow.
+- [lsrp_hud](lsrp_hud/README.md): Standalone compass plus hunger and thirst HUD widgets.
+- [lsrp_hunger](lsrp_hunger/README.md): Persistent player hunger with decay, starvation damage, HUD sync, and food integration.
 - [lsrp_inventory](lsrp_inventory/README.md): NUI inventory scaffold and current vehicle key item.
 - [lsrp_jobcenter](lsrp_jobcenter/README.md): Job center kiosk and civilian job browser.
 - [lsrp_jobs](lsrp_jobs/README.md): Employment state, duty, payroll, and job permissions.
@@ -27,12 +29,11 @@ This index covers the custom `lsrp_*` resources.
 - [lsrp_police](lsrp_police/README.md): Private police job with Mission Row duty and patrol vehicle access.
 - [lsrp_phones](lsrp_phones/README.md): Phone UI, phonebook, and call flow.
 - [lsrp_shops](lsrp_shops/README.md): 24/7 convenience stores and item purchases.
-- [lsrp_scroot](lsrp_scroot/README.md): Placeholder resource.
 - [lsrp_spawner](lsrp_spawner/README.md): Player spawn and respawn flow.
-- [lsrp_taxiped](lsrp_taxiped/README.md): Taxi depot, fares, and the first civilian driving job.
-- [lsrp_taxi](lsrp_taxi/README.md): Player-booked taxi job with phone dispatch and live ride claims.
+- [lsrp_taxi](lsrp_taxi/README.md): Public taxi driver job with company vehicles and phone dispatch.
 - [lsrp_towing](lsrp_towing/README.md): Public towing job with yard duty, truck spawn, and tow controls.
 - [lsrp_testing](lsrp_testing/README.md): Sandbox and test resource.
+- [lsrp_thirst](lsrp_thirst/README.md): Persistent player thirst with decay, dehydration damage, and HUD sync.
 - [lsrp_vehiclebehaviour](lsrp_vehiclebehaviour/README.md): Ignition, locking, and shared vehicle keys.
 - [lsrp_vehicleeditor](lsrp_vehicleeditor/README.md): Vehicle customization editor and saved setups.
 - [lsrp_vehicleparking](lsrp_vehicleparking/README.md): Parking, ownership, retrieval, and saved vehicle props.

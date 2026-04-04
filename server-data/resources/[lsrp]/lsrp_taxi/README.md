@@ -1,6 +1,6 @@
 # lsrp_taxi
 
-Player-booked taxi job built on top of `lsrp_jobs` and `lsrp_phones`.
+Public taxi driver job built on top of `lsrp_jobs`, `lsrp_phones`, and `lsrp_economy`.
 
 ## Features
 
@@ -8,6 +8,7 @@ Player-booked taxi job built on top of `lsrp_jobs` and `lsrp_phones`.
 - Taxi depot with company taxi spawn and return markers.
 - Live player-booked fares claimed from the Taxi phone app dispatch board.
 - Driver payout through `lsrp_economy` when rides are completed.
+- Duty state, assignment permissions, and payroll are handled through `lsrp_jobs`.
 
 ## Phone Integration
 
@@ -18,5 +19,5 @@ Player-booked taxi job built on top of `lsrp_jobs` and `lsrp_phones`.
 
 ## Notes
 
-- Existing NPC taxi fare gameplay remains in `lsrp_taxiped`.
-- This resource uses its own job id so it does not conflict with the older taxi job.
+- `taxi_player` is configured as a public job and is currently the civilian taxi role exposed through the job center flow.
+- Drivers must clock in and use a spawned company taxi to complete dispatch rides.
