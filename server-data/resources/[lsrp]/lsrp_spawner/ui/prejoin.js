@@ -19,7 +19,6 @@
     var readyFullNameEl = document.getElementById('ready-full-name');
     var readyDateOfBirthEl = document.getElementById('ready-date-of-birth');
     var readySexEl = document.getElementById('ready-sex');
-    var spawnAirportEl = document.getElementById('spawn-airport');
     var mapActiveLabelEl = document.getElementById('map-active-label');
     var mapActiveCoordsEl = document.getElementById('map-active-coords');
     var markersEl = document.getElementById('markers');
@@ -551,23 +550,6 @@
         });
     }
 
-    function findAirportSpawnIndex() {
-        var airportIndex = -1;
-
-        spawnPoints.some(function (point, pointIndex) {
-            var label = String(point && point.label || '');
-            var description = String(point && point.description || '');
-            if (/airport|international/i.test(label) || /airport|international/i.test(description)) {
-                airportIndex = pointIndex;
-                return true;
-            }
-
-            return false;
-        });
-
-        return airportIndex;
-    }
-
     document.getElementById('login').addEventListener('click', function () {
         post('prejoinLogin', {
             email: emailEl.value || '',
@@ -649,16 +631,6 @@
         setLeftStage('auth');
         setStatus('Sign in to continue.');
         updateSpawnLockState();
-    });
-
-    spawnAirportEl.addEventListener('click', function () {
-        var airportIndex = findAirportSpawnIndex();
-        if (airportIndex < 0) {
-            setStatus('Los Santos Airport spawn is unavailable.');
-            return;
-        }
-
-        chooseSpawn(airportIndex);
     });
 
     window.addEventListener('message', function (event) {

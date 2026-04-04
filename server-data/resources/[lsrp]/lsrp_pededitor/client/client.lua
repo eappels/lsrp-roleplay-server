@@ -411,6 +411,10 @@ local function resetCameraKeys()
 	cameraState.d = false
 end
 
+local function getPreviewCameraAngleFromPedHeading(pedHeading)
+	return 90.0 - (tonumber(pedHeading) or 0.0)
+end
+
 local function updatePreviewCamera()
 	if not previewCam then
 		return
@@ -430,7 +434,7 @@ end
 
 local function startPreviewCamera()
 	local ped = PlayerPedId()
-	cameraState.angle = GetEntityHeading(ped) + 180.0
+	cameraState.angle = getPreviewCameraAngleFromPedHeading(GetEntityHeading(ped))
 	cameraState.height = 0.65
 
 	if previewCam then

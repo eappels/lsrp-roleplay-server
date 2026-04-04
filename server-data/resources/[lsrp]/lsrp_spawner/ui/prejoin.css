@@ -180,10 +180,6 @@ select {
     gap: 12px;
 }
 
-.ready-actions {
-    margin-top: 18px;
-}
-
 button {
     padding: 13px 16px;
     border: 0;

@@ -28,8 +28,6 @@ const hungerIndicatorEl = document.getElementById('hunger-indicator');
 const thirstIndicatorEl = document.getElementById('thirst-indicator');
 const hungerFillRectEl = document.getElementById('hunger-fill-rect');
 const thirstFillRectEl = document.getElementById('thirst-fill-rect');
-const hungerLabelEl = document.getElementById('hunger-label');
-const thirstLabelEl = document.getElementById('thirst-label');
 
 const state = {
 	vehicleVisible: false,
@@ -220,7 +218,6 @@ function renderNeeds() {
 	const hungerFillHeight = (hungerPercent / 100) * 64;
 	hungerFillRectEl.setAttribute('y', String(64 - hungerFillHeight));
 	hungerFillRectEl.setAttribute('height', String(hungerFillHeight));
-	setText(hungerLabelEl, `${hungerPercent}%`);
 	hungerIndicatorEl.setAttribute('aria-label', `Hunger ${hungerPercent}%`);
 	hungerIndicatorEl.classList.toggle('is-low', hungerPercent > 10 && hungerPercent <= 25);
 	hungerIndicatorEl.classList.toggle('is-critical', hungerPercent <= 10);
@@ -233,7 +230,6 @@ function renderNeeds() {
 		const thirstFillHeight = (thirstPercent / 100) * 64;
 		thirstFillRectEl.setAttribute('y', String(64 - thirstFillHeight));
 		thirstFillRectEl.setAttribute('height', String(thirstFillHeight));
-		setText(thirstLabelEl, `${thirstPercent}%`);
 		thirstIndicatorEl.setAttribute('aria-label', `Thirst ${thirstPercent}%`);
 		thirstIndicatorEl.classList.toggle('is-low', thirstPercent > 10 && thirstPercent <= 25);
 		thirstIndicatorEl.classList.toggle('is-critical', thirstPercent <= 10);
