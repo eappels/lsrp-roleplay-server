@@ -1065,14 +1065,36 @@ function callPhonebookEntry(phoneNumber) {
     startCall(normalized);
 }
 
+function textPhonebookEntry(phoneNumber) {
+    const normalized = normalizePhoneNumber(phoneNumber);
+    if (!normalized || normalized === callState.myNumber) {
+        return;
+    }
+
+    openApp('messages');
+    openMessageThread(normalized);
+
+    requestAnimationFrame(() => {
+        const replyInput = document.getElementById('message-reply-body');
+        if (replyInput) {
+            replyInput.focus();
+        }
+    });
+}
+
 function updatePhonebookButtonStates() {
     const busy = callState.inCall || callState.ringingTarget !== null || callState.incomingFrom !== null;
 
-    document.querySelectorAll('.phonebook-entry-main').forEach((button) => {
+    document.querySelectorAll('.phonebook-action-call').forEach((button) => {
         const phoneNumber = button.dataset.phoneNumber || '';
         const online = button.dataset.online === '1';
         const isSelf = phoneNumber === callState.myNumber;
         button.disabled = busy || !online || isSelf;
+    });
+
+    document.querySelectorAll('.phonebook-action-text').forEach((button) => {
+        const phoneNumber = button.dataset.phoneNumber || '';
+        button.disabled = phoneNumber === callState.myNumber;
     });
 }
 
@@ -1096,16 +1118,7 @@ function renderPhonebook() {
         }
 
         const row = document.createElement('div');
-        row.className = 'phonebook-entry';
-
-        const mainButton = document.createElement('button');
-        mainButton.type = 'button';
-        mainButton.className = 'phonebook-entry-main';
-        mainButton.dataset.phoneNumber = entry.phoneNumber;
-        mainButton.dataset.online = entry.online ? '1' : '0';
-        mainButton.addEventListener('click', () => {
-            callPhonebookEntry(entry.phoneNumber);
-        });
+        row.className = 'phonebook-entry-card';
 
         const identity = createIdentityOrb(entry.displayName || entry.phoneNumber);
         const copy = document.createElement('div');
@@ -1128,18 +1141,37 @@ function renderPhonebook() {
         status.className = `phonebook-status ${entry.online ? 'online' : 'offline'}`;
         status.innerText = entry.online ? 'Online' : 'Offline';
 
-        const actionLabel = document.createElement('span');
-        actionLabel.className = 'phonebook-entry-action';
-        actionLabel.innerText = 'Call';
+        const actions = document.createElement('div');
+        actions.className = 'phonebook-entry-actions';
+
+        const textButton = document.createElement('button');
+        textButton.type = 'button';
+        textButton.className = 'phonebook-action-btn phonebook-action-text';
+        textButton.dataset.phoneNumber = entry.phoneNumber;
+        textButton.innerText = 'Text';
+        textButton.addEventListener('click', () => {
+            textPhonebookEntry(entry.phoneNumber);
+        });
+
+        const callButton = document.createElement('button');
+        callButton.type = 'button';
+        callButton.className = 'phonebook-action-btn phonebook-action-call';
+        callButton.dataset.phoneNumber = entry.phoneNumber;
+        callButton.dataset.online = entry.online ? '1' : '0';
+        callButton.innerText = 'Call';
+        callButton.addEventListener('click', () => {
+            callPhonebookEntry(entry.phoneNumber);
+        });
 
         details.appendChild(number);
         details.appendChild(status);
         copy.appendChild(name);
         copy.appendChild(details);
-        mainButton.appendChild(identity);
-        mainButton.appendChild(copy);
-        mainButton.appendChild(actionLabel);
-        row.appendChild(mainButton);
+        actions.appendChild(textButton);
+        actions.appendChild(callButton);
+        row.appendChild(identity);
+        row.appendChild(copy);
+        row.appendChild(actions);
         phonebookList.appendChild(row);
     });
 
@@ -1394,6 +1426,27 @@ function findConversationEntry(phoneNumber) {
     return messagesState.conversations.find((entry) => entry && entry.phoneNumber === phoneNumber) || null;
 }
 
+function findPhonebookEntry(phoneNumber) {
+    return callState.phonebookEntries.find((entry) => entry && entry.phoneNumber === phoneNumber) || null;
+}
+
+function buildThreadContact(phoneNumber) {
+    const normalized = normalizePhoneNumber(phoneNumber) || String(phoneNumber || '').trim();
+    const conversation = findConversationEntry(normalized);
+    const phonebookEntry = findPhonebookEntry(normalized);
+
+    return {
+        phoneNumber: normalized,
+        displayName: (conversation && conversation.displayName)
+            || (phonebookEntry && phonebookEntry.displayName)
+            || normalized
+            || 'Unknown',
+        online: (conversation && conversation.online === true)
+            || (phonebookEntry && phonebookEntry.online === true)
+            || false
+    };
+}
+
 function setMessageThreadHeader(contact) {
     const titleElement = document.getElementById('messages-thread-title');
     const subtitleElement = document.getElementById('messages-thread-subtitle');
@@ -1435,6 +1488,18 @@ function showMessagesOverview() {
     }
 }
 
+function focusMessagesQuickStart() {
+    showMessagesOverview();
+
+    const targetInput = getMessageTargetInputElement();
+    if (targetInput) {
+        requestAnimationFrame(() => {
+            targetInput.focus();
+            targetInput.select();
+        });
+    }
+}
+
 function showMessageThreadView() {
     const overview = document.getElementById('messages-overview');
     const threadView = document.getElementById('messages-thread-view');
@@ -1453,6 +1518,7 @@ function closeMessagesThread() {
     messagesState.activeThread = null;
     showMessagesOverview();
     renderMessageConversations();
+    setMessagesStatus('Open a conversation to start texting.', false);
 }
 
 function renderMessageConversations() {
@@ -1523,9 +1589,14 @@ function renderMessageConversations() {
         status.className = `phonebook-status ${conversation.online ? 'online' : 'offline'}`;
         status.innerText = conversation.online ? 'Online' : 'Offline';
 
+        const openLabel = document.createElement('span');
+        openLabel.className = 'messages-conversation-open';
+        openLabel.innerText = 'Open';
+
         meta.appendChild(number);
         meta.appendChild(status);
         bottom.appendChild(meta);
+        bottom.appendChild(openLabel);
 
         if (conversation.unreadCount > 0) {
             const unread = document.createElement('span');
@@ -1577,11 +1648,7 @@ function displayMessageConversations(conversations, unreadTotal) {
 
 function setMessageThreadLoading(phoneNumber) {
     const normalized = normalizePhoneNumber(phoneNumber) || String(phoneNumber || '').trim();
-    const contact = findConversationEntry(normalized) || {
-        phoneNumber: normalized,
-        displayName: normalized,
-        online: false
-    };
+    const contact = buildThreadContact(normalized);
 
     setMessageThreadHeader(contact);
     showMessageThreadView();
@@ -1589,6 +1656,15 @@ function setMessageThreadLoading(phoneNumber) {
     const messagesContainer = document.getElementById('messages-thread-messages');
     if (messagesContainer) {
         messagesContainer.innerHTML = '<p class="loading">Loading conversation...</p>';
+    }
+}
+
+function focusMessageReplyInput() {
+    const replyInput = document.getElementById('message-reply-body');
+    if (replyInput) {
+        requestAnimationFrame(() => {
+            replyInput.focus();
+        });
     }
 }
 
@@ -1697,39 +1773,35 @@ function openMessageThread(phoneNumber) {
         return;
     }
 
+    const contact = buildThreadContact(normalized);
     messagesState.activeThreadNumber = normalized;
-    messagesState.activeThread = null;
+    messagesState.activeThread = {
+        phoneNumber: contact.phoneNumber,
+        displayName: contact.displayName,
+        online: contact.online,
+        messages: []
+    };
     setMessageTargetInput(normalized);
     setMessageThreadLoading(normalized);
     setMessagesStatus(`Loading conversation with ${normalized}...`, false);
     postNui('getMessageThread', { phoneNumber: normalized });
 }
 
-function sendNewMessage() {
+function openQuickMessageThread() {
     const targetInput = getMessageTargetInputElement();
-    const bodyInput = document.getElementById('message-body');
     const phoneNumber = normalizePhoneNumber(targetInput ? targetInput.value : '');
-    const body = sanitizeMessageBody(bodyInput ? bodyInput.value : '');
 
     if (!phoneNumber) {
         setMessagesStatus('Enter a valid number (example: 555-0001).', true);
         return;
     }
 
-    if (!body) {
-        setMessagesStatus('Type a message before sending.', true);
-        return;
-    }
+    openMessageThread(phoneNumber);
+    focusMessageReplyInput();
+}
 
-    messagesState.activeThreadNumber = phoneNumber;
-    messagesState.activeThread = null;
-    setMessageTargetInput(phoneNumber);
-    setMessagesStatus(`Sending to ${phoneNumber}...`, false);
-    postNui('sendMessage', { phoneNumber, body });
-
-    if (bodyInput) {
-        bodyInput.value = '';
-    }
+function sendNewMessage() {
+    openQuickMessageThread();
 }
 
 function sendThreadReply() {
@@ -1753,6 +1825,8 @@ function sendThreadReply() {
     if (bodyInput) {
         bodyInput.value = '';
     }
+
+    focusMessageReplyInput();
 }
 
 function applyIncomingConversationPreview(phoneNumber, preview) {
@@ -1806,6 +1880,13 @@ function handleMessageIncoming(phoneNumber, preview) {
 
     if (uiState.currentApp === 'messages' && messagesState.activeThreadNumber === normalized) {
         postNui('getMessageThread', { phoneNumber: normalized });
+        return;
+    }
+
+    if (uiState.currentApp === 'messages' && !messagesState.activeThreadNumber) {
+        applyIncomingConversationPreview(normalized, preview);
+        openMessageThread(normalized);
+        setMessagesStatus(`Opening conversation with ${label}.`, false);
         return;
     }
 

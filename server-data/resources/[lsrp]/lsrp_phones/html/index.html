@@ -139,24 +139,31 @@
                     </div>
 
                     <div id="messages-overview" class="messages-overview">
-                        <div class="messages-compose-card">
+                        <div class="messages-inbox-hero">
+                            <div class="messages-inbox-copy">
+                                <p class="messages-inbox-kicker">Inbox</p>
+                                <h4>Recent conversations</h4>
+                                <p>Pick a thread from your inbox or start a new text by number.</p>
+                            </div>
+                            <button type="button" class="phonebook-refresh" onclick="focusMessagesQuickStart()">New Text</button>
+                        </div>
+
+                        <div class="messages-quickstart-card">
                             <label class="field-label" for="message-target-id">Phone Number</label>
-                            <input id="message-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
-
-                            <label class="field-label" for="message-body">Message</label>
-                            <textarea id="message-body" maxlength="280" placeholder="Write a text message..."></textarea>
-
-                            <div class="messages-compose-actions">
-                                <button type="button" class="btn" onclick="sendNewMessage()">Send</button>
-                                <button type="button" class="phonebook-refresh" onclick="loadMessageConversations()">Refresh</button>
+                            <div class="messages-quickstart-row">
+                                <input id="message-target-id" type="text" inputmode="numeric" maxlength="8" placeholder="555-0001">
+                                <button type="button" class="btn messages-open-chat-btn" onclick="openQuickMessageThread()">Open Chat</button>
                             </div>
 
-                            <p id="messages-status" class="messages-status">Your conversations will appear here.</p>
+                            <p id="messages-status" class="messages-status">Open a conversation to start texting.</p>
                         </div>
 
                         <div class="messages-list-header">
-                            <h4>Conversations</h4>
-                            <span id="messages-unread-summary" class="messages-unread-summary">No unread messages</span>
+                            <div class="messages-list-header-copy">
+                                <h4>Conversations</h4>
+                                <span id="messages-unread-summary" class="messages-unread-summary">No unread messages</span>
+                            </div>
+                            <button type="button" class="phonebook-refresh" onclick="loadMessageConversations()">Refresh</button>
                         </div>
 
                         <div id="messages-thread-list" class="messages-thread-list">
