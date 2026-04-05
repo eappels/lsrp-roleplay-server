@@ -93,21 +93,19 @@
 		</aside>
 
 		<aside id="fuel-shell" class="fuel-shell is-hidden" aria-hidden="true">
-			<div class="needs-panel">
-				<div id="fuel-indicator" class="needs-indicator needs-indicator--fuel" aria-label="Fuel 100%">
-					<div class="needs-indicator__icon-wrap" aria-hidden="true">
-						<svg class="needs-indicator__svg" viewBox="0 0 64 64">
-							<path class="needs-indicator__icon-base" d="M18 12a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v6h3a5 5 0 0 1 5 5v22a11 11 0 0 1-11 11h-1a3 3 0 0 1 0-6h1a5 5 0 0 0 5-5V24h-4v16a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V12Zm6 2v20h12V14H24Zm24 10h4v9h-4v-9Z" />
-						</svg>
+			<div id="fuel-indicator" class="needs-indicator" aria-label="Fuel 100%">
+				<div class="needs-indicator__icon-wrap" aria-hidden="true">
+					<svg class="needs-indicator__svg" viewBox="0 0 64 64">
+						<path class="needs-indicator__icon-base" d="M22 10a4 4 0 0 0-4 4v36a4 4 0 0 0 4 4h20a4 4 0 0 0 4-4V38h2.5A7.5 7.5 0 0 0 56 30.5V23a4 4 0 0 0-8 0v7.5a.5.5 0 0 1-.5.5H46V14a4 4 0 0 0-4-4H22Zm4 8h12a2 2 0 0 1 0 4H26a2 2 0 0 1 0-4Zm0 8h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H26a2 2 0 0 1-2-2V28a2 2 0 0 1 2-2Zm26-3a1 1 0 0 1 2 0v7.5A5.5 5.5 0 0 1 48.5 36H46v-3h1.5a2.5 2.5 0 0 0 2.5-2.5V23Z" />
+					</svg>
+				</div>
+				<div class="needs-indicator__meter-wrap">
+					<div class="needs-indicator__label-row">
+						<span class="needs-indicator__label">Fuel</span>
+						<span id="fuel-value" class="needs-indicator__value">100%</span>
 					</div>
-					<div class="needs-indicator__meter-wrap">
-						<div class="needs-indicator__label-row">
-							<span class="needs-indicator__label">Fuel</span>
-							<span id="fuel-value" class="needs-indicator__value">100%</span>
-						</div>
-						<div class="needs-indicator__meter">
-							<div id="fuel-fill-bar" class="needs-indicator__fill"></div>
-						</div>
+					<div class="needs-indicator__meter">
+						<div id="fuel-fill-bar" class="needs-indicator__fill"></div>
 					</div>
 				</div>
 			</div>

@@ -17,7 +17,7 @@
             opacity: 0;
         }
     </style>
-    <link rel="stylesheet" href="style.css?v=20260329a">
+    <link rel="stylesheet" href="style.css?v=20260405b">
 </head>
 <body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
     <main id="app" class="app hidden" aria-hidden="true">
@@ -68,13 +68,13 @@
                             <div class="control-row">
                                 <label for="draw-val">Drawable</label>
                                 <button id="dec-draw" type="button">-</button>
-                                <input id="draw-val" type="number" min="0" value="0">
+                                <input id="draw-val" class="component-value-input" type="number" min="0" step="1" inputmode="numeric" autocomplete="off" value="0">
                                 <button id="inc-draw" type="button">+</button>
                             </div>
                             <div class="control-row">
                                 <label for="text-val">Texture</label>
                                 <button id="dec-text" type="button">-</button>
-                                <input id="text-val" type="number" min="0" value="0">
+                                <input id="text-val" class="component-value-input" type="number" min="0" step="1" inputmode="numeric" autocomplete="off" value="0">
                                 <button id="inc-text" type="button">+</button>
                             </div>
                         </div>
@@ -88,6 +88,6 @@
             </section>
         </section>
     </main>
-    <script src="main.js?v=20260329b"></script>
+    <script src="main.js?v=20260405c"></script>
 </body>
 </html>

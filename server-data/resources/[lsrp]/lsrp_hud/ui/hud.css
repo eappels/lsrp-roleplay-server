@@ -13,6 +13,24 @@
 	--glass-fill: rgba(8, 14, 18, 0.68);
 	--glass-edge: rgba(226, 234, 239, 0.12);
 	--shadow: 0 18px 48px rgba(0, 0, 0, 0.34);
+	--needs-shell-left: 26.125rem;
+	--needs-shell-bottom: 0.95rem;
+	--needs-shell-width: min(16rem, 24vw);
+	--needs-shell-transform: none;
+	--needs-shell-mobile-left: 1rem;
+	--needs-shell-mobile-right: auto;
+	--needs-shell-mobile-bottom: 5.75rem;
+	--needs-shell-mobile-width: min(16rem, calc(100vw - 2rem));
+	--needs-shell-mobile-transform: none;
+	--fuel-shell-left: 50%;
+	--fuel-shell-bottom: 1rem;
+	--fuel-shell-width: min(16rem, calc(100vw - 2rem));
+	--fuel-shell-transform: translateX(-50%);
+	--fuel-shell-mobile-left: 50%;
+	--fuel-shell-mobile-right: auto;
+	--fuel-shell-mobile-bottom: 1rem;
+	--fuel-shell-mobile-width: min(16rem, calc(100vw - 2rem));
+	--fuel-shell-mobile-transform: translateX(-50%);
 	font-family: "Bahnschrift SemiCondensed", "Trebuchet MS", "Segoe UI", sans-serif;
 }
 
@@ -262,9 +280,9 @@ body {
 }
 
 .needs-shell {
-	left: 0.9rem;
-	bottom: 0.95rem;
-	width: min(16rem, 24vw);
+	left: var(--needs-shell-left);
+	bottom: var(--needs-shell-bottom);
+	width: var(--needs-shell-width);
 	padding: 0;
 	border: 0;
 	border-radius: 0;
@@ -272,13 +290,14 @@ body {
 	box-shadow: none;
 	overflow: visible;
 	animation: none;
+	transform: var(--needs-shell-transform);
 }
 
 .fuel-shell {
-	left: 50%;
-	bottom: 1rem;
-	transform: translateX(-50%);
-	width: min(18rem, 32vw);
+	left: var(--fuel-shell-left);
+	bottom: var(--fuel-shell-bottom);
+	transform: var(--fuel-shell-transform);
+	width: var(--fuel-shell-width);
 	padding: 0;
 	border: 0;
 	border-radius: 0;
@@ -286,10 +305,6 @@ body {
 	box-shadow: none;
 	overflow: visible;
 	animation: none;
-}
-
-.fuel-shell .needs-panel {
-	padding: 0;
 }
 
 .needs-panel {
@@ -399,12 +414,16 @@ body {
 	box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
+#fuel-indicator .needs-indicator__fill {
+	background: linear-gradient(90deg, #3ca26b 0%, #69d08b 55%, #bff6c3 100%);
+}
+
 #thirst-indicator .needs-indicator__fill {
 	background: linear-gradient(90deg, #2fa7d9 0%, #62d7ff 55%, #b2eeff 100%);
 }
 
-#fuel-indicator .needs-indicator__fill {
-	background: linear-gradient(90deg, #d7ad3b 0%, #f1cf61 55%, #fff0a9 100%);
+#fuel-indicator::before {
+	background: linear-gradient(180deg, #2f8d58, #8ae7a9);
 }
 
 #hunger-indicator::before {
@@ -413,10 +432,6 @@ body {
 
 #thirst-indicator::before {
 	background: linear-gradient(180deg, #2292d3, #7be2ff);
-}
-
-#fuel-indicator::before {
-	background: linear-gradient(180deg, #c78f1d, #ffda73);
 }
 
 .needs-indicator.is-low {
@@ -493,12 +508,20 @@ body {
 	}
 
 	.needs-shell {
-		left: 1rem;
-		right: auto;
+		left: var(--needs-shell-mobile-left);
+		right: var(--needs-shell-mobile-right);
 		top: auto;
-		bottom: 5.75rem;
-		transform: none;
-		width: min(16rem, calc(100vw - 2rem));
+		bottom: var(--needs-shell-mobile-bottom);
+		transform: var(--needs-shell-mobile-transform);
+		width: var(--needs-shell-mobile-width);
+	}
+
+	.fuel-shell {
+		left: var(--fuel-shell-mobile-left);
+		right: var(--fuel-shell-mobile-right);
+		bottom: var(--fuel-shell-mobile-bottom);
+		transform: var(--fuel-shell-mobile-transform);
+		width: var(--fuel-shell-mobile-width);
 	}
 
 	.needs-indicator__icon-wrap {

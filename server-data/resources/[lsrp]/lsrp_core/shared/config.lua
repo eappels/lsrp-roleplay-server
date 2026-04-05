@@ -34,10 +34,36 @@ lsrpConfig.coordinateHudEnabled = true
 lsrpConfig.coordinateHudShowHeading = true
 lsrpConfig.coordinateHudShowStreet = true
 lsrpConfig.coordinateHudUpdateIntervalMs = 200
-lsrpConfig.minimapEnabled = false
-lsrpConfig.loadingIndicatorEnabled = false
 lsrpConfig.hungerHudEnabled = true
 lsrpConfig.hungerHudUpdateIntervalMs = 500
+
+-- Shared widget layout definitions for lsrp_hud.
+-- Future HUD widgets should prefer adding layout values here rather than
+-- hardcoding screen positions in resource-local CSS.
+lsrpConfig.hudWidgets = {
+	needsShell = {
+		left = '26.125rem',
+		bottom = '0.95rem',
+		width = 'min(16rem, 24vw)',
+		transform = 'none',
+		mobileLeft = '1rem',
+		mobileRight = 'auto',
+		mobileBottom = '5.75rem',
+		mobileWidth = 'min(16rem, calc(100vw - 2rem))',
+		mobileTransform = 'none'
+	},
+	fuelShell = {
+		left = '50%',
+		bottom = '1rem',
+		width = 'min(16rem, calc(100vw - 2rem))',
+		transform = 'translateX(-50%)',
+		mobileLeft = '50%',
+		mobileRight = 'auto',
+		mobileBottom = '1rem',
+		mobileWidth = 'min(16rem, calc(100vw - 2rem))',
+		mobileTransform = 'translateX(-50%)'
+	}
+}
 
 lsrpConfig.pedEditorAutoRestoreEnabled = true
 -- Keep this nil to restore the most recently saved outfit.

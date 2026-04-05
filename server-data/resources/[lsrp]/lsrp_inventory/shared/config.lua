@@ -33,7 +33,7 @@ Config.Items = {
 			flag = 49,
 			durationMs = 10000,
 			consumeAmount = 1,
-			requireOnFoot = true,
+			requireOnFoot = false,
 			effect = {
 				type = 'hunger',
 				amount = 35
@@ -54,7 +54,7 @@ Config.Items = {
 			flag = 49,
 			durationMs = 7000,
 			consumeAmount = 1,
-			requireOnFoot = true,
+			requireOnFoot = false,
 			effect = {
 				type = 'thirst',
 				amount = 50
@@ -75,7 +75,7 @@ Config.Items = {
 			flag = 49,
 			durationMs = 10000,
 			consumeAmount = 1,
-			requireOnFoot = true,
+			requireOnFoot = false,
 			effect = {
 				type = 'heal',
 				amount = 25
@@ -162,7 +162,7 @@ Config.Items = {
 			scenario = 'WORLD_HUMAN_SMOKING_POT',
 			durationMs = 10000,
 			consumeAmount = 1,
-			requireOnFoot = true
+			requireOnFoot = false,
 		}
 	}
 }

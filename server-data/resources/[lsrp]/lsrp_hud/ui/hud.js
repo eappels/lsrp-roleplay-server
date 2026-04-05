@@ -25,18 +25,19 @@ const headingNumberEl = document.getElementById('heading-number');
 const headingCardinalEl = document.getElementById('heading-cardinal');
 const streetValueEl = document.getElementById('street-value');
 const areaValueEl = document.getElementById('area-value');
+const fuelIndicatorEl = document.getElementById('fuel-indicator');
 const hungerIndicatorEl = document.getElementById('hunger-indicator');
 const thirstIndicatorEl = document.getElementById('thirst-indicator');
-const fuelIndicatorEl = document.getElementById('fuel-indicator');
+const fuelFillBarEl = document.getElementById('fuel-fill-bar');
 const hungerFillBarEl = document.getElementById('hunger-fill-bar');
 const thirstFillBarEl = document.getElementById('thirst-fill-bar');
-const fuelFillBarEl = document.getElementById('fuel-fill-bar');
+const fuelValueEl = document.getElementById('fuel-value');
 const hungerValueEl = document.getElementById('hunger-value');
 const thirstValueEl = document.getElementById('thirst-value');
-const fuelValueEl = document.getElementById('fuel-value');
 
 const state = {
 	vehicleVisible: false,
+	fuelVisible: false,
 	vehicle: {
 		heading: 0,
 		speed: 0,
@@ -46,16 +47,13 @@ const state = {
 	},
 	needsVisible: false,
 	needs: {
+		isDriverInVehicle: false,
+		fuel: null,
 		hunger: 100,
 		thirst: null
 	},
-	fuelVisible: false,
-	fuel: {
-		percent: 100,
-		isLow: false,
-		isCritical: false
-	},
 	animatedNeeds: {
+		fuel: null,
 		hunger: 100,
 		thirst: null
 	}
@@ -65,10 +63,12 @@ const needsAnimationState = {
 	frameId: null,
 	startedAt: 0,
 	from: {
+		fuel: null,
 		hunger: 100,
 		thirst: null
 	},
 	to: {
+		fuel: null,
 		hunger: 100,
 		thirst: null
 	}
@@ -76,6 +76,32 @@ const needsAnimationState = {
 
 function setText(element, value) {
 	element.textContent = String(value ?? '');
+}
+
+function applyHudLayout(layout) {
+	const safeLayout = layout && typeof layout === 'object' ? layout : {};
+	const needsShell = safeLayout.needsShell && typeof safeLayout.needsShell === 'object' ? safeLayout.needsShell : {};
+	const fuelShell = safeLayout.fuelShell && typeof safeLayout.fuelShell === 'object' ? safeLayout.fuelShell : {};
+	const rootStyle = document.documentElement.style;
+
+	rootStyle.setProperty('--needs-shell-left', String(needsShell.left || '26.125rem'));
+	rootStyle.setProperty('--needs-shell-bottom', String(needsShell.bottom || '0.95rem'));
+	rootStyle.setProperty('--needs-shell-width', String(needsShell.width || 'min(16rem, 24vw)'));
+	rootStyle.setProperty('--needs-shell-transform', String(needsShell.transform || 'none'));
+	rootStyle.setProperty('--needs-shell-mobile-left', String(needsShell.mobileLeft || '1rem'));
+	rootStyle.setProperty('--needs-shell-mobile-right', String(needsShell.mobileRight || 'auto'));
+	rootStyle.setProperty('--needs-shell-mobile-bottom', String(needsShell.mobileBottom || '5.75rem'));
+	rootStyle.setProperty('--needs-shell-mobile-width', String(needsShell.mobileWidth || 'min(16rem, calc(100vw - 2rem))'));
+	rootStyle.setProperty('--needs-shell-mobile-transform', String(needsShell.mobileTransform || 'none'));
+	rootStyle.setProperty('--fuel-shell-left', String(fuelShell.left || '50%'));
+	rootStyle.setProperty('--fuel-shell-bottom', String(fuelShell.bottom || '1rem'));
+	rootStyle.setProperty('--fuel-shell-width', String(fuelShell.width || 'min(16rem, calc(100vw - 2rem))'));
+	rootStyle.setProperty('--fuel-shell-transform', String(fuelShell.transform || 'translateX(-50%)'));
+	rootStyle.setProperty('--fuel-shell-mobile-left', String(fuelShell.mobileLeft || '50%'));
+	rootStyle.setProperty('--fuel-shell-mobile-right', String(fuelShell.mobileRight || 'auto'));
+	rootStyle.setProperty('--fuel-shell-mobile-bottom', String(fuelShell.mobileBottom || '1rem'));
+	rootStyle.setProperty('--fuel-shell-mobile-width', String(fuelShell.mobileWidth || 'min(16rem, calc(100vw - 2rem))'));
+	rootStyle.setProperty('--fuel-shell-mobile-transform', String(fuelShell.mobileTransform || 'translateX(-50%)'));
 }
 
 function setHidden(element, isHidden) {
@@ -187,10 +213,12 @@ function animateNeeds() {
 
 	needsAnimationState.startedAt = performance.now();
 	needsAnimationState.from = {
+		fuel: state.animatedNeeds.fuel,
 		hunger: state.animatedNeeds.hunger,
 		thirst: state.animatedNeeds.thirst
 	};
 	needsAnimationState.to = {
+		fuel: state.needs.fuel,
 		hunger: state.needs.hunger,
 		thirst: state.needs.thirst
 	};
@@ -200,6 +228,7 @@ function animateNeeds() {
 		const progress = easeOutCubic(elapsedMs / NEEDS_ANIMATION_DURATION_MS);
 
 		state.animatedNeeds = {
+			fuel: interpolateNeedsValue(needsAnimationState.from.fuel, needsAnimationState.to.fuel, progress),
 			hunger: interpolateNeedsValue(needsAnimationState.from.hunger, needsAnimationState.to.hunger, progress),
 			thirst: interpolateNeedsValue(needsAnimationState.from.thirst, needsAnimationState.to.thirst, progress)
 		};
@@ -212,6 +241,7 @@ function animateNeeds() {
 		}
 
 		state.animatedNeeds = {
+			fuel: needsAnimationState.to.fuel,
 			hunger: needsAnimationState.to.hunger,
 			thirst: needsAnimationState.to.thirst
 		};
@@ -223,10 +253,28 @@ function animateNeeds() {
 }
 
 function renderNeeds() {
+	const fuelPercent = state.animatedNeeds.fuel == null
+		? null
+		: Math.max(0, Math.min(100, Math.round(Number(state.animatedNeeds.fuel) || 0)));
+	const fuelAllowed = state.needs.isDriverInVehicle === true;
 	const hungerPercent = Math.max(0, Math.min(100, Math.round(Number(state.animatedNeeds.hunger) || 0)));
 	const thirstPercent = state.animatedNeeds.thirst == null
 		? null
 		: Math.max(0, Math.min(100, Math.round(Number(state.animatedNeeds.thirst) || 0)));
+
+	if (!fuelAllowed || fuelPercent == null) {
+		state.fuelVisible = false;
+		setHidden(fuelIndicatorEl, true);
+	}
+	else {
+		state.fuelVisible = true;
+		setHidden(fuelIndicatorEl, false);
+		fuelFillBarEl.style.width = `${fuelPercent}%`;
+		setText(fuelValueEl, `${fuelPercent}%`);
+		fuelIndicatorEl.setAttribute('aria-label', `Fuel ${fuelPercent}%`);
+		fuelIndicatorEl.classList.toggle('is-low', fuelPercent > 10 && fuelPercent <= 25);
+		fuelIndicatorEl.classList.toggle('is-critical', fuelPercent <= 10);
+	}
 
 	hungerFillBarEl.style.width = `${hungerPercent}%`;
 	setText(hungerValueEl, `${hungerPercent}%`);
@@ -245,16 +293,8 @@ function renderNeeds() {
 		thirstIndicatorEl.classList.toggle('is-low', thirstPercent > 10 && thirstPercent <= 25);
 		thirstIndicatorEl.classList.toggle('is-critical', thirstPercent <= 10);
 	}
-}
 
-function renderFuel() {
-	const fuelPercent = Math.max(0, Math.min(100, Math.round(Number(state.fuel.percent) || 0)));
-
-	fuelFillBarEl.style.width = `${fuelPercent}%`;
-	setText(fuelValueEl, `${fuelPercent}%`);
-	fuelIndicatorEl.setAttribute('aria-label', `Fuel ${fuelPercent}%`);
-	fuelIndicatorEl.classList.toggle('is-low', state.fuel.isLow === true && state.fuel.isCritical !== true);
-	fuelIndicatorEl.classList.toggle('is-critical', state.fuel.isCritical === true);
+	updateRootVisibility();
 }
 
 window.addEventListener('message', (event) => {
@@ -280,6 +320,11 @@ window.addEventListener('message', (event) => {
 		return;
 	}
 
+	if (message.action === 'hudLayout:update') {
+		applyHudLayout(message.data || {});
+		return;
+	}
+
 	if (message.action === 'playerNeeds:show' || message.action === 'playerNeeds:update') {
 		state.needsVisible = true;
 		state.needs = {
@@ -293,24 +338,8 @@ window.addEventListener('message', (event) => {
 
 	if (message.action === 'playerNeeds:hide') {
 		state.needsVisible = false;
-		stopNeedsAnimation();
-		updateRootVisibility();
-		return;
-	}
-
-	if (message.action === 'vehicleFuel:show' || message.action === 'vehicleFuel:update') {
-		state.fuelVisible = true;
-		state.fuel = {
-			...state.fuel,
-			...(message.data || {})
-		};
-		renderFuel();
-		updateRootVisibility();
-		return;
-	}
-
-	if (message.action === 'vehicleFuel:hide') {
 		state.fuelVisible = false;
+		stopNeedsAnimation();
 		updateRootVisibility();
 	}
 });

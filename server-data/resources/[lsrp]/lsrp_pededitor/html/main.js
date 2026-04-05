@@ -313,10 +313,52 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // control buttons
     function clamp(n) { return Math.max(0, parseInt(n || 0, 10)); }
+    function syncValueInput(input) {
+        if (!input) {
+            return 0;
+        }
+
+        const normalizedValue = clamp(input.value);
+        input.value = normalizedValue;
+        return normalizedValue;
+    }
+
+    function handleValueInput(force) {
+        if (!drawVal || !textVal) {
+            return;
+        }
+
+        syncValueInput(drawVal);
+        syncValueInput(textVal);
+        sendPreview(force === true);
+    }
+
     if (incDraw) incDraw.addEventListener('click', () => { drawVal.value = clamp(drawVal.value) + 1; sendPreview(); });
     if (decDraw) decDraw.addEventListener('click', () => { drawVal.value = Math.max(0, clamp(drawVal.value) - 1); sendPreview(); });
     if (incText) incText.addEventListener('click', () => { textVal.value = clamp(textVal.value) + 1; sendPreview(); });
     if (decText) decText.addEventListener('click', () => { textVal.value = Math.max(0, clamp(textVal.value) - 1); sendPreview(); });
+    if (drawVal) {
+        drawVal.addEventListener('input', () => handleValueInput(false));
+        drawVal.addEventListener('change', () => handleValueInput(true));
+        drawVal.addEventListener('blur', () => handleValueInput(true));
+        drawVal.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                handleValueInput(true);
+            }
+        });
+    }
+    if (textVal) {
+        textVal.addEventListener('input', () => handleValueInput(false));
+        textVal.addEventListener('change', () => handleValueInput(true));
+        textVal.addEventListener('blur', () => handleValueInput(true));
+        textVal.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                handleValueInput(true);
+            }
+        });
+    }
 
     // preview sender (debounced)
     function sendPreview(force) {

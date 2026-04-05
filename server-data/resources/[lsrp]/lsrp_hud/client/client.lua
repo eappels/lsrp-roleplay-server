@@ -3,6 +3,7 @@ local NEEDS_HUD_FALLBACK_UPDATE_MS = 500
 local VEHICLE_SPEED_TO_KMH = 3.6
 local DEFAULT_MAX_HUNGER = 100
 local DEFAULT_MAX_THIRST = 100
+local DEFAULT_MAX_FUEL_PERCENT = 100
 
 local DIRECTION_LABELS = {
 	[0] = 'N',
@@ -19,12 +20,76 @@ local compassVisible = false
 local lastPayloadKey = nil
 local needsVisible = false
 local lastNeedsPayloadKey = nil
-local fuelVisible = false
-local lastFuelPayloadKey = nil
+local lastLayoutPayloadKey = nil
 local cachedHungerValue = nil
 local cachedThirstValue = nil
 local directHungerPercent = nil
 local directThirstPercent = nil
+
+local function getHudWidgetLayoutConfig()
+	local widgetConfig = lsrpConfig and lsrpConfig.hudWidgets or {}
+	local needsShellConfig = type(widgetConfig.needsShell) == 'table' and widgetConfig.needsShell or {}
+	local fuelShellConfig = type(widgetConfig.fuelShell) == 'table' and widgetConfig.fuelShell or {}
+
+	return {
+		needsShell = {
+			left = tostring(needsShellConfig.left or '26.125rem'),
+			bottom = tostring(needsShellConfig.bottom or '0.95rem'),
+			width = tostring(needsShellConfig.width or 'min(16rem, 24vw)'),
+			transform = tostring(needsShellConfig.transform or 'none'),
+			mobileLeft = tostring(needsShellConfig.mobileLeft or '1rem'),
+			mobileRight = tostring(needsShellConfig.mobileRight or 'auto'),
+			mobileBottom = tostring(needsShellConfig.mobileBottom or '5.75rem'),
+			mobileWidth = tostring(needsShellConfig.mobileWidth or 'min(16rem, calc(100vw - 2rem))'),
+			mobileTransform = tostring(needsShellConfig.mobileTransform or 'none')
+		},
+		fuelShell = {
+			left = tostring(fuelShellConfig.left or '50%'),
+			bottom = tostring(fuelShellConfig.bottom or '1rem'),
+			width = tostring(fuelShellConfig.width or 'min(16rem, calc(100vw - 2rem))'),
+			transform = tostring(fuelShellConfig.transform or 'translateX(-50%)'),
+			mobileLeft = tostring(fuelShellConfig.mobileLeft or '50%'),
+			mobileRight = tostring(fuelShellConfig.mobileRight or 'auto'),
+			mobileBottom = tostring(fuelShellConfig.mobileBottom or '1rem'),
+			mobileWidth = tostring(fuelShellConfig.mobileWidth or 'min(16rem, calc(100vw - 2rem))'),
+			mobileTransform = tostring(fuelShellConfig.mobileTransform or 'translateX(-50%)')
+		}
+	}
+end
+
+local function pushHudWidgetLayoutConfig()
+	local payload = getHudWidgetLayoutConfig()
+	local payloadKey = table.concat({
+		payload.needsShell.left,
+		payload.needsShell.bottom,
+		payload.needsShell.width,
+		payload.needsShell.transform,
+		payload.needsShell.mobileLeft,
+		payload.needsShell.mobileRight,
+		payload.needsShell.mobileBottom,
+		payload.needsShell.mobileWidth,
+		payload.needsShell.mobileTransform,
+		payload.fuelShell.left,
+		payload.fuelShell.bottom,
+		payload.fuelShell.width,
+		payload.fuelShell.transform,
+		payload.fuelShell.mobileLeft,
+		payload.fuelShell.mobileRight,
+		payload.fuelShell.mobileBottom,
+		payload.fuelShell.mobileWidth,
+		payload.fuelShell.mobileTransform
+	}, '|')
+
+	if payloadKey == lastLayoutPayloadKey then
+		return
+	end
+
+	lastLayoutPayloadKey = payloadKey
+	SendNUIMessage({
+		action = 'hudLayout:update',
+		data = payload
+	})
+end
 
 local function isCompassEnabled()
 	if not lsrpConfig then
@@ -64,23 +129,6 @@ local function isCoordinateHudEnabled()
 	end
 
 	return lsrpConfig.coordinateHudEnabled ~= false
-end
-
-local function isMinimapEnabled()
-	if not lsrpConfig then
-		return true
-	end
-
-	return lsrpConfig.minimapEnabled ~= false
-end
-
-local function hideMinimapFrame()
-	DisplayRadar(false)
-	SetBigmapActive(false, false)
-	HideHudComponentThisFrame(6)
-	HideHudComponentThisFrame(7)
-	HideHudComponentThisFrame(8)
-	HideHudComponentThisFrame(9)
 end
 
 local function shouldShowCoordinateHeading()
@@ -278,6 +326,41 @@ local function getThirstPercent()
 	return math.floor(((currentThirst / maxThirst) * 100.0) + 0.5)
 end
 
+local function getFuelPercent()
+	if GetResourceState('lsrp_fuel') ~= 'started' then
+		return nil
+	end
+
+	local ped = PlayerPedId()
+	if ped == 0 or not DoesEntityExist(ped) or not IsPedInAnyVehicle(ped, false) then
+		return nil
+	end
+
+	local vehicle = GetVehiclePedIsIn(ped, false)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return nil
+	end
+
+	local okFuel, fuelLevel = pcall(function()
+		return exports['lsrp_fuel']:getFuel(vehicle)
+	end)
+
+	if not okFuel or type(fuelLevel) ~= 'number' then
+		return nil
+	end
+
+	local okCapacity, tankCapacity = pcall(function()
+		return exports['lsrp_fuel']:getTankCapacity(vehicle)
+	end)
+
+	if not okCapacity or type(tankCapacity) ~= 'number' or tankCapacity <= 0 then
+		return nil
+	end
+
+	fuelLevel = clampNumber(fuelLevel, 0, tankCapacity)
+	return math.floor(((fuelLevel / tankCapacity) * DEFAULT_MAX_FUEL_PERCENT) + 0.5)
+end
+
 local function normalizeHeading(heading)
 	local normalized = tonumber(heading) or 0.0
 	normalized = normalized % 360.0
@@ -377,6 +460,7 @@ AddEventHandler('playerSpawned', function()
 	cachedHungerValue = nil
 	cachedThirstValue = nil
 	lastNeedsPayloadKey = nil
+	pushHudWidgetLayoutConfig()
 end)
 
 local function buildCompassPayload()
@@ -456,25 +540,6 @@ local function setNeedsVisible(visible, payload)
 	end
 end
 
-local function setFuelVisible(visible, payload)
-	if visible == fuelVisible and not payload then
-		return
-	end
-
-	fuelVisible = visible
-	if visible then
-		SendNUIMessage({
-			action = 'vehicleFuel:show',
-			data = payload or {}
-		})
-	else
-		SendNUIMessage({
-			action = 'vehicleFuel:hide'
-		})
-		lastFuelPayloadKey = nil
-	end
-end
-
 local function pushNeedsPayload()
 	if IsPauseMenuActive() or not isHungerHudEnabled() then
 		if needsVisible then
@@ -493,7 +558,16 @@ local function pushNeedsPayload()
 		thirstPercent = getThirstPercent()
 	end
 
-	if hungerPercent == nil and thirstPercent == nil then
+	local ped = PlayerPedId()
+	local vehicle = 0
+	local isDriverInVehicle = false
+	if ped ~= 0 and DoesEntityExist(ped) and IsPedInAnyVehicle(ped, false) then
+		vehicle = GetVehiclePedIsIn(ped, false)
+		isDriverInVehicle = vehicle ~= 0 and DoesEntityExist(vehicle) and GetPedInVehicleSeat(vehicle, -1) == ped
+	end
+	local fuelPercent = getFuelPercent()
+
+	if hungerPercent == nil and thirstPercent == nil and fuelPercent == nil then
 		if needsVisible then
 			setNeedsVisible(false)
 		end
@@ -502,13 +576,17 @@ local function pushNeedsPayload()
 
 	local payload = {
 		visible = true,
+		isDriverInVehicle = isDriverInVehicle == true,
 		hunger = hungerPercent ~= nil and clampNumber(hungerPercent, 0, 100) or nil,
-		thirst = thirstPercent ~= nil and clampNumber(thirstPercent, 0, 100) or nil
+		thirst = thirstPercent ~= nil and clampNumber(thirstPercent, 0, 100) or nil,
+		fuel = fuelPercent ~= nil and clampNumber(fuelPercent, 0, 100) or nil
 	}
 
 	local payloadKey = table.concat({
+		payload.isDriverInVehicle and '1' or '0',
 		tostring(payload.hunger or 'nil'),
-		tostring(payload.thirst or 'nil')
+		tostring(payload.thirst or 'nil'),
+		tostring(payload.fuel or 'nil')
 	}, '|')
 
 	if not needsVisible then
@@ -556,59 +634,9 @@ RegisterNetEvent('lsrp_hud:client:needUpdated', function(needType, value)
 	pushNeedsPayload()
 end)
 
-RegisterNetEvent('lsrp_hud:client:setFuelHud', function(payload)
-	if type(payload) ~= 'table' or payload.visible ~= true then
-		if fuelVisible then
-			setFuelVisible(false)
-		end
-		return
-	end
-
-	local normalizedPayload = {
-		percent = clampNumber(payload.percent, 0, 100),
-		isLow = payload.isLow == true,
-		isCritical = payload.isCritical == true
-	}
-
-	local payloadKey = table.concat({
-		tostring(normalizedPayload.percent),
-		normalizedPayload.isLow and '1' or '0',
-		normalizedPayload.isCritical and '1' or '0'
-	}, '|')
-
-	if not fuelVisible then
-		setFuelVisible(true, normalizedPayload)
-		lastFuelPayloadKey = payloadKey
-		return
-	end
-
-	if payloadKey ~= lastFuelPayloadKey then
-		lastFuelPayloadKey = payloadKey
-		SendNUIMessage({
-			action = 'vehicleFuel:update',
-			data = normalizedPayload
-		})
-	end
-end)
-
-RegisterNetEvent('lsrp_hud:client:hideFuelHud', function()
-	if fuelVisible then
-		setFuelVisible(false)
-	end
-end)
-
 CreateThread(function()
-	while true do
-		if not isMinimapEnabled() then
-			hideMinimapFrame()
-			Wait(0)
-		else
-			Wait(500)
-		end
-	end
-end)
+	pushHudWidgetLayoutConfig()
 
-CreateThread(function()
 	while true do
 		local payload = buildCompassPayload()
 		if IsPauseMenuActive() or payload == nil then
@@ -617,9 +645,7 @@ CreateThread(function()
 			end
 			Wait(250)
 		else
-			if not isMinimapEnabled() then
-				hideMinimapFrame()
-			end
+			HideHudComponentThisFrame(6)
 
 			local payloadKey = table.concat({
 				('%.3f'):format(payload.heading or 0.0),
@@ -671,9 +697,5 @@ AddEventHandler('onClientResourceStop', function(resourceName)
 
 	SendNUIMessage({
 		action = 'playerNeeds:hide'
-	})
-
-	SendNUIMessage({
-		action = 'vehicleFuel:hide'
 	})
 end)

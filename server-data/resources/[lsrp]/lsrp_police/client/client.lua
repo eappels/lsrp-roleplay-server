@@ -526,10 +526,18 @@ local function returnPatrolVehicle()
 	notify('Patrol vehicle returned to the garage.')
 end
 
-local function openPoliceDressingRoom()
+local function openPoliceDressingRoom(station)
 	if not isPoliceEmployee() then
 		notify('Only sworn LSPD personnel can access the police dressing room.')
 		return
+	end
+
+	local playerPed = PlayerPedId()
+	if playerPed ~= 0 and DoesEntityExist(playerPed) then
+		local heading = tonumber(station and station.dressingRoomHeading)
+		if heading then
+			SetEntityHeading(playerPed, heading + 0.0)
+		end
 	end
 
 	TriggerEvent('lsrp_pededitor:open')
@@ -633,7 +641,7 @@ CreateThread(function()
 				if isPoliceEmployee() and dressingRoomDistance <= interactionDistance then
 					showHelpPrompt(Config.DressingRoomPrompt or 'Press ~INPUT_CONTEXT~ to access the police dressing room')
 					if isInteractionJustPressed() then
-						openPoliceDressingRoom()
+						openPoliceDressingRoom(station)
 						Wait(300)
 					end
 				elseif dressingRoomDistance <= interactionDistance then

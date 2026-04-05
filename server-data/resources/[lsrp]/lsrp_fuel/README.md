@@ -10,7 +10,7 @@ Current scope:
 - Tank capacity is derived from each vehicle handling profile, so larger vehicles carry more fuel than smaller ones.
 - Fuel level is synchronized on the vehicle entity so other resources can read it.
 - Players can refuel vehicles at gas pumps while on foot.
-- Drivers and passengers see a compact shared HUD fuel bar while inside managed vehicles.
+- Drivers and passengers see a dedicated native on-screen fuel gauge while inside managed vehicles.
 - Fuel purchases charge LS$ through `lsrp_economy`.
 
 ## Controls
@@ -43,6 +43,5 @@ Current scope:
 ## Notes
 
 - World pump objects are used for refueling interactions.
-- When `lsrp_hud` is running, the fuel gauge is rendered there as a bottom-center bar that matches the hunger/thirst widget style.
-- If `lsrp_hud` is unavailable, `lsrp_fuel` falls back to its native drawn gauge.
+- The fuel gauge is drawn with native HUD functions, not a browser overlay.
 - Vehicle classes like bicycles, boats, aircraft, and trains are excluded by default.

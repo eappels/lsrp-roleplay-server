@@ -2,17 +2,6 @@ local refuelRequestCounter = 0
 local pendingRefuelRequests = {}
 local refuelInProgress = false
 local modelTankCapacityCache = {}
-local hudState = {
-    visible = false,
-    fuelLevel = 0.0,
-    tankCapacity = 0.0,
-    fuelPercent = 0.0,
-    speedKmh = 0,
-    gearLabel = 'N',
-    vehicleName = '',
-    isLow = false,
-    isCritical = false
-}
 local refuelProgressState = {
     visible = false,
     label = '',
@@ -20,7 +9,6 @@ local refuelProgressState = {
     totalCost = 0,
     liters = 0.0
 }
-local lastHudSnapshot = nil
 
 local function trimString(value)
     if value == nil then
@@ -60,11 +48,6 @@ local function snapFuelLevelToCapacity(value, tankCapacity)
     end
 
     return fuelLevel
-end
-
-local function roundFuelValue(value)
-    local numericValue = tonumber(value) or 0.0
-    return math.floor((numericValue * 10.0) + 0.5) / 10.0
 end
 
 local function getNativeDriveFuelFloor(tankCapacity)
@@ -379,105 +362,16 @@ local function getFuelNeeded(vehicle)
     return math.max(0.0, getVehicleTankCapacity(vehicle) - fuelLevel)
 end
 
-local function buildHudSnapshot(payload)
-    if not payload or payload.visible ~= true then
-        return 'hidden'
-    end
-
-    return table.concat({
-        ('%.1f'):format(tonumber(payload.fuelPercent) or 0.0),
-        payload.isLow and '1' or '0',
-        payload.isCritical and '1' or '0'
-    }, '|')
+local function setRefuelProgressVisible(visible, label, progress, totalCost, liters)
+    refuelProgressState.visible = visible == true
+    refuelProgressState.label = tostring(label or '')
+    refuelProgressState.progress = math.max(0.0, math.min(1.0, tonumber(progress) or 0.0))
+    refuelProgressState.totalCost = math.max(0, math.floor(tonumber(totalCost) or 0))
+    refuelProgressState.liters = math.max(0.0, tonumber(liters) or 0.0)
 end
 
-local function isSharedHudAvailable()
-    return GetResourceState('lsrp_hud') == 'started'
-end
-
-local function sendFuelHud(payload)
-    local message = payload or {
-        visible = false,
-        fuelLevel = 0.0,
-        tankCapacity = 0.0,
-        fuelPercent = 0.0,
-        speedKmh = 0,
-        gearLabel = 'N',
-        vehicleName = '',
-        isLow = false,
-        isCritical = false
-    }
-
-    local snapshot = buildHudSnapshot(message)
-    if snapshot == lastHudSnapshot then
-        return
-    end
-
-    lastHudSnapshot = snapshot
-    hudState.visible = message.visible == true
-    hudState.fuelLevel = roundFuelValue(message.fuelLevel)
-    hudState.tankCapacity = roundFuelValue(message.tankCapacity)
-    hudState.fuelPercent = roundFuelValue(message.fuelPercent)
-    hudState.speedKmh = math.max(0, math.floor((tonumber(message.speedKmh) or 0) + 0.5))
-    hudState.gearLabel = tostring(message.gearLabel or 'N')
-    hudState.vehicleName = tostring(message.vehicleName or '')
-    hudState.isLow = message.isLow == true
-    hudState.isCritical = message.isCritical == true
-
-    if isSharedHudAvailable() then
-        if message.visible == true then
-            TriggerEvent('lsrp_hud:client:setFuelHud', {
-                visible = true,
-                percent = hudState.fuelPercent,
-                isLow = hudState.isLow,
-                isCritical = hudState.isCritical
-            })
-        else
-            TriggerEvent('lsrp_hud:client:hideFuelHud')
-        end
-    end
-end
-
-local function hideFuelHud()
-    sendFuelHud(nil)
-end
-
-local function getHudVehicleSpeedKmh(vehicle)
-    if vehicle == 0 or not DoesEntityExist(vehicle) then
-        return 0
-    end
-
-    return math.max(0, math.floor((GetEntitySpeed(vehicle) * 3.6) + 0.5))
-end
-
-local function getHudVehicleGearLabel(vehicle)
-    if vehicle == 0 or not DoesEntityExist(vehicle) then
-        return 'N'
-    end
-
-    local speedVector = GetEntitySpeedVector(vehicle, true)
-    if speedVector and speedVector.y < -0.1 and GetEntitySpeed(vehicle) > 0.15 then
-        return 'R'
-    end
-
-    local currentGear = tonumber(GetVehicleCurrentGear(vehicle)) or 0
-    if currentGear <= 0 then
-        return 'N'
-    end
-
-    return tostring(math.floor(currentGear))
-end
-
-local function getFuelHudPalette()
-    if hudState.isCritical then
-        return 238, 63, 79
-    end
-
-    if hudState.isLow then
-        return 242, 109, 61
-    end
-
-    return 241, 182, 82
+local function hideRefuelProgress()
+    setRefuelProgressVisible(false, '', 0.0, 0, 0.0)
 end
 
 local function drawFuelHudRect(x, y, width, height, red, green, blue, alpha)
@@ -495,62 +389,6 @@ local function drawFuelHudText(x, y, text, scale, red, green, blue, alpha, cente
     BeginTextCommandDisplayText('STRING')
     AddTextComponentSubstringPlayerName(text)
     EndTextCommandDisplayText(x, y)
-end
-
-local function setRefuelProgressVisible(visible, label, progress, totalCost, liters)
-    refuelProgressState.visible = visible == true
-    refuelProgressState.label = tostring(label or '')
-    refuelProgressState.progress = math.max(0.0, math.min(1.0, tonumber(progress) or 0.0))
-    refuelProgressState.totalCost = math.max(0, math.floor(tonumber(totalCost) or 0))
-    refuelProgressState.liters = math.max(0.0, tonumber(liters) or 0.0)
-end
-
-local function hideRefuelProgress()
-    setRefuelProgressVisible(false, '', 0.0, 0, 0.0)
-end
-
-local function drawFuelHud()
-    if hudState.visible ~= true then
-        return
-    end
-
-    local safeZone = GetSafeZoneSize()
-    local safeZoneOffset = (1.0 - safeZone) * 0.5
-    local cardWidth = 0.132
-    local cardHeight = 0.101
-    local cardX = 1.0 - safeZoneOffset - (cardWidth * 0.5) - 0.018
-    local cardY = 1.0 - safeZoneOffset - (cardHeight * 0.5) - 0.106
-    local accentRed, accentGreen, accentBlue = getFuelHudPalette()
-    local fuelPercent = math.max(0.0, math.min(100.0, tonumber(hudState.fuelPercent) or 0.0))
-    local fillFraction = fuelPercent / 100.0
-    local barWidth = cardWidth - 0.024
-    local barHeight = 0.010
-    local barX = cardX
-    local barY = cardY + 0.027
-    local fillWidth = barWidth * fillFraction
-
-    drawFuelHudRect(cardX, cardY, cardWidth, cardHeight, 10, 14, 20, 178)
-    drawFuelHudRect(cardX, cardY - 0.0375, cardWidth, 0.0032, accentRed, accentGreen, accentBlue, 240)
-    drawFuelHudRect(barX, barY, barWidth, barHeight, 28, 35, 46, 220)
-
-    if fillWidth > 0.0005 then
-        local fillX = (barX - (barWidth * 0.5)) + (fillWidth * 0.5)
-        drawFuelHudRect(fillX, barY, fillWidth, barHeight * 0.72, accentRed, accentGreen, accentBlue, 235)
-    end
-
-    drawFuelHudText(cardX - 0.05, cardY - 0.041, hudState.vehicleName, 0.31, 244, 241, 236, 220, false)
-    drawFuelHudText(cardX + 0.034, cardY - 0.041, ('%d%%'):format(math.floor(fuelPercent + 0.5)), 0.31, accentRed, accentGreen, accentBlue, 240, false)
-    drawFuelHudText(cardX - 0.05, cardY - 0.015, ('%d km/h'):format(hudState.speedKmh), 0.25, 235, 238, 241, 215, false)
-    drawFuelHudText(cardX + 0.022, cardY - 0.015, ('GEAR %s'):format(hudState.gearLabel), 0.25, 214, 221, 228, 215, false)
-    drawFuelHudText(cardX - 0.05, cardY + 0.007, ('%.1f / %.1fL'):format(hudState.fuelLevel, hudState.tankCapacity), 0.26, 235, 238, 241, 210, false)
-
-    if hudState.isCritical then
-        drawFuelHudText(cardX - 0.05, cardY + 0.034, 'CRITICAL RESERVE', 0.24, accentRed, accentGreen, accentBlue, 230, false)
-    elseif hudState.isLow then
-        drawFuelHudText(cardX - 0.05, cardY + 0.034, 'LOW RESERVE', 0.24, accentRed, accentGreen, accentBlue, 220, false)
-    else
-        drawFuelHudText(cardX - 0.05, cardY + 0.034, 'FUEL STABLE', 0.24, 190, 198, 207, 190, false)
-    end
 end
 
 local function drawRefuelProgress()
@@ -657,36 +495,6 @@ local function ensurePedReadyForRefuel(ped, vehicle)
     end
 
     return true
-end
-
-local function updateFuelHud(vehicle)
-    if vehicle == 0 or not DoesEntityExist(vehicle) or not isFuelManagedVehicle(vehicle) then
-        hideFuelHud()
-        return
-    end
-
-    local fuelLevel = getVehicleFuelLevelSafe(vehicle)
-    if fuelLevel == nil then
-        hideFuelHud()
-        return
-    end
-
-    local tankCapacity = getVehicleTankCapacity(vehicle)
-    local fuelPercent = getFuelPercent(fuelLevel, tankCapacity)
-    local lowFuelPercent = tonumber(Config.HudLowFuelPercent) or 15.0
-    local criticalFuelPercent = tonumber(Config.HudCriticalFuelPercent) or 7.0
-
-    sendFuelHud({
-        visible = true,
-        fuelLevel = fuelLevel,
-        tankCapacity = tankCapacity,
-        fuelPercent = fuelPercent,
-        speedKmh = getHudVehicleSpeedKmh(vehicle),
-        gearLabel = getHudVehicleGearLabel(vehicle),
-        vehicleName = getVehicleDisplayName(vehicle),
-        isLow = fuelPercent <= lowFuelPercent,
-        isCritical = fuelPercent <= criticalFuelPercent
-    })
 end
 
 local function quoteRefuelCost(units)
@@ -1039,43 +847,6 @@ end)
 
 CreateThread(function()
     while true do
-        local waitMs = math.max(150, tonumber(Config.HudUpdateMs) or 150)
-        local ped = PlayerPedId()
-
-        if IsPauseMenuActive() then
-            hideFuelHud()
-            waitMs = 500
-        elseif ped ~= 0 and DoesEntityExist(ped) and IsPedInAnyVehicle(ped, false) then
-            local vehicle = GetVehiclePedIsIn(ped, false)
-
-            if vehicle ~= 0 and DoesEntityExist(vehicle) and isFuelManagedVehicle(vehicle) then
-                updateFuelHud(vehicle)
-            else
-                hideFuelHud()
-                waitMs = 500
-            end
-        else
-            hideFuelHud()
-            waitMs = 500
-        end
-
-        Wait(waitMs)
-    end
-end)
-
-CreateThread(function()
-    while true do
-        if hudState.visible == true and not IsPauseMenuActive() and not isSharedHudAvailable() then
-            drawFuelHud()
-            Wait(0)
-        else
-            Wait(250)
-        end
-    end
-end)
-
-CreateThread(function()
-    while true do
         if refuelProgressState.visible == true and not IsPauseMenuActive() then
             drawRefuelProgress()
             Wait(0)
@@ -1090,23 +861,11 @@ AddEventHandler('onResourceStop', function(resourceName)
         return
     end
 
-    hideFuelHud()
     hideRefuelProgress()
     stopRefuelAnimation(PlayerPedId())
     refuelInProgress = false
     pendingRefuelRequests = {}
     modelTankCapacityCache = {}
-    hudState = {
-        visible = false,
-        fuelLevel = 0.0,
-        tankCapacity = 0.0,
-        fuelPercent = 0.0,
-        speedKmh = 0,
-        gearLabel = 'N',
-        vehicleName = '',
-        isLow = false,
-        isCritical = false
-    }
     refuelProgressState = {
         visible = false,
         label = '',
@@ -1114,7 +873,6 @@ AddEventHandler('onResourceStop', function(resourceName)
         totalCost = 0,
         liters = 0.0
     }
-    lastHudSnapshot = nil
 end)
 
 exports('getFuel', function(vehicle)

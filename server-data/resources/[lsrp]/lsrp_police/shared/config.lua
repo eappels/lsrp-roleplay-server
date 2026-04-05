@@ -75,7 +75,8 @@ Config.Stations = {
 			label = 'Mission Row PD'
 		},
 		dutyCoords = vector3(441.15, -981.89, 30.69),
-		dressingRoomCoords = vector3(457.28, -990.87, 30.69),
+		dressingRoomCoords = vector3(454.47, -990.91, 30.69),
+		dressingRoomHeading = 176.2,
 		vehicleSpawn = {
 			coords = vector3(454.29, -1017.42, 28.42),
 			heading = 90.0
