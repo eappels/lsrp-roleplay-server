@@ -54,7 +54,8 @@ body {
 }
 
 .compass-frame,
-.needs-shell {
+.needs-shell,
+.fuel-shell {
 	position: absolute;
 	border: 1px solid var(--glass-edge);
 	background:
@@ -67,7 +68,8 @@ body {
 }
 
 .compass-frame::before,
-.needs-shell::before {
+.needs-shell::before,
+.fuel-shell::before {
 	content: "";
 	position: absolute;
 	left: 0;
@@ -260,7 +262,7 @@ body {
 }
 
 .needs-shell {
-	left: 20.9rem;
+	left: 0.9rem;
 	bottom: 0.95rem;
 	width: min(16rem, 24vw);
 	padding: 0;
@@ -270,6 +272,24 @@ body {
 	box-shadow: none;
 	overflow: visible;
 	animation: none;
+}
+
+.fuel-shell {
+	left: 50%;
+	bottom: 1rem;
+	transform: translateX(-50%);
+	width: min(18rem, 32vw);
+	padding: 0;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	box-shadow: none;
+	overflow: visible;
+	animation: none;
+}
+
+.fuel-shell .needs-panel {
+	padding: 0;
 }
 
 .needs-panel {
@@ -383,12 +403,20 @@ body {
 	background: linear-gradient(90deg, #2fa7d9 0%, #62d7ff 55%, #b2eeff 100%);
 }
 
+#fuel-indicator .needs-indicator__fill {
+	background: linear-gradient(90deg, #d7ad3b 0%, #f1cf61 55%, #fff0a9 100%);
+}
+
 #hunger-indicator::before {
 	background: linear-gradient(180deg, #c78f1d, #ffda73);
 }
 
 #thirst-indicator::before {
 	background: linear-gradient(180deg, #2292d3, #7be2ff);
+}
+
+#fuel-indicator::before {
+	background: linear-gradient(180deg, #c78f1d, #ffda73);
 }
 
 .needs-indicator.is-low {

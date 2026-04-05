@@ -19,6 +19,8 @@ local compassVisible = false
 local lastPayloadKey = nil
 local needsVisible = false
 local lastNeedsPayloadKey = nil
+local fuelVisible = false
+local lastFuelPayloadKey = nil
 local cachedHungerValue = nil
 local cachedThirstValue = nil
 local directHungerPercent = nil
@@ -62,6 +64,23 @@ local function isCoordinateHudEnabled()
 	end
 
 	return lsrpConfig.coordinateHudEnabled ~= false
+end
+
+local function isMinimapEnabled()
+	if not lsrpConfig then
+		return true
+	end
+
+	return lsrpConfig.minimapEnabled ~= false
+end
+
+local function hideMinimapFrame()
+	DisplayRadar(false)
+	SetBigmapActive(false, false)
+	HideHudComponentThisFrame(6)
+	HideHudComponentThisFrame(7)
+	HideHudComponentThisFrame(8)
+	HideHudComponentThisFrame(9)
 end
 
 local function shouldShowCoordinateHeading()
@@ -437,6 +456,25 @@ local function setNeedsVisible(visible, payload)
 	end
 end
 
+local function setFuelVisible(visible, payload)
+	if visible == fuelVisible and not payload then
+		return
+	end
+
+	fuelVisible = visible
+	if visible then
+		SendNUIMessage({
+			action = 'vehicleFuel:show',
+			data = payload or {}
+		})
+	else
+		SendNUIMessage({
+			action = 'vehicleFuel:hide'
+		})
+		lastFuelPayloadKey = nil
+	end
+end
+
 local function pushNeedsPayload()
 	if IsPauseMenuActive() or not isHungerHudEnabled() then
 		if needsVisible then
@@ -518,6 +556,58 @@ RegisterNetEvent('lsrp_hud:client:needUpdated', function(needType, value)
 	pushNeedsPayload()
 end)
 
+RegisterNetEvent('lsrp_hud:client:setFuelHud', function(payload)
+	if type(payload) ~= 'table' or payload.visible ~= true then
+		if fuelVisible then
+			setFuelVisible(false)
+		end
+		return
+	end
+
+	local normalizedPayload = {
+		percent = clampNumber(payload.percent, 0, 100),
+		isLow = payload.isLow == true,
+		isCritical = payload.isCritical == true
+	}
+
+	local payloadKey = table.concat({
+		tostring(normalizedPayload.percent),
+		normalizedPayload.isLow and '1' or '0',
+		normalizedPayload.isCritical and '1' or '0'
+	}, '|')
+
+	if not fuelVisible then
+		setFuelVisible(true, normalizedPayload)
+		lastFuelPayloadKey = payloadKey
+		return
+	end
+
+	if payloadKey ~= lastFuelPayloadKey then
+		lastFuelPayloadKey = payloadKey
+		SendNUIMessage({
+			action = 'vehicleFuel:update',
+			data = normalizedPayload
+		})
+	end
+end)
+
+RegisterNetEvent('lsrp_hud:client:hideFuelHud', function()
+	if fuelVisible then
+		setFuelVisible(false)
+	end
+end)
+
+CreateThread(function()
+	while true do
+		if not isMinimapEnabled() then
+			hideMinimapFrame()
+			Wait(0)
+		else
+			Wait(500)
+		end
+	end
+end)
+
 CreateThread(function()
 	while true do
 		local payload = buildCompassPayload()
@@ -527,7 +617,9 @@ CreateThread(function()
 			end
 			Wait(250)
 		else
-			HideHudComponentThisFrame(6)
+			if not isMinimapEnabled() then
+				hideMinimapFrame()
+			end
 
 			local payloadKey = table.concat({
 				('%.3f'):format(payload.heading or 0.0),
@@ -579,5 +671,9 @@ AddEventHandler('onClientResourceStop', function(resourceName)
 
 	SendNUIMessage({
 		action = 'playerNeeds:hide'
+	})
+
+	SendNUIMessage({
+		action = 'vehicleFuel:hide'
 	})
 end)

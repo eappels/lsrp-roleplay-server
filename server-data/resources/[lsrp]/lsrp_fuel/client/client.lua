@@ -385,15 +385,14 @@ local function buildHudSnapshot(payload)
     end
 
     return table.concat({
-        tostring(payload.vehicleName or ''),
-        ('%.1f'):format(tonumber(payload.fuelLevel) or 0.0),
-        ('%.1f'):format(tonumber(payload.tankCapacity) or 0.0),
         ('%.1f'):format(tonumber(payload.fuelPercent) or 0.0),
-        tostring(math.max(0, math.floor((tonumber(payload.speedKmh) or 0) + 0.5))),
-        tostring(payload.gearLabel or 'N'),
         payload.isLow and '1' or '0',
         payload.isCritical and '1' or '0'
     }, '|')
+end
+
+local function isSharedHudAvailable()
+    return GetResourceState('lsrp_hud') == 'started'
 end
 
 local function sendFuelHud(payload)
@@ -424,6 +423,19 @@ local function sendFuelHud(payload)
     hudState.vehicleName = tostring(message.vehicleName or '')
     hudState.isLow = message.isLow == true
     hudState.isCritical = message.isCritical == true
+
+    if isSharedHudAvailable() then
+        if message.visible == true then
+            TriggerEvent('lsrp_hud:client:setFuelHud', {
+                visible = true,
+                percent = hudState.fuelPercent,
+                isLow = hudState.isLow,
+                isCritical = hudState.isCritical
+            })
+        else
+            TriggerEvent('lsrp_hud:client:hideFuelHud')
+        end
+    end
 end
 
 local function hideFuelHud()
@@ -1053,7 +1065,7 @@ end)
 
 CreateThread(function()
     while true do
-        if hudState.visible == true and not IsPauseMenuActive() then
+        if hudState.visible == true and not IsPauseMenuActive() and not isSharedHudAvailable() then
             drawFuelHud()
             Wait(0)
         else

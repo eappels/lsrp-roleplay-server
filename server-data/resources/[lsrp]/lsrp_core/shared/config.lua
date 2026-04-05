@@ -34,6 +34,8 @@ lsrpConfig.coordinateHudEnabled = true
 lsrpConfig.coordinateHudShowHeading = true
 lsrpConfig.coordinateHudShowStreet = true
 lsrpConfig.coordinateHudUpdateIntervalMs = 200
+lsrpConfig.minimapEnabled = false
+lsrpConfig.loadingIndicatorEnabled = false
 lsrpConfig.hungerHudEnabled = true
 lsrpConfig.hungerHudUpdateIntervalMs = 500
 

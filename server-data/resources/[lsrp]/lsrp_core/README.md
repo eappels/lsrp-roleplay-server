@@ -8,6 +8,7 @@ Its primary roles are:
 
 1. Expose the shared `lsrpConfig` table from `shared/config.lua`.
 2. Persist each player's last known position so other resources can restore it on spawn.
+3. Keep always-on client fundamentals, including minimap and loading-indicator suppression when configured.
 
 It also owns account identity and the first-pass single-character profile used during prejoin.
 The HUD previously embedded here has been moved to `lsrp_hud` so it can be restarted independently.
@@ -15,6 +16,7 @@ The HUD previously embedded here has been moved to `lsrp_hud` so it can be resta
 ## Main Files
 
 - `shared/config.lua`: shared default configuration consumed by other resources.
+- `client/minimap.lua`: always-on client suppression for the radar and loading indicator, respecting `lsrpConfig.minimapEnabled` and `lsrpConfig.loadingIndicatorEnabled`.
 - `server/identity.lua`: account identity, `account_id`, and `state_id` tracking.
 - `server/characters.lua`: single-character profile persistence keyed by account.
 - `server/server.lua`: player last-position storage and restore data support.

@@ -8,6 +8,10 @@ shared_scripts {
     'shared/config.lua'
 }
 
+client_scripts {
+    'client/minimap.lua'
+}
+
 server_scripts {
     '@oxmysql/lib/MySQL.lua',
     'server/connection_gate.lua',

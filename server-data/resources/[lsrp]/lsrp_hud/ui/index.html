@@ -91,6 +91,27 @@
 					</div>
 				</div>
 		</aside>
+
+		<aside id="fuel-shell" class="fuel-shell is-hidden" aria-hidden="true">
+			<div class="needs-panel">
+				<div id="fuel-indicator" class="needs-indicator needs-indicator--fuel" aria-label="Fuel 100%">
+					<div class="needs-indicator__icon-wrap" aria-hidden="true">
+						<svg class="needs-indicator__svg" viewBox="0 0 64 64">
+							<path class="needs-indicator__icon-base" d="M18 12a4 4 0 0 1 4-4h16a4 4 0 0 1 4 4v6h3a5 5 0 0 1 5 5v22a11 11 0 0 1-11 11h-1a3 3 0 0 1 0-6h1a5 5 0 0 0 5-5V24h-4v16a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4V12Zm6 2v20h12V14H24Zm24 10h4v9h-4v-9Z" />
+						</svg>
+					</div>
+					<div class="needs-indicator__meter-wrap">
+						<div class="needs-indicator__label-row">
+							<span class="needs-indicator__label">Fuel</span>
+							<span id="fuel-value" class="needs-indicator__value">100%</span>
+						</div>
+						<div class="needs-indicator__meter">
+							<div id="fuel-fill-bar" class="needs-indicator__fill"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</aside>
 	</div>
 
 	<script src="hud.js"></script>

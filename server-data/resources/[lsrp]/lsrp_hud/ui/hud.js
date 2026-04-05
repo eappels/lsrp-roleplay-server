@@ -17,6 +17,7 @@ const NEEDS_ANIMATION_DURATION_MS = 900;
 const hudRootEl = document.getElementById('hud-root');
 const vehicleShellEl = document.getElementById('vehicle-shell');
 const needsShellEl = document.getElementById('needs-shell');
+const fuelShellEl = document.getElementById('fuel-shell');
 const compassTrackEl = document.getElementById('compass-track');
 const vehicleNameEl = document.getElementById('vehicle-name');
 const speedValueEl = document.getElementById('speed-value');
@@ -26,10 +27,13 @@ const streetValueEl = document.getElementById('street-value');
 const areaValueEl = document.getElementById('area-value');
 const hungerIndicatorEl = document.getElementById('hunger-indicator');
 const thirstIndicatorEl = document.getElementById('thirst-indicator');
+const fuelIndicatorEl = document.getElementById('fuel-indicator');
 const hungerFillBarEl = document.getElementById('hunger-fill-bar');
 const thirstFillBarEl = document.getElementById('thirst-fill-bar');
+const fuelFillBarEl = document.getElementById('fuel-fill-bar');
 const hungerValueEl = document.getElementById('hunger-value');
 const thirstValueEl = document.getElementById('thirst-value');
+const fuelValueEl = document.getElementById('fuel-value');
 
 const state = {
 	vehicleVisible: false,
@@ -44,6 +48,12 @@ const state = {
 	needs: {
 		hunger: 100,
 		thirst: null
+	},
+	fuelVisible: false,
+	fuel: {
+		percent: 100,
+		isLow: false,
+		isCritical: false
 	},
 	animatedNeeds: {
 		hunger: 100,
@@ -89,11 +99,12 @@ function getWrappedHeadingDelta(targetHeading, currentHeading) {
 }
 
 function updateRootVisibility() {
-	const isVisible = state.vehicleVisible || state.needsVisible;
+	const isVisible = state.vehicleVisible || state.needsVisible || state.fuelVisible;
 	hudRootEl.classList.toggle('hud-root--hidden', !isVisible);
 	hudRootEl.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
 	setHidden(vehicleShellEl, !state.vehicleVisible);
 	setHidden(needsShellEl, !state.needsVisible);
+	setHidden(fuelShellEl, !state.fuelVisible);
 }
 
 function renderCompass(heading) {
@@ -236,6 +247,16 @@ function renderNeeds() {
 	}
 }
 
+function renderFuel() {
+	const fuelPercent = Math.max(0, Math.min(100, Math.round(Number(state.fuel.percent) || 0)));
+
+	fuelFillBarEl.style.width = `${fuelPercent}%`;
+	setText(fuelValueEl, `${fuelPercent}%`);
+	fuelIndicatorEl.setAttribute('aria-label', `Fuel ${fuelPercent}%`);
+	fuelIndicatorEl.classList.toggle('is-low', state.fuel.isLow === true && state.fuel.isCritical !== true);
+	fuelIndicatorEl.classList.toggle('is-critical', state.fuel.isCritical === true);
+}
+
 window.addEventListener('message', (event) => {
 	const message = event.data || {};
 	if (!message || typeof message !== 'object' || !message.action) {
@@ -273,6 +294,23 @@ window.addEventListener('message', (event) => {
 	if (message.action === 'playerNeeds:hide') {
 		state.needsVisible = false;
 		stopNeedsAnimation();
+		updateRootVisibility();
+		return;
+	}
+
+	if (message.action === 'vehicleFuel:show' || message.action === 'vehicleFuel:update') {
+		state.fuelVisible = true;
+		state.fuel = {
+			...state.fuel,
+			...(message.data || {})
+		};
+		renderFuel();
+		updateRootVisibility();
+		return;
+	}
+
+	if (message.action === 'vehicleFuel:hide') {
+		state.fuelVisible = false;
 		updateRootVisibility();
 	}
 });
