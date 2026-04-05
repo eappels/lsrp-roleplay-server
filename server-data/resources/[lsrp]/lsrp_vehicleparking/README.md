@@ -7,7 +7,7 @@ A comprehensive vehicle parking system for FiveM with zone-based parking, UI man
 - **Zone-Based Parking**: Uses PolyZone BoxZone for accurate zone detection
 - **Interactive UI**: Modern, responsive interface for managing parked vehicles
 - **Full Vehicle Persistence**: Stores all vehicle modifications, colors, damage, and extras
-- **Ownership System**: Uses license identifiers to track vehicle ownership
+- **Ownership System**: Uses `state_id` as the primary owner key with legacy license fallback/migration support
 - **Blip System**: Map blips for all parking zones
 - **Easy Configuration**: Simple config file for adding/editing parking locations
 
@@ -129,11 +129,21 @@ The system stores **all** vehicle properties including:
 - ✅ Xenon lights
 - ✅ Horn type
 
+### Ownership And Persistence Model
+
+- Parked and owned vehicles are stored in the `owned_vehicles` table.
+- `state_id` is the primary gameplay owner key when `lsrp_core` is available.
+- Legacy license-based rows are still supported and are backfilled/migrated on startup.
+- Vehicle status is tracked with `parked` and `out` states instead of treating every row as permanently parked.
+
 ## Additional Notes
 
-- Transactional retrieval ensures vehicles are marked as `out` only after successful client spawn.
-- Custom/addon vehicles resolve model hash from multiple candidates to handle non-spawnable display names.
-- `owned_vehicles` table tracks vehicle ownership and parking status.
+- Retrieval is transactional: the server marks the row as `out` before the spawn request, then restores `status = 'parked'` and refunds the retrieval fee if client spawn fails or times out.
+- The client uses the vehicle payload's saved `parkingZone` for spawning, so retrieval still works even if the player has stepped out of the current interaction zone.
+- Only one retrieval can be pending per player at a time.
+- Custom/addon vehicles resolve the spawn model from multiple candidates, including saved props, to handle rows that contain a non-spawnable display name.
+- `owned_vehicles` tracks both ownership and parking status.
+- Startup recovery moves stranded `out` vehicles back to `parked` when the server boots with no players online.
 
 ## File Structure
 
@@ -184,6 +194,8 @@ TriggerServerEvent('lsrp_vehicleparking:server:storeVehicle', vehicleData, zoneN
 TriggerServerEvent('lsrp_vehicleparking:server:retrieveVehicle', vehiclePlate)
 ```
 
+You can also pass a table with `id` and/or `plate`. The server prefers the owned vehicle row id when available.
+
 ## Customization
 
 ### Change Notification System
@@ -221,6 +233,14 @@ Edit `html/style.css` to customize colors, fonts, and layout. The UI uses CSS va
 - Ensure the database is storing the `vehicle_props` column as `longtext`
 - Check server console for any Lua errors
 
+**Vehicle retrieval fails after leaving the marker:**
+- Retrieval should use the saved parking zone from the server payload, not only the current client zone
+- Check for errors around `lsrp_vehicleparking:client:spawnVehicle` or `retrievalSpawnResult`
+
+**Addon/custom vehicle will not retrieve:**
+- Verify the saved row contains a spawnable model hash or model name in `vehicle_model` or `vehicle_props.model`
+- Rows containing display labels such as `CARNOTFOUND` need a valid underlying model value to spawn
+
 **UI not opening:**
 - Verify you're within the interaction distance
 - Check browser console (F8 in-game) for JavaScript errors
@@ -232,8 +252,12 @@ Edit `html/style.css` to customize colors, fonts, and layout. The UI uses CSS va
 - Run the SQL schema if you haven't already
 
 **Players can't store vehicles:**
-- Check that the player has a license identifier
+- Check that the player resolves to a valid `state_id` or legacy license owner
 - Verify the vehicle isn't already parked (unique plate constraint)
+
+**Dev-spawned owned vehicles park unexpectedly or behave oddly:**
+- A DB-backed vehicle should be marked `status = 'out'` when it is spawned into the world
+- If a development spawn sets `ownedVehicleId` on entity state while the DB row is still `parked`, parking logic may treat it as already parkable data
 
 ## Support
 

@@ -15,6 +15,7 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 - [lsrp_dev](lsrp_dev/README.md): Developer and admin test utilities.
 - [lsrp_economy](lsrp_economy/README.md): Persistent LS$ balance and transaction system.
 - [lsrp_fuel](lsrp_fuel/README.md): Vehicle fuel consumption and gas-station refueling.
+- [lsrp_framework](lsrp_framework/README.md): Public framework facade and stable server API.
 - [lsrp_hacking](lsrp_hacking/README.md): ATM hacking gameplay with vendor flow, puzzle UI, and payouts.
 - [lsrp_housing](lsrp_housing/README.md): Apartment rental, entry, and management flow.
 - [lsrp_hud](lsrp_hud/README.md): Standalone compass plus hunger and thirst HUD widgets.

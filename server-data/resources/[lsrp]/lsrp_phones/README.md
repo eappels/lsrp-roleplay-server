@@ -20,15 +20,24 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 
 - Incoming and outgoing call flow.
 - Persisted player-to-player text messaging with unread counts and conversation threads.
-- Phonebook storage.
+- Phonebook storage with historical backfill for returning players.
 - Phone number lookup and assignment.
 - Integration with parking data for vehicle lists.
 - Taxi app for rider booking and driver dispatch claims through `lsrp_taxi`.
+- Balance app with live LS$ and cash updates through `lsrp_economy`.
 - Phone UI, phonebook visibility, and live call or message access now require owning a `phone` inventory item.
 
 ## Database Tables
 
 - `phonebook_entries`: Stores phonebook data by `state_id` with legacy `license` kept for compatibility.
+- `phone_messages`: Stores persisted SMS-style messages between phone numbers.
+
+## Ownership And Seeding
+
+- The resource resolves players by `state_id` first and falls back to legacy license rows when necessary.
+- Missing phonebook rows are seeded from `lsrp_core` historical player data in `player_last_positions`.
+- Seeded historical entries use `display_name = 'Unknown'` until the player reconnects and their live name is refreshed.
+- Phone ownership checks read the `phone` item from `lsrp_inventory` inventories by `state_id` first, then by legacy license.
 
 ## Integrations
 
@@ -44,4 +53,5 @@ It also integrates with other gameplay systems such as voice, economy, and vehic
 - This is a central player-facing UI resource.
 - Players can still use world parking zones without a phone; only the phone app is gated by phone ownership.
 - When debugging calls, check both the phone resource and `pma-voice` state.
-- Balance app integrates with `lsrp_economy` to display live LS$ balance updates.
+- Balance app integrates with `lsrp_economy` exports and refreshes on both `lsrp_economy:client:balanceUpdated` and `lsrp_economy:client:cashUpdated`.
+- Single-client self-hearback is not a reliable phone-call test because `pma-voice` proximity handling does not make a caller hear their own microphone feed locally.

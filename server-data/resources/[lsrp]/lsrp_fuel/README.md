@@ -37,7 +37,8 @@ Current scope:
 
 ## Additional Notes
 
-- Reconciliation logic in `getVehicleFuelLevelSafe` ensures stale state updates do not cause fuel level inconsistencies.
+- Reconciliation logic in `getVehicleFuelLevelSafe` prefers a lower local native fuel value over a higher replicated state value while the tank is actively draining.
+- This prevents stale state bag updates from snapping fuel back up between sync intervals.
 - Integrated with `lsrp_vehicleparking` to persist fuel levels when vehicles are stored and retrieved.
 
 ## Notes
