@@ -434,6 +434,14 @@ body {
 	background: linear-gradient(180deg, #2292d3, #7be2ff);
 }
 
+#treatment-indicator .needs-indicator__fill {
+	background: linear-gradient(90deg, #9f5cff 0%, #d78eff 55%, #f1d0ff 100%);
+}
+
+#treatment-indicator::before {
+	background: linear-gradient(180deg, #8d4ced, #d18fff);
+}
+
 .needs-indicator.is-low {
 	border-color: rgba(255, 210, 92, 0.32);
 	transform: translateX(2px);

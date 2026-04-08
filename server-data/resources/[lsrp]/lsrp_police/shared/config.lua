@@ -16,6 +16,15 @@ Config.VehicleColors = {
 	secondary = 111
 }
 
+Config.Escort = {
+	range = 3.0,
+	label = 'escort the person',
+	releaseLabel = 'release the escorted person',
+	attachBone = 11816,
+	attachOffset = vector3(0.54, 0.44, 0.0),
+	maxDistance = 22.0
+}
+
 Config.JobDefinition = {
 	id = 'police_officer',
 	label = 'Los Santos Police Department',

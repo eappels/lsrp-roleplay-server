@@ -28,12 +28,16 @@ const areaValueEl = document.getElementById('area-value');
 const fuelIndicatorEl = document.getElementById('fuel-indicator');
 const hungerIndicatorEl = document.getElementById('hunger-indicator');
 const thirstIndicatorEl = document.getElementById('thirst-indicator');
+const treatmentIndicatorEl = document.getElementById('treatment-indicator');
 const fuelFillBarEl = document.getElementById('fuel-fill-bar');
 const hungerFillBarEl = document.getElementById('hunger-fill-bar');
 const thirstFillBarEl = document.getElementById('thirst-fill-bar');
+const treatmentFillBarEl = document.getElementById('treatment-fill-bar');
 const fuelValueEl = document.getElementById('fuel-value');
 const hungerValueEl = document.getElementById('hunger-value');
 const thirstValueEl = document.getElementById('thirst-value');
+const treatmentValueEl = document.getElementById('treatment-value');
+const treatmentLabelEl = document.getElementById('treatment-label');
 
 const state = {
 	vehicleVisible: false,
@@ -46,6 +50,7 @@ const state = {
 		vehicleName: 'Vehicle'
 	},
 	needsVisible: false,
+	treatmentVisible: false,
 	needs: {
 		isDriverInVehicle: false,
 		fuel: null,
@@ -56,6 +61,11 @@ const state = {
 		fuel: null,
 		hunger: 100,
 		thirst: null
+	},
+	treatment: {
+		label: 'Treatment',
+		remainingMs: 0,
+		percent: 100
 	}
 };
 
@@ -125,12 +135,19 @@ function getWrappedHeadingDelta(targetHeading, currentHeading) {
 }
 
 function updateRootVisibility() {
-	const isVisible = state.vehicleVisible || state.needsVisible || state.fuelVisible;
+	const isVisible = state.vehicleVisible || state.needsVisible || state.fuelVisible || state.treatmentVisible;
 	hudRootEl.classList.toggle('hud-root--hidden', !isVisible);
 	hudRootEl.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
 	setHidden(vehicleShellEl, !state.vehicleVisible);
-	setHidden(needsShellEl, !state.needsVisible);
+	setHidden(needsShellEl, !(state.needsVisible || state.treatmentVisible));
 	setHidden(fuelShellEl, !state.fuelVisible);
+}
+
+function formatRemainingTime(remainingMs) {
+	const totalSeconds = Math.max(0, Math.ceil((Number(remainingMs) || 0) / 1000));
+	const minutes = Math.floor(totalSeconds / 60);
+	const seconds = totalSeconds % 60;
+	return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
 function renderCompass(heading) {
@@ -297,6 +314,24 @@ function renderNeeds() {
 	updateRootVisibility();
 }
 
+function renderTreatment() {
+	if (!state.treatmentVisible) {
+		setHidden(treatmentIndicatorEl, true);
+		updateRootVisibility();
+		return;
+	}
+
+	setHidden(treatmentIndicatorEl, false);
+	const percent = Math.max(0, Math.min(100, Math.round(Number(state.treatment.percent) || 0)));
+	treatmentFillBarEl.style.width = `${percent}%`;
+	setText(treatmentLabelEl, state.treatment.label || 'Treatment');
+	setText(treatmentValueEl, formatRemainingTime(state.treatment.remainingMs));
+	treatmentIndicatorEl.setAttribute('aria-label', `${state.treatment.label || 'Treatment'} ${formatRemainingTime(state.treatment.remainingMs)}`);
+	treatmentIndicatorEl.classList.toggle('is-low', percent <= 50 && percent > 20);
+	treatmentIndicatorEl.classList.toggle('is-critical', percent <= 20);
+	updateRootVisibility();
+}
+
 window.addEventListener('message', (event) => {
 	const message = event.data || {};
 	if (!message || typeof message !== 'object' || !message.action) {
@@ -341,6 +376,22 @@ window.addEventListener('message', (event) => {
 		state.fuelVisible = false;
 		stopNeedsAnimation();
 		updateRootVisibility();
+		return;
+	}
+
+	if (message.action === 'emsTreatment:show' || message.action === 'emsTreatment:update') {
+		state.treatmentVisible = true;
+		state.treatment = {
+			...state.treatment,
+			...(message.data || {})
+		};
+		renderTreatment();
+		return;
+	}
+
+	if (message.action === 'emsTreatment:hide') {
+		state.treatmentVisible = false;
+		renderTreatment();
 	}
 });
 

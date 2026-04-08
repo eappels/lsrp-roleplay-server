@@ -115,6 +115,14 @@ Config.Stores = {
 		interactionRadius = 1.8
 	},
 	{
+		id = 'little_seoul',
+		name = '24/7 Supermarket',
+		subtitle = 'Snacks, first aid, and quick supplies.',
+		catalogId = 'essentials',
+		interaction = vector3( -707.31, -913.71, 19.22),
+		interactionRadius = 1.8
+	},
+	{
 		id = 'banham_canyon',
 		name = '24/7 Supermarket',
 		subtitle = 'Snacks, first aid, and quick supplies.',

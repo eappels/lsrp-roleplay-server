@@ -62,6 +62,7 @@ local function clearThirstCollapseState()
 	thirstCollapseActive = false
 	thirstCollapseStartedAt = 0
 	thirstKnockoutPoseApplied = false
+	LocalPlayer.state:set('lsrp_thirst_collapsed', false, true)
 
 	local ped = PlayerPedId()
 	if ped ~= 0 and DoesEntityExist(ped) and not IsEntityDead(ped) then
@@ -109,6 +110,15 @@ local function disableCollapseControls()
 	for _, controlId in ipairs(BLOCKED_CONTROLS) do
 		DisableControlAction(0, controlId, true)
 	end
+end
+
+local function shouldSuspendCollapsePose(ped)
+	local playerState = LocalPlayer and LocalPlayer.state or nil
+	if playerState and playerState.lsrp_ems_in_treatment == true then
+		return true
+	end
+
+	return ped ~= 0 and DoesEntityExist(ped) and IsPedInAnyVehicle(ped, false)
 end
 
 RegisterNetEvent('lsrp_thirst:client:update', function(thirst)
@@ -185,6 +195,7 @@ CreateThread(function()
 			thirstCollapseActive = true
 			thirstCollapseStartedAt = GetGameTimer()
 			thirstKnockoutPoseApplied = false
+			LocalPlayer.state:set('lsrp_thirst_collapsed', true, true)
 			showNotification('You collapse from dehydration and cannot move.')
 			FreezeEntityPosition(ped, false)
 			SetPedCanRagdoll(ped, true)
@@ -196,8 +207,16 @@ CreateThread(function()
 		end
 
 		disableCollapseControls()
+		if shouldSuspendCollapsePose(ped) then
+			FreezeEntityPosition(ped, false)
+			SetPedCanRagdoll(ped, true)
+			goto continue
+		end
+
 		if not thirstKnockoutPoseApplied and thirstCollapseStartedAt > 0 and (GetGameTimer() - thirstCollapseStartedAt) >= COLLAPSE_POSE_DELAY_MS then
 			thirstKnockoutPoseApplied = true
+			applyKnockedOutPose(ped)
+		elseif thirstKnockoutPoseApplied and not IsEntityPlayingAnim(ped, KNOCKOUT_ANIM_DICT, KNOCKOUT_ANIM_NAME, 3) then
 			applyKnockedOutPose(ped)
 		end
 

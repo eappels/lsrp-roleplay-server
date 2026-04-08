@@ -20,6 +20,7 @@ server_scripts {
 }
 
 dependencies {
+	'lsrp_framework',
 	'lsrp_jobs',
 	'lsrp_economy'
 }

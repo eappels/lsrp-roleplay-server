@@ -2,6 +2,7 @@ local stationBlips = {}
 local assignedPatrolVehicle = nil
 local patrolVehicleSpawnInProgress = false
 local OWNED_VEHICLE_ID_STATE_KEY = 'lsrpOwnedVehicleId'
+local activeEscort = nil
 
 local function trimString(value)
 	if value == nil then
@@ -26,6 +27,111 @@ local function showHelpPrompt(message)
 	BeginTextCommandDisplayHelp('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandDisplayHelp(0, false, false, -1)
+end
+
+local function stopEscortTasks()
+	local playerPed = PlayerPedId()
+	if playerPed ~= 0 and DoesEntityExist(playerPed) then
+		DetachEntity(playerPed, true, false)
+	end
+end
+
+local function getNearbyEscortTarget()
+	local playerPed = PlayerPedId()
+	if playerPed == 0 or not DoesEntityExist(playerPed) then
+		return nil
+	end
+
+	local playerCoords = GetEntityCoords(playerPed)
+	local maxRange = math.max(1.5, tonumber(Config.Escort and Config.Escort.range) or 3.0)
+	local bestCandidate = nil
+
+	for _, playerId in ipairs(GetActivePlayers()) do
+		if playerId ~= PlayerId() then
+			local targetPed = GetPlayerPed(playerId)
+			if targetPed ~= 0 and DoesEntityExist(targetPed) and not IsPedInAnyVehicle(targetPed, false) then
+				local targetCoords = GetEntityCoords(targetPed)
+				local distance = #(playerCoords - targetCoords)
+				if distance <= maxRange and (not bestCandidate or distance < bestCandidate.distance) then
+					bestCandidate = {
+						targetSrc = GetPlayerServerId(playerId),
+						targetName = GetPlayerName(playerId) or ('ID ' .. tostring(GetPlayerServerId(playerId))),
+						distance = distance
+					}
+				end
+			end
+		end
+	end
+
+	return bestCandidate
+end
+
+local function ensureEscortAttachThread()
+	CreateThread(function()
+		while activeEscort and activeEscort.asTarget == true do
+			Wait(0)
+			local playerPed = PlayerPedId()
+			if playerPed == 0 or not DoesEntityExist(playerPed) then
+				goto continue
+			end
+
+			if IsPedInAnyVehicle(playerPed, false) then
+				DetachEntity(playerPed, true, false)
+				goto continue
+			end
+
+			local officerPlayerId = GetPlayerFromServerId(tonumber(activeEscort.officerSrc) or -1)
+			if officerPlayerId == -1 then
+				stopEscortTasks()
+				goto continue
+			end
+
+			local officerPed = GetPlayerPed(officerPlayerId)
+			if officerPed == 0 or not DoesEntityExist(officerPed) then
+				stopEscortTasks()
+				goto continue
+			end
+
+			if IsPedInAnyVehicle(officerPed, false) then
+				DetachEntity(playerPed, true, false)
+				goto continue
+			end
+
+			local distance = #(GetEntityCoords(playerPed) - GetEntityCoords(officerPed))
+			local maxDistance = math.max(5.0, tonumber(Config.Escort and Config.Escort.maxDistance) or 22.0)
+			if distance > maxDistance then
+				stopEscortTasks()
+				notify('You lost your escort. Stay closer to the officer.')
+				goto continue
+			end
+
+			if not IsEntityAttachedToEntity(playerPed, officerPed) then
+				local offset = Config.Escort and Config.Escort.attachOffset or vector3(0.54, 0.44, 0.0)
+				local attachBone = math.floor(tonumber(Config.Escort and Config.Escort.attachBone) or 11816)
+				AttachEntityToEntity(
+					playerPed,
+					officerPed,
+					attachBone,
+					tonumber(offset.x) or 0.54,
+					tonumber(offset.y) or 0.44,
+					tonumber(offset.z) or 0.0,
+					0.0,
+					0.0,
+					0.0,
+					false,
+					false,
+					false,
+					false,
+					2,
+					true
+				)
+			end
+
+			::continue::
+		end
+
+		stopEscortTasks()
+	end)
 end
 
 local function isInteractionJustPressed()
@@ -564,6 +670,28 @@ RegisterNetEvent('lsrp_police:client:removeImpoundedVehicle', function(payload)
 	notify('The impounded vehicle could not be removed immediately.')
 end)
 
+RegisterNetEvent('lsrp_police:client:escortStarted', function(payload)
+	payload = type(payload) == 'table' and payload or {}
+	activeEscort = {
+		asTarget = payload.asTarget == true,
+		officerSrc = tonumber(payload.officerSrc),
+		officerName = trimString(payload.officerName),
+		targetSrc = tonumber(payload.targetSrc),
+		targetName = trimString(payload.targetName)
+	}
+	if activeEscort.asTarget == true then
+		notify(('An officer is escorting you.'):format(activeEscort.officerName or 'Police'))
+		ensureEscortAttachThread()
+	else
+		notify(('Escorting %s.'):format(activeEscort.targetName or 'person'))
+	end
+end)
+
+RegisterNetEvent('lsrp_police:client:escortCleared', function()
+	activeEscort = nil
+	stopEscortTasks()
+end)
+
 RegisterNetEvent('lsrp_jobs:client:employmentUpdated', function()
 	if not isPoliceEmployee() then
 		ensurePatrolVehicleDeleted()
@@ -583,6 +711,8 @@ CreateThread(function()
 
 		if playerPed ~= 0 and DoesEntityExist(playerPed) then
 			local playerCoords = GetEntityCoords(playerPed)
+			local nearbyEscortTarget = isPoliceOnDuty() and not IsPedInAnyVehicle(playerPed, false) and getNearbyEscortTarget() or nil
+			local interactionHandled = false
 
 			for _, station in ipairs(Config.Stations or {}) do
 				local drawDistance = tonumber(Config.DrawDistance) or 30.0
@@ -613,6 +743,7 @@ CreateThread(function()
 				end
 
 				if isPoliceEmployee() and dutyDistance <= interactionDistance then
+					interactionHandled = true
 					if isPoliceOnDuty() then
 						showHelpPrompt('Press ~INPUT_CONTEXT~ to clock out of police duty')
 						if isInteractionJustPressed() then
@@ -631,6 +762,7 @@ CreateThread(function()
 						end
 					end
 				elseif dutyDistance <= interactionDistance then
+					interactionHandled = true
 					showHelpPrompt('Only sworn LSPD personnel can access the duty locker')
 					if isInteractionJustPressed() then
 						notify('You are not assigned to the Los Santos Police Department.')
@@ -639,12 +771,14 @@ CreateThread(function()
 				end
 
 				if isPoliceEmployee() and dressingRoomDistance <= interactionDistance then
+					interactionHandled = true
 					showHelpPrompt(Config.DressingRoomPrompt or 'Press ~INPUT_CONTEXT~ to access the police dressing room')
 					if isInteractionJustPressed() then
 						openPoliceDressingRoom(station)
 						Wait(300)
 					end
 				elseif dressingRoomDistance <= interactionDistance then
+					interactionHandled = true
 					showHelpPrompt('Only sworn LSPD personnel can access the police dressing room')
 					if isInteractionJustPressed() then
 						notify('You are not assigned to the Los Santos Police Department.')
@@ -653,21 +787,44 @@ CreateThread(function()
 				end
 
 				if isPoliceOnDuty() and spawnDistance <= interactionDistance then
+					interactionHandled = true
 					showHelpPrompt('Press ~INPUT_CONTEXT~ to collect a patrol cruiser')
 					if isInteractionJustPressed() then
 						spawnPatrolVehicle(station)
 						Wait(300)
 					end
 				elseif isPoliceEmployee() and spawnDistance <= interactionDistance then
+					interactionHandled = true
 					showHelpPrompt('Clock in for duty before using the police garage')
 				elseif spawnDistance <= interactionDistance then
+					interactionHandled = true
 					showHelpPrompt('Police garage access is restricted to sworn personnel')
 				end
 
 				if returnDistance <= interactionDistance then
+					interactionHandled = true
 					showHelpPrompt('Press ~INPUT_CONTEXT~ to return your patrol vehicle')
 					if isInteractionJustPressed() then
 						returnPatrolVehicle()
+						Wait(300)
+					end
+				end
+			end
+
+			if not interactionHandled and isPoliceOnDuty() and not IsPedInAnyVehicle(playerPed, false) then
+				local escortTarget = activeEscort and activeEscort.asTarget ~= true and activeEscort.targetSrc and {
+					targetSrc = activeEscort.targetSrc,
+					targetName = activeEscort.targetName,
+					isEscorted = true
+				} or nearbyEscortTarget
+				if escortTarget then
+					waitMs = 0
+					local actionLabel = escortTarget.isEscorted == true
+						and tostring(Config.Escort and Config.Escort.releaseLabel or 'release the escorted person')
+						or tostring(Config.Escort and Config.Escort.label or 'escort the person')
+					showHelpPrompt(('Press ~INPUT_CONTEXT~ to %s (%s)'):format(actionLabel, tostring(escortTarget.targetName or 'person')))
+					if isInteractionJustPressed() then
+						TriggerServerEvent('lsrp_police:server:toggleEscort', escortTarget.targetSrc)
 						Wait(300)
 					end
 				end

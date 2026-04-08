@@ -25,6 +25,8 @@ local cachedHungerValue = nil
 local cachedThirstValue = nil
 local directHungerPercent = nil
 local directThirstPercent = nil
+local treatmentVisible = false
+local lastTreatmentPayloadKey = nil
 
 local function getHudWidgetLayoutConfig()
 	local widgetConfig = lsrpConfig and lsrpConfig.hudWidgets or {}
@@ -540,6 +542,25 @@ local function setNeedsVisible(visible, payload)
 	end
 end
 
+local function setTreatmentVisible(visible, payload)
+	if visible == treatmentVisible and not payload then
+		return
+	end
+
+	treatmentVisible = visible
+	if visible then
+		SendNUIMessage({
+			action = 'emsTreatment:show',
+			data = payload or {}
+		})
+	else
+		SendNUIMessage({
+			action = 'emsTreatment:hide'
+		})
+		lastTreatmentPayloadKey = nil
+	end
+end
+
 local function pushNeedsPayload()
 	if IsPauseMenuActive() or not isHungerHudEnabled() then
 		if needsVisible then
@@ -634,6 +655,41 @@ RegisterNetEvent('lsrp_hud:client:needUpdated', function(needType, value)
 	pushNeedsPayload()
 end)
 
+RegisterNetEvent('lsrp_hud:client:setTreatmentCountdown', function(payload)
+	payload = type(payload) == 'table' and payload or nil
+	if not payload or payload.visible ~= true then
+		if treatmentVisible then
+			setTreatmentVisible(false)
+		end
+		return
+	end
+
+	local remainingMs = math.max(0, math.floor(tonumber(payload.remainingMs) or 0))
+	local percent = clampNumber(math.floor(tonumber(payload.percent) or 0), 0, 100)
+	local label = tostring(payload.label or 'Treatment')
+	local normalizedPayload = {
+		visible = true,
+		label = label,
+		remainingMs = remainingMs,
+		percent = percent
+	}
+	local payloadKey = table.concat({ label, tostring(remainingMs), tostring(percent) }, '|')
+
+	if not treatmentVisible then
+		setTreatmentVisible(true, normalizedPayload)
+		lastTreatmentPayloadKey = payloadKey
+		return
+	end
+
+	if payloadKey ~= lastTreatmentPayloadKey then
+		lastTreatmentPayloadKey = payloadKey
+		SendNUIMessage({
+			action = 'emsTreatment:update',
+			data = normalizedPayload
+		})
+	end
+end)
+
 CreateThread(function()
 	pushHudWidgetLayoutConfig()
 
@@ -697,5 +753,9 @@ AddEventHandler('onClientResourceStop', function(resourceName)
 
 	SendNUIMessage({
 		action = 'playerNeeds:hide'
+	})
+
+	SendNUIMessage({
+		action = 'emsTreatment:hide'
 	})
 end)

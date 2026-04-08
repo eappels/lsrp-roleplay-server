@@ -5,6 +5,7 @@ author 'Eddy Appels'
 description 'LSRP Spawner'
 
 dependency 'lsrp_core'
+dependency 'lsrp_framework'
 dependency 'lsrp_housing'
 dependency 'oxmysql'
 

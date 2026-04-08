@@ -1,5 +1,7 @@
 local mpGamerTags = {}
 local mpGamerTagSettings = {}
+local JOB_DUTY_STATE_KEY = 'lsrp_job_duty'
+local ACTIVE_DUTY_COLOR = 18
 
 local gtComponent = {
     GAMER_NAME = 0,
@@ -119,10 +121,19 @@ function updatePlayerNames()
                 if settings.healthColor then
                     SetMpGamerTagHealthBarColour(tag, settings.healthColor)
                 end
+
+				local playerState = Player(GetPlayerServerId(i)) and Player(GetPlayerServerId(i)).state or nil
+				local isOnDuty = playerState and playerState[JOB_DUTY_STATE_KEY] == true or false
+				SetMpGamerTagVisibility(tag, gtComponent.WANTED_STARS, isOnDuty)
+				SetMpGamerTagWantedLevel(tag, isOnDuty and 1 or 0)
+				if isOnDuty then
+					SetMpGamerTagColour(tag, gtComponent.WANTED_STARS, ACTIVE_DUTY_COLOR)
+				end
             else
                 SetMpGamerTagVisibility(tag, gtComponent.GAMER_NAME, false)
                 SetMpGamerTagVisibility(tag, gtComponent.healthArmour, false)
                 SetMpGamerTagVisibility(tag, gtComponent.AUDIO_ICON, false)
+				SetMpGamerTagVisibility(tag, gtComponent.WANTED_STARS, false)
             end
         elseif mpGamerTags[i] then
             RemoveMpGamerTag(mpGamerTags[i].tag)

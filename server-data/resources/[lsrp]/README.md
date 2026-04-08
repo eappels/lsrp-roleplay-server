@@ -13,6 +13,7 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 
 - [lsrp_core](lsrp_core/README.md): Shared configuration and player position persistence.
 - [lsrp_dev](lsrp_dev/README.md): Developer and admin test utilities.
+- [lsrp_ems](lsrp_ems/README.md): EMS starter resource with framework-native duty and job registration.
 - [lsrp_economy](lsrp_economy/README.md): Persistent LS$ balance and transaction system.
 - [lsrp_fuel](lsrp_fuel/README.md): Vehicle fuel consumption and gas-station refueling.
 - [lsrp_framework](lsrp_framework/README.md): Public framework facade and stable server API.
@@ -29,6 +30,7 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 - [lsrp_pededitor](lsrp_pededitor/README.md): Character appearance editor and outfit persistence.
 - [lsrp_police](lsrp_police/README.md): Private police job with Mission Row duty and patrol vehicle access.
 - [lsrp_phones](lsrp_phones/README.md): Phone UI, phonebook, and call flow.
+- [lsrp_resource_template](lsrp_resource_template/README.md): Standard scaffold for new LSRP resources using `lsrp_framework`.
 - [lsrp_shops](lsrp_shops/README.md): 24/7 convenience stores and item purchases.
 - [lsrp_spawner](lsrp_spawner/README.md): Player spawn and respawn flow.
 - [lsrp_taxi](lsrp_taxi/README.md): Public taxi driver job with company vehicles and phone dispatch.

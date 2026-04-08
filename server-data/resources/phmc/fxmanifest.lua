@@ -1,0 +1,16 @@
+fx_version 'cerulean'
+game 'gta5'
+this_is_a_map 'yes'
+files {
+	'common/*.meta'
+}
+data_file 'DLC_ITYP_REQUEST' 'stream/country_01_metadata_021_strm.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/downtown_01_metadata_008_strm.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/hospsigns.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/int_medical.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/jhy_hospital_2f.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/jhy_hospital_5f.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/test_hospital_item.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/v_hospint_4f.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/v_hospital_12f.ytyp'
+data_file 'DLC_ITYP_REQUEST' 'stream/v_hospital_stairs.ytyp'

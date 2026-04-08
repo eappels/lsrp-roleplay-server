@@ -13,6 +13,7 @@ Version `1.0.0` is intentionally small and server-focused.
 It currently wraps:
 
 - Identity via `lsrp_core`
+- Prejoin auth and characters via `lsrp_core`
 - Economy via `lsrp_economy`
 - Jobs and permissions via `lsrp_jobs`
 - Inventory lookups and item mutation via `lsrp_inventory`
@@ -21,10 +22,21 @@ It currently wraps:
 
 - `getApiVersion()`
 - `getIdentity(playerSrc)`
+- `isAuthenticated(playerSrc)`
+- `getCharacter(playerSrc)`
+- `hasCharacter(playerSrc)`
+- `createCharacter(playerSrc, payload)`
 - `getMoney(playerSrc)`
 - `getJob(playerSrc)`
+- `isEmployedAs(playerSrc, jobId)`
+- `isOnDuty(playerSrc, jobId)`
+- `setDuty(playerSrc, shouldBeOnDuty)`
+- `registerJobDefinition(definition)`
+- `employPlayer(playerSrc, jobId, gradeId)`
 - `getInventory(playerSrc)`
 - `getPlayerContext(playerSrc)`
+- `notify(playerSrc, message, level)`
+- `notifyAll(message, level)`
 - `formatCurrency(amount)`
 - `canAfford(playerSrc, amount)`
 - `addMoney(playerSrc, amount, reason, metadata)`
@@ -39,3 +51,4 @@ It currently wraps:
 - The facade returns normalized payloads and hides internal storage details.
 - New LSRP resources should prefer `lsrp_framework` over calling multiple service resources directly.
 - This resource is read-heavy by design in its first version. More advanced systems such as callbacks, registries, and notifications should be added deliberately in later versions.
+- Notifications now have a shared framework path on both server and client.
