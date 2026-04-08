@@ -1,4 +1,4 @@
-local RESOURCE_PREFIX = '^2LSRP MapEdits'
+local RESOURCE_PREFIX = 'LSRP MapEdits'
 
 local DEFAULT_SEARCH_RADIUS = 12.0
 local BARRIER_REMOVAL_ENABLED_BY_DEFAULT = true
@@ -23,7 +23,7 @@ local hiddenBarrierPoints = {}
 
 local function notify(message)
 print(('[lsrp_mapedits] %s'):format(message))
-exports.lsrp_framework:notify(('%s %s'):format(RESOURCE_PREFIX, message))
+exports.lsrp_framework:notify(('%s: %s'):format(RESOURCE_PREFIX, message))
 end
 
 local function toSigned32(value)

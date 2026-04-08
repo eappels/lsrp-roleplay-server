@@ -25,6 +25,17 @@ This file turns the top-level framework prerequisites into concrete work inside 
 - [ ] Document which fields are guaranteed, optional, or nullable in each export response.
 - [ ] Add small validation helpers so contracts stay normalized before data leaves the facade.
 
+## Suggested Implementation Order
+
+Use this order when framework work resumes:
+
+1. Stable contracts
+2. Interaction registry
+3. Ownership and identity helpers
+4. Phone-app registry
+5. Usable-item registry
+6. Conventions and template finalization
+
 ## Registries
 
 - [x] Job registration entrypoint exists through `registerJobDefinition`.

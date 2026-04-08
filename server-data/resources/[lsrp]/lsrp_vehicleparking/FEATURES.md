@@ -5,7 +5,7 @@
 A complete, production-ready vehicle parking system with:
 
 ### ✅ Core Features
-- **Zone-Based Parking**: Uses PolyZone BoxZone system (same as lsrp_testing)
+- **Zone-Based Parking**: Uses the PolyZone BoxZone system for reliable parking-area detection
 - **Beautiful UI**: Modern gradient interface with responsive design
 - **Full Vehicle Persistence**: Every modification is saved and restored
 - **Multi-Zone Support**: Players can park at different locations
@@ -137,7 +137,7 @@ Config.RetrievalFee = 50  -- $50 to retrieve
 
 ## 💡 Technical Highlights
 
-- **BoxZone Integration**: Uses PolyZone BoxZone for accurate zone detection (same as lsrp_testing)
+- **BoxZone Integration**: Uses PolyZone BoxZone for accurate zone detection
 - **State-based ownership**: Uses `state_id` as the primary gameplay owner key, with legacy license fallback for older rows
 - **Unique plates**: Prevents duplicate vehicles in database
 - **Zone detection**: Efficient box-based zone system

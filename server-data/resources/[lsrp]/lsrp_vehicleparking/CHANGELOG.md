@@ -2,7 +2,7 @@
 
 ## Changes Made
 
-The `lsrp_vehicleparking` resource has been updated to use the **same zone system** as `lsrp_testing`:
+The `lsrp_vehicleparking` resource has been updated to use **PolyZone BoxZone** for zone detection:
 
 ### Before (Manual Box Detection)
 - Simple manual distance and box calculations
@@ -11,7 +11,7 @@ The `lsrp_vehicleparking` resource has been updated to use the **same zone syste
 
 ### After (PolyZone BoxZone)
 - Uses PolyZone's BoxZone library
-- Consistent with `lsrp_testing` framework pattern
+- Consistent with the wider LSRP PolyZone pattern
 - Built-in zone visualization for debugging
 - More optimized and reliable
 - Better zone boundary detection
@@ -24,7 +24,7 @@ The `lsrp_vehicleparking` resource has been updated to use the **same zone syste
    
 2. **client/client.lua**
    - Replaced manual zone detection with `BoxZone:Create()`
-   - Uses `zone:onPlayerInOut()` callbacks like `lsrp_testing`
+   - Uses `zone:onPlayerInOut()` callbacks for entry and exit handling
    - Added `createParkingZones()` function
    - Added `destroyParkingZones()` function for cleanup
    - Simplified interaction prompt thread

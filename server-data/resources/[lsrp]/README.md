@@ -35,7 +35,6 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 - [lsrp_spawner](lsrp_spawner/README.md): Player spawn and respawn flow.
 - [lsrp_taxi](lsrp_taxi/README.md): Public taxi driver job with company vehicles and phone dispatch.
 - [lsrp_towing](lsrp_towing/README.md): Public towing job with yard duty, truck spawn, and tow controls.
-- [lsrp_testing](lsrp_testing/README.md): Sandbox and test resource.
 - [lsrp_thirst](lsrp_thirst/README.md): Persistent player thirst with decay, dehydration damage, and HUD sync.
 - [lsrp_vehiclebehaviour](lsrp_vehiclebehaviour/README.md): Ignition, locking, and shared vehicle keys.
 - [lsrp_vehicleeditor](lsrp_vehicleeditor/README.md): Vehicle customization editor and saved setups.
