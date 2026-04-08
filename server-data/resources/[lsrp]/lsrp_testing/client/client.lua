@@ -42,6 +42,10 @@ local guardTarget = {
 	repositionDistance = GUARD_REPOSITION_DISTANCE
 }
 
+local function notify(message, level)
+	exports.lsrp_framework:notify(message, level)
+end
+
 local function resetGuardTargetToDefault()
 	guardTarget.x = pedConfig.x
 	guardTarget.y = pedConfig.y
@@ -70,9 +74,7 @@ local function setGuardTargetFromZone(centerX, centerY, centerZ, heading, sizeX,
 end
 
 local function showGuardNotification(message)
-	BeginTextCommandThefeedPost('STRING')
-	AddTextComponentSubstringPlayerName(message)
-	EndTextCommandThefeedPostTicker(false, false)
+	notify(message)
 end
 
 local function engageGuardWithPlayer(ped)
@@ -383,4 +385,5 @@ RegisterCommand('lsrptest_reloadzones', function()
 	loadTestingConfigFromFile()
 	createPatrolZonesFromConfig()
 	print('[lsrp_testing] Patrol zones manually reloaded from config.')
+	notify('LSRP testing patrol zones reloaded.', 'success')
 end, false)

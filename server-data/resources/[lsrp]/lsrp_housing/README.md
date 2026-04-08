@@ -18,7 +18,7 @@ Commands:
 
 Notes:
 - The downloaded source resource was missing a manifest and client script, so this version recreates the same keypad/catalog/kiosk flow with working client logic.
-- Rent charges use `lsrp_economy` bank balance through `removeBalance`/`addBalance` to match the rest of this framework.
+- Rent charges and owner identity resolution now go through `lsrp_framework`.
 - The NUI is enabled again with a transparent-safe bootstrap path to avoid the old fullscreen black overlay.
 - Catalog and kiosk are combined in the current Alta Apartments flow, so the catalog point acts as the main management point and opens the combined owned-and-available dashboard.
 - Apartment numbers use the compact original scheme (for example `1001` = location `1`, apartment instance `001`).
@@ -46,6 +46,11 @@ Notes:
 - `getOwnedByStateId(stateId)`
 
 `ownerIdentity` should be a table such as `{ stateId = 123, license = 'license:...' }` when both values are available.
+
+## Framework Boundary
+
+- Player identity, owner lookup, live-player lookup, money formatting, charges, refunds, and notifications now use `lsrp_framework`.
+- Apartment stash access remains a direct `lsrp_inventory` integration for now.
 
 ## Deprecated Compatibility Exports
 

@@ -7,9 +7,9 @@ version '1.0.0'
 
 dependencies {
 	'oxmysql',
-	'lsrp_core',
-    'lsrp_economy',
+    'lsrp_framework',
     'lsrp_vehicleparking',
+    'lsrp_taxi',
     'pma-voice'
 }
 

@@ -16,10 +16,8 @@
 --   lsrp_vehicleeditor:close  - close remotely
 --   lsrp_vehicleeditor:toggle - toggle remotely
 --
--- Server communication (request/response):
---   lsrp_vehicleeditor:serverRequest(requestId, action, data)
---   lsrp_vehicleeditor:serverResponse(requestId, response)
---   Actions: listSetups, getSetup, saveSetup, deleteSetup
+-- Server communication uses the framework callback path.
+-- Actions: listSetups, getSetup, saveSetup, deleteSetup
 
 local MOD_TYPES = {
 	0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
@@ -102,8 +100,6 @@ local cameraState = {
 	distance = 7.0
 }
 
-local requestCounter = 0
-local pendingRequests = {}
 local pendingDeletion = nil
 
 -- ---------------------------------------------------------------------------
@@ -825,33 +821,23 @@ end
 -- ---------------------------------------------------------------------------
 
 local function awaitServerResponse(action, payload, timeoutMs)
-	requestCounter = requestCounter + 1
-	local requestId = requestCounter
-	local responsePromise = promise.new()
-
-	pendingRequests[requestId] = responsePromise
-	TriggerServerEvent('lsrp_vehicleeditor:serverRequest', requestId, action, payload or {})
-
-	SetTimeout(timeoutMs or 5000, function()
-		local pending = pendingRequests[requestId]
-		if pending then
-			pendingRequests[requestId] = nil
-			pending:resolve({ ok = false, error = 'timeout' })
-		end
-	end)
-
-	return Citizen.Await(responsePromise)
-end
-
-RegisterNetEvent('lsrp_vehicleeditor:serverResponse', function(requestId, payload)
-	local pending = pendingRequests[requestId]
-	if not pending then
-		return
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return { ok = false, error = 'framework_unavailable' }
 	end
 
-	pendingRequests[requestId] = nil
-	pending:resolve(payload or { ok = false, error = 'empty_response' })
-end)
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:triggerServerCallback('lsrp_vehicleeditor:request', {
+			action = tostring(action or ''),
+			data = type(payload) == 'table' and payload or {}
+		}, timeoutMs or 5000)
+	end)
+
+	if not ok or type(response) ~= 'table' then
+		return { ok = false, error = 'framework_callback_failed' }
+	end
+
+	return response
+end
 
 RegisterNUICallback('getVehicleState', function(_, cb)
 	local state = getStateForNui()
@@ -952,6 +938,12 @@ RegisterNUICallback('getSetup', function(data, cb)
 	local response = awaitServerResponse('getSetup', {
 		slot = data and data.slot
 	}, 5000)
+
+	if response and response.ok and type(response.data) == 'table' then
+		response.slot = response.slot or response.data.slot
+		response.name = response.name or response.data.name
+		response.setup = response.setup or response.data.setup
+	end
 
 	cb(response or { ok = false, error = 'no_response' })
 end)

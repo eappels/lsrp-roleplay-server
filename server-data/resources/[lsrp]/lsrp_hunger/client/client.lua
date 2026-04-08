@@ -50,6 +50,11 @@ local function showNotification(message)
 		return
 	end
 
+	if GetResourceState('lsrp_framework') == 'started' then
+		exports['lsrp_framework']:notify(text, 'warning')
+		return
+	end
+
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(text)
 	EndTextCommandThefeedPostTicker(false, false)

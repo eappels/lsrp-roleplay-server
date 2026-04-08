@@ -20,9 +20,11 @@ It is a lightweight presentation resource that hands off cleanly to the spawn fl
 
 ## Integrations
 
+- Uses `lsrp_framework` callback helpers for prejoin auth register/login requests.
 - Works with `lsrp_spawner` so the loadscreen is dismissed during the spawn sequence.
 
 ## Notes
 
 - This resource has no gameplay commands.
 - If the loadscreen gets stuck, the spawn flow is usually the first place to inspect.
+- Spawn selection still hands off directly to `lsrp_spawner`; full spawn-registry ownership is not part of the framework yet.

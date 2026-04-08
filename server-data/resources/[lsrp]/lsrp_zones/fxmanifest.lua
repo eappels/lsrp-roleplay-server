@@ -14,3 +14,8 @@ client_scripts {
     '@polyzone/CircleZone.lua',
     'client/client.lua'
 }
+
+dependencies {
+	'polyzone',
+	'lsrp_framework'
+}

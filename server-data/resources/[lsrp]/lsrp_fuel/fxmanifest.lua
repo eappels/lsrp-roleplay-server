@@ -20,5 +20,5 @@ server_scripts {
 }
 
 dependencies {
-    'lsrp_economy'
+    'lsrp_framework'
 }

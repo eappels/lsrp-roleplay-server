@@ -38,6 +38,7 @@ It is not intended as a production gameplay system.
 
 ## Integrations
 
+- Uses `lsrp_framework` for identity and migration-audit reads.
 - Uses `lsrp_spawner` for the revive flow.
 
 ## Notes

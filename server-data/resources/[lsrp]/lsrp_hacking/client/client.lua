@@ -34,6 +34,11 @@ local function notifyLocal(message)
 		return
 	end
 
+	if GetResourceState('lsrp_framework') == 'started' then
+		exports['lsrp_framework']:notify(('[Hacking] %s'):format(tostring(message)), 'info')
+		return
+	end
+
 	showFeedNotification(('[Hacking] %s'):format(tostring(message)))
 
 	TriggerEvent('chat:addMessage', {

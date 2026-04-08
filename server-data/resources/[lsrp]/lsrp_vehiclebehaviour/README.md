@@ -13,7 +13,7 @@ Current scope:
 - One transferable key holder per owned vehicle via a server-side table.
 - Start authorization based on the people currently inside the vehicle.
 
-This resource depends on `oxmysql` and uses `lsrp_vehicleparking` as the ownership source of truth.
+This resource depends on `oxmysql`, uses `lsrp_framework` for identity and notifications, and uses `lsrp_vehicleparking` as the ownership source of truth.
 
 ## Controls
 
@@ -70,6 +70,12 @@ Server-side key access works like this:
 5. Otherwise deny access.
 
 Legacy license identifiers remain for compatibility and migration fallback, but new integrations should pass state-aware owner identities.
+
+## Framework Boundary
+
+- Identity resolution and state-aware owner lookups now go through `lsrp_framework`.
+- Client notifications prefer the shared `lsrp_framework` notify path.
+- `lsrp_vehicleparking` remains the ownership source of truth for persisted vehicles.
 
 ## Integration Points
 

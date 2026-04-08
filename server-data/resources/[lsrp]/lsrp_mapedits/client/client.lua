@@ -23,9 +23,7 @@ local hiddenBarrierPoints = {}
 
 local function notify(message)
 print(('[lsrp_mapedits] %s'):format(message))
-TriggerEvent('chat:addMessage', {
-args = { RESOURCE_PREFIX, message }
-})
+exports.lsrp_framework:notify(('%s %s'):format(RESOURCE_PREFIX, message))
 end
 
 local function toSigned32(value)

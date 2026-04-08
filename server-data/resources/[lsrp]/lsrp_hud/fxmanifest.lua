@@ -22,4 +22,7 @@ files {
 	'ui/assets/app.js'
 }
 
-dependency 'lsrp_core'
+dependencies {
+	'lsrp_core',
+	'lsrp_framework'
+}

@@ -11,7 +11,7 @@ Current scope:
 - Fuel level is synchronized on the vehicle entity so other resources can read it.
 - Players can refuel vehicles at gas pumps while on foot.
 - Drivers and passengers see a dedicated native on-screen fuel gauge while inside managed vehicles.
-- Fuel purchases charge LS$ through `lsrp_economy`.
+- Fuel purchases charge LS$ through `lsrp_framework`.
 
 ## Controls
 
@@ -21,11 +21,11 @@ Current scope:
 
 - `shared/config.lua`: tuning values for fuel consumption and refueling.
 - `client/client.lua`: fuel tracking, pump interaction, and client exports.
-- `server/server.lua`: refuel payment approval via `lsrp_economy`.
+- `server/server.lua`: framework-backed refuel payment approval and revenue deposit.
 
 ## Integrations
 
-- `lsrp_economy`: charges LS$ for fuel purchases and credits the fuel business through `account_id`-based balance exports.
+- `lsrp_framework`: charges LS$, resolves the fuel business account, and deposits business revenue.
 - `lsrp_vehicleparking`: already stores `fuelLevel` in vehicle props, so parked vehicles keep their fuel when they are stored and retrieved.
 
 ## Client Exports

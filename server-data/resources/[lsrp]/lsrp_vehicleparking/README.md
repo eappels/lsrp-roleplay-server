@@ -39,11 +39,13 @@ Or simply execute the `sql/schema.sql` file in your database.
 1. Ensure required resources are installed and running:
     - `oxmysql` - Database operations
     - `polyzone` - Zone detection system
+    - `lsrp_framework` - Shared identity, economy, and notification facade
 2. Place `lsrp_vehicleparking` in your `resources/[lsrp]` folder
 3. Add to your `server.cfg`:
     ```
     ensure oxmysql
     ensure polyzone
+    ensure lsrp_framework
     ensure lsrp_vehicleparking
     ```
 4. Restart your server or start the resource: `ensure lsrp_vehicleparking`
@@ -132,9 +134,15 @@ The system stores **all** vehicle properties including:
 ### Ownership And Persistence Model
 
 - Parked and owned vehicles are stored in the `owned_vehicles` table.
-- `state_id` is the primary gameplay owner key when `lsrp_core` is available.
+- `state_id` is the primary gameplay owner key when `lsrp_framework` is available.
 - Legacy license-based rows are still supported and are backfilled/migrated on startup.
 - Vehicle status is tracked with `parked` and `out` states instead of treating every row as permanently parked.
+
+### Framework Integration
+
+- Vehicle ownership resolution now goes through `lsrp_framework` identity helpers.
+- Retrieval fees and refunds now go through `lsrp_framework` money helpers.
+- Client notifications prefer the shared `lsrp_framework` notify path with a local fallback.
 
 ## Additional Notes
 

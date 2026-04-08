@@ -68,6 +68,11 @@ local function getKeysConfig()
 end
 
 local function notify(message)
+	if GetResourceState('lsrp_framework') == 'started' then
+		exports['lsrp_framework']:notify(message, 'info')
+		return
+	end
+
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, true)

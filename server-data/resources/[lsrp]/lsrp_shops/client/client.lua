@@ -43,6 +43,11 @@ local function formatFallbackCurrency(value)
 end
 
 local function notify(message)
+	if GetResourceState('lsrp_framework') == 'started' then
+		exports['lsrp_framework']:notify(tostring(message or ''), 'info')
+		return
+	end
+
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, true)
@@ -124,6 +129,41 @@ local function setBalance(balance, formattedBalance)
 	end
 end
 
+local function triggerFrameworkCallback(callbackName, payload, timeoutMs)
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return {
+			ok = false,
+			error = 'framework_unavailable'
+		}
+	end
+
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:triggerServerCallback(callbackName, payload, timeoutMs)
+	end)
+
+	if not ok or type(response) ~= 'table' then
+		return {
+			ok = false,
+			error = 'framework_callback_failed'
+		}
+	end
+
+	return response
+end
+
+local function refreshStoreSnapshot(storeId)
+	local response = triggerFrameworkCallback('lsrp_shops:getSnapshot', {
+		storeId = storeId
+	}, 5000)
+
+	if not response.ok or type(response.data) ~= 'table' then
+		return false, response.error or 'snapshot_failed'
+	end
+
+	setBalance(response.data.balance, response.data.formattedBalance)
+	return true, nil
+end
+
 local function closeShop()
 	if not uiOpen then
 		return
@@ -163,7 +203,12 @@ local function openShop(store)
 		formattedBalance = currentFormattedBalance
 	})
 
-	TriggerServerEvent('lsrp_shops:server:requestBalance', store.id)
+	CreateThread(function()
+		local ok, errorCode = refreshStoreSnapshot(store.id)
+		if not ok then
+			notify(('Store balance refresh failed: %s'):format(tostring(errorCode)))
+		end
+	end)
 end
 
 local function destroyBlips()
@@ -200,33 +245,6 @@ local function createBlips()
 	end
 end
 
-RegisterNetEvent('lsrp_shops:client:updateBalance', function(payload)
-	payload = type(payload) == 'table' and payload or {}
-	setBalance(payload.balance, payload.formattedBalance)
-end)
-
-RegisterNetEvent('lsrp_shops:client:purchaseResult', function(payload)
-	payload = type(payload) == 'table' and payload or {}
-
-	if payload.balance ~= nil or payload.formattedBalance ~= nil then
-		setBalance(payload.balance, payload.formattedBalance)
-	end
-
-	if payload.success then
-		SendNUIMessage({
-			action = 'purchaseResult',
-			success = true,
-			message = trimString(payload.message) or 'Purchase completed.'
-		})
-	else
-		SendNUIMessage({
-			action = 'purchaseResult',
-			success = false,
-			message = trimString(payload.message) or 'Purchase failed.'
-		})
-	end
-	end)
-
 RegisterNetEvent('lsrp_shops:open', function(storeId)
 	local store = getStoreById(storeId)
 	if not store then
@@ -257,13 +275,23 @@ RegisterNUICallback('purchase', function(payload, cb)
 		return
 	end
 
-	TriggerServerEvent('lsrp_shops:server:purchaseItem', {
+	local response = triggerFrameworkCallback('lsrp_shops:purchase', {
 		storeId = activeStore.id,
 		itemName = itemName,
 		quantity = quantity
+	}, 5000)
+
+	if response.data and (response.data.balance ~= nil or response.data.formattedBalance ~= nil) then
+		setBalance(response.data.balance, response.data.formattedBalance)
+	end
+
+	SendNUIMessage({
+		action = 'purchaseResult',
+		success = response.ok == true and response.data and response.data.success == true,
+		message = trimString(response.data and response.data.message) or (response.ok == true and 'Purchase completed.' or ('Purchase failed: ' .. tostring(response.error or 'unknown_error')))
 	})
 
-	cb({ ok = true })
+	cb(response)
 end)
 
 CreateThread(function()

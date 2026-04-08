@@ -18,8 +18,10 @@ Its current implementation focuses on spawning a hostile guard NPC that patrols 
 ## Integrations
 
 - Uses `polyzone` for zone detection.
+- Uses `lsrp_framework` for standard LSRP notifications.
 
 ## Notes
 
 - This resource is for experimentation and QA, not core gameplay.
+- The framework port here is intentionally thin: test logic stays local, while standard player-facing UX goes through the framework layer.
 - Keep test logic isolated here rather than mixing it into production resources.

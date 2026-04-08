@@ -8,7 +8,7 @@ dependencies {
     'lsrp_spawner',
     'oxmysql',
     'lsrp_vehicleparking',
-    'lsrp_core'
+    'lsrp_framework'
 }
 
 client_scripts {

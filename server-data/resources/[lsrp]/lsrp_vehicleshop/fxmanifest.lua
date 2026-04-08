@@ -29,8 +29,7 @@ files {
 }
 
 dependencies {
-	'lsrp_core',
-	'lsrp_economy',
+	'lsrp_framework',
 	'lsrp_vehicleparking',
 	'oxmysql'
 }

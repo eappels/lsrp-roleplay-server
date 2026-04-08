@@ -11,7 +11,10 @@ client_scripts {
     'client/client.lua'
 }
 
-dependency 'lsrp_spawner'
+dependencies {
+    'lsrp_spawner',
+    'lsrp_framework'
+}
 
 files {
     'loadscreen.html',

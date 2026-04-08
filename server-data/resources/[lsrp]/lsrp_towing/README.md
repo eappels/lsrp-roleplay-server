@@ -1,6 +1,6 @@
 # lsrp_towing
 
-Public towing job built on top of `lsrp_jobs`.
+Public towing job built on top of `lsrp_framework`, with `lsrp_jobs` still emitting the client employment update event used for cleanup compatibility.
 
 ## Features
 
@@ -22,7 +22,7 @@ Public towing job built on top of `lsrp_jobs`.
 ## Notes
 
 - This first pass is intentionally scoped to yard workflow and towing controls.
-- Payroll is handled by `lsrp_jobs` while the player is on duty.
+- Payroll and duty writes go through `lsrp_framework` while the player is on duty.
 - `/impound` only accepts registered player vehicles and preserves their existing owner in parking storage.
 - Unregistered vehicles are deleted on impound instead of being written into parking storage.
 - The resource does not yet include dispatch or per-tow payouts.

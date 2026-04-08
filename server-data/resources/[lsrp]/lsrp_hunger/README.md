@@ -20,7 +20,7 @@ It stores one hunger value per player identity, decays that value over time whil
 
 ## Integration
 
-- Depends on `lsrp_core` for player identity lookup (`license`, `account_id`, `state_id`).
+- Depends on `lsrp_framework` for player identity lookup and shared notifications.
 - Exposes server exports so other resources can add, remove, set, or read hunger.
 - Exposes client exports so other resources can read the local hunger value.
 - `lsrp_inventory` food items can restore hunger through this resource.

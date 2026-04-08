@@ -328,11 +328,26 @@ local function getThirstPercent()
 	return math.floor(((currentThirst / maxThirst) * 100.0) + 0.5)
 end
 
-local function getFuelPercent()
-	if GetResourceState('lsrp_fuel') ~= 'started' then
-		return nil
+local function getVehicleFuelSnapshot(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return nil, nil
 	end
 
+	local entityState = Entity(vehicle).state
+	if not entityState then
+		return nil, nil
+	end
+
+	local fuelLevel = tonumber(entityState.lsrpFuelLevel)
+	local tankCapacity = tonumber(entityState.lsrpFuelCapacity)
+	if fuelLevel == nil or tankCapacity == nil or tankCapacity <= 0 then
+		return nil, nil
+	end
+
+	return fuelLevel, tankCapacity
+end
+
+local function getFuelPercent()
 	local ped = PlayerPedId()
 	if ped == 0 or not DoesEntityExist(ped) or not IsPedInAnyVehicle(ped, false) then
 		return nil
@@ -343,23 +358,34 @@ local function getFuelPercent()
 		return nil
 	end
 
-	local okFuel, fuelLevel = pcall(function()
+	local fuelLevel, tankCapacity = getVehicleFuelSnapshot(vehicle)
+	if fuelLevel ~= nil and tankCapacity ~= nil then
+		fuelLevel = clampNumber(fuelLevel, 0, tankCapacity)
+		return math.floor(((fuelLevel / tankCapacity) * DEFAULT_MAX_FUEL_PERCENT) + 0.5)
+	end
+
+	if GetResourceState('lsrp_fuel') ~= 'started' then
+		return nil
+	end
+
+	local okFuel, exportedFuelLevel = pcall(function()
 		return exports['lsrp_fuel']:getFuel(vehicle)
 	end)
 
-	if not okFuel or type(fuelLevel) ~= 'number' then
+	if not okFuel or type(exportedFuelLevel) ~= 'number' then
 		return nil
 	end
 
-	local okCapacity, tankCapacity = pcall(function()
+	local okCapacity, exportedTankCapacity = pcall(function()
 		return exports['lsrp_fuel']:getTankCapacity(vehicle)
 	end)
 
-	if not okCapacity or type(tankCapacity) ~= 'number' or tankCapacity <= 0 then
+	if not okCapacity or type(exportedTankCapacity) ~= 'number' or exportedTankCapacity <= 0 then
 		return nil
 	end
 
-	fuelLevel = clampNumber(fuelLevel, 0, tankCapacity)
+	fuelLevel = clampNumber(exportedFuelLevel, 0, exportedTankCapacity)
+	tankCapacity = exportedTankCapacity
 	return math.floor(((fuelLevel / tankCapacity) * DEFAULT_MAX_FUEL_PERCENT) + 0.5)
 end
 

@@ -20,7 +20,7 @@ It stores one thirst value per player identity, decays that value over time whil
 
 ## Integration
 
-- Depends on `lsrp_core` for player identity lookup (`license`, `account_id`, `state_id`).
+- Depends on `lsrp_framework` for player identity lookup and shared notifications.
 - Exposes server exports so other resources can add, remove, set, or read thirst.
 - Exposes client exports so other resources can read the local thirst value.
 - Pushes percentage updates into `lsrp_hud` so the thirst indicator stays in sync.

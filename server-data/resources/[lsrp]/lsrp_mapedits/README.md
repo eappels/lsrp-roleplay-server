@@ -15,9 +15,10 @@ Its current purpose is to remove configured barriers and hide configured map pro
 - Searches for configured barrier models around the player.
 - Removes or disables selected map blockers.
 - Hides configured props within configured radii.
+- Exposes barrier cleanup and debug commands for manual testing.
 
 ## Notes
 
-- This is a standalone utility resource.
-- It does not currently expose player-facing commands.
+- This is a standalone utility resource with `lsrp_framework` as its standard LSRP dependency.
+- Player-facing status messages should go through the framework notify helper instead of ad hoc chat events.
 - Keep all edits data-driven so map cleanup remains easy to maintain.

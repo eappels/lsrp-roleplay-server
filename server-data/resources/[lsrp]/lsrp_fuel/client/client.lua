@@ -1,5 +1,3 @@
-local refuelRequestCounter = 0
-local pendingRefuelRequests = {}
 local refuelInProgress = false
 local modelTankCapacityCache = {}
 local refuelProgressState = {
@@ -142,16 +140,6 @@ local function getRefuelAnimationConfig()
 end
 
 local function formatCurrency(amount)
-    if GetResourceState('lsrp_economy') == 'started' then
-        local ok, formatted = pcall(function()
-            return exports['lsrp_economy']:formatCurrency(amount)
-        end)
-
-        if ok and type(formatted) == 'string' and formatted ~= '' then
-            return formatted
-        end
-    end
-
     local value = math.max(0, math.floor(tonumber(amount) or 0))
     local formatted = tostring(value)
 
@@ -168,9 +156,36 @@ local function formatCurrency(amount)
 end
 
 local function notify(message)
+    if GetResourceState('lsrp_framework') == 'started' then
+        exports['lsrp_framework']:notify(tostring(message or ''), 'info')
+        return
+    end
+
     BeginTextCommandThefeedPost('STRING')
     AddTextComponentSubstringPlayerName(tostring(message or ''))
     EndTextCommandThefeedPostTicker(false, false)
+end
+
+local function triggerFrameworkCallback(callbackName, payload, timeoutMs)
+    if GetResourceState('lsrp_framework') ~= 'started' then
+        return {
+            ok = false,
+            error = 'Fuel service is unavailable right now.'
+        }
+    end
+
+    local ok, response = pcall(function()
+        return exports['lsrp_framework']:triggerServerCallback(callbackName, payload, timeoutMs)
+    end)
+
+    if not ok or type(response) ~= 'table' then
+        return {
+            ok = false,
+            error = 'Fuel service is unavailable right now.'
+        }
+    end
+
+    return response
 end
 
 local function showHelpPrompt(message)
@@ -652,34 +667,19 @@ local function requestRefuel(vehicle)
         return
     end
 
-    refuelRequestCounter = refuelRequestCounter + 1
-    pendingRefuelRequests[refuelRequestCounter] = vehicle
-    TriggerServerEvent('lsrp_fuel:server:requestRefuel', refuelRequestCounter, fuelNeeded)
+    CreateThread(function()
+        local response = triggerFrameworkCallback('lsrp_fuel:requestRefuel', {
+            fuelUnits = fuelNeeded
+        }, 5000)
+
+        if response.ok ~= true or type(response.data) ~= 'table' then
+            notify(response.error or 'Fuel purchase was declined.')
+            return
+        end
+
+        beginRefuel(vehicle, response.data.units, response.data.cost)
+    end)
 end
-
-RegisterNetEvent('lsrp_fuel:client:refuelApproved', function(requestId, purchasedFuelUnits, totalCost)
-    local normalizedRequestId = tonumber(requestId)
-    local vehicle = normalizedRequestId and pendingRefuelRequests[normalizedRequestId]
-
-    if normalizedRequestId then
-        pendingRefuelRequests[normalizedRequestId] = nil
-    end
-
-    if not vehicle then
-        return
-    end
-
-    beginRefuel(vehicle, purchasedFuelUnits, totalCost)
-end)
-
-RegisterNetEvent('lsrp_fuel:client:refuelDenied', function(requestId, message)
-    local normalizedRequestId = tonumber(requestId)
-    if normalizedRequestId then
-        pendingRefuelRequests[normalizedRequestId] = nil
-    end
-
-    notify(message or 'Fuel purchase was declined.')
-end)
 
 CreateThread(function()
     while true do
@@ -864,7 +864,6 @@ AddEventHandler('onResourceStop', function(resourceName)
     hideRefuelProgress()
     stopRefuelAnimation(PlayerPedId())
     refuelInProgress = false
-    pendingRefuelRequests = {}
     modelTankCapacityCache = {}
     refuelProgressState = {
         visible = false,

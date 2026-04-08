@@ -1,5 +1,9 @@
 local uiOpen = false
 
+local function notify(message, level)
+    exports.lsrp_framework:notify(message, level)
+end
+
 local function closeTemplateUi()
     if not uiOpen then
         return
@@ -31,29 +35,39 @@ local function openTemplateUi(payload)
     })
 end
 
-RegisterNUICallback('close', function(_, cb)
+exports.lsrp_framework:registerNuiCallback('close', function()
     closeTemplateUi()
-    cb({ ok = true })
+    return true
 end)
 
-RegisterNUICallback('primaryAction', function(data, cb)
+exports.lsrp_framework:registerNuiCallback('primaryAction', function(data)
     print(('[lsrp_nui_template] primary action: %s'):format(json.encode(data or {})))
-    cb({ ok = true })
+    notify('Template primary action fired.', 'success')
+    return true, {
+        event = data and data.event or 'primary'
+    }
 end)
 
-RegisterNUICallback('secondaryAction', function(data, cb)
+exports.lsrp_framework:registerNuiCallback('secondaryAction', function(data)
     print(('[lsrp_nui_template] secondary action: %s'):format(json.encode(data or {})))
-    cb({ ok = true })
+    if data and data.event == 'preview-close' then
+        closeTemplateUi()
+    end
+
+    return true, {
+        event = data and data.event or 'secondary'
+    }
 end)
 
 RegisterCommand('nui_template_preview', function()
     openTemplateUi({
         eyebrow = 'LSRP Template',
         title = 'Reusable NUI Shell',
-        subtitle = 'Transparent root, hidden startup, and a centered panel shell.',
+        subtitle = 'Transparent root, hidden startup, centered shell, and framework-backed NUI callbacks.',
         statusItems = {
             { label = 'Mode', value = 'Preview' },
-            { label = 'Focus', value = 'Mouse + Keyboard' }
+            { label = 'Focus', value = 'Mouse + Keyboard' },
+            { label = 'Callbacks', value = 'lsrp_framework' }
         },
         sections = {
             {
@@ -63,6 +77,10 @@ RegisterCommand('nui_template_preview', function()
             {
                 title = 'Safe defaults',
                 body = 'The page starts hidden, body stays transparent, and only the root app is shown when the UI is opened.'
+            },
+            {
+                title = 'Framework-first actions',
+                body = 'The sample buttons use lsrp_framework NUI callback registration so copied resources inherit the supported callback contract.'
             }
         },
         primary = { label = 'Primary Action', event = 'preview-primary' },

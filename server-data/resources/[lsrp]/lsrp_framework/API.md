@@ -1,8 +1,8 @@
 # LSRP Framework API
 
-Version: `1.0.0`
+Version: `1.1.0`
 
-`lsrp_framework` is the public server-side facade for the LSRP platform.
+`lsrp_framework` is the public facade for the LSRP platform. Version `1.1.0` adds a shared callback layer for client-server, server-client, and NUI request-response flows.
 
 ## Design Rules
 
@@ -10,24 +10,63 @@ Version: `1.0.0`
 - Do not rely on internal DB schema or internal resource cache layout.
 - Prefer `getPlayerContext` for read-heavy flows.
 - Use the focused write exports for money and inventory changes.
+- Use framework callbacks instead of inventing ad hoc request events when a response is required.
 
-## Exports
+## Callback Response Envelope
+
+Framework callbacks return one standard envelope:
+
+```lua
+{
+    ok = true,
+    data = { ... } or nil,
+    error = nil,
+    meta = {
+        callback = 'resource:action',
+        requestId = 'sv:12:12345:1'
+    }
+}
+```
+
+Error responses use the same shape:
+
+```lua
+{
+    ok = false,
+    data = nil,
+    error = 'timeout',
+    meta = {
+        callback = 'resource:action',
+        requestId = 'cl:12:12345:1'
+    }
+}
+```
+
+Default timeout: `5000` ms.
+
+Handler return forms supported by the callback layer:
+
+```lua
+return true, { value = 1 }, nil
+return false, nil, 'not_allowed'
+return { ok = true, data = { value = 1 } }
+return { ok = false, error = 'not_found' }
+return { value = 1 } -- treated as success data
+```
+
+## Core Server Exports
 
 ### `getApiVersion()`
 
 Returns the current facade API version string.
 
-Return value:
-
 ```lua
-'1.0.0'
+'1.1.0'
 ```
 
 ### `getIdentity(playerSrc)`
 
 Returns normalized identity data for an online player.
-
-Return shape:
 
 ```lua
 {
@@ -39,6 +78,14 @@ Return shape:
 
 Returns `nil` if the player is invalid or identity is unavailable.
 
+### `getIdentityByLicense(license)`
+
+Returns normalized identity data for a known license when the identity service can resolve it.
+
+```lua
+local identity = exports['lsrp_framework']:getIdentityByLicense('license:...')
+```
+
 ### `isAuthenticated(playerSrc)`
 
 Returns `true` when the current online player has completed prejoin login for this session.
@@ -46,8 +93,6 @@ Returns `true` when the current online player has completed prejoin login for th
 ### `getCharacter(playerSrc)`
 
 Returns normalized character data for an online player.
-
-Return shape:
 
 ```lua
 {
@@ -62,8 +107,6 @@ Return shape:
 }
 ```
 
-Returns `nil` if the player has no character yet.
-
 ### `hasCharacter(playerSrc)`
 
 Returns `true` when `getCharacter(playerSrc)` would return a character payload.
@@ -71,8 +114,6 @@ Returns `true` when `getCharacter(playerSrc)` would return a character payload.
 ### `createCharacter(playerSrc, payload)`
 
 Creates the first character for the current player.
-
-Return values:
 
 ```lua
 local response = exports['lsrp_framework']:createCharacter(source, {
@@ -83,21 +124,31 @@ local response = exports['lsrp_framework']:createCharacter(source, {
 })
 ```
 
-Response shape:
+### `registerPrejoinAccount(playerSrc, payload)`
+
+Registers or updates prejoin auth credentials for the current source account.
 
 ```lua
-{
-    ok = true,
-    created = true,
-    character = { ... }
-}
+local ok, errorCode = exports['lsrp_framework']:registerPrejoinAccount(source, {
+    email = 'name@example.com',
+    password = 'secret'
+})
+```
+
+### `loginPrejoinAccount(playerSrc, payload)`
+
+Authenticates the current source account against prejoin auth credentials.
+
+```lua
+local ok, errorCode = exports['lsrp_framework']:loginPrejoinAccount(source, {
+    email = 'name@example.com',
+    password = 'secret'
+})
 ```
 
 ### `getMoney(playerSrc)`
 
 Returns normalized economy data.
-
-Return shape:
 
 ```lua
 {
@@ -108,13 +159,33 @@ Return shape:
 }
 ```
 
-Returns `nil` if economy data is unavailable.
+### `getCash(playerSrc)`
+
+Returns the player's current on-hand cash amount as a whole-dollar integer.
+
+### `getAccountIdByLicense(license)`
+
+Resolves an economy `account_id` for a player or business license.
+
+### `getIdentityByStateId(stateId)`
+
+Resolves a normalized identity payload from a gameplay `stateId`.
+
+### `getMigrationStatus()`
+
+Returns the current identity migration/backfill audit payload exposed by `lsrp_core`.
+
+### `getSourceByStateId(stateId)`
+
+Resolves the live player source for a gameplay `stateId` when that player is online.
+
+### `getSourceByLicense(license)`
+
+Resolves the live player source for a license when that player is online.
 
 ### `getJob(playerSrc)`
 
 Returns normalized employment data for the current player.
-
-Return shape:
 
 ```lua
 {
@@ -129,8 +200,6 @@ Return shape:
 }
 ```
 
-Returns `nil` if the player has no active employment.
-
 ### `isEmployedAs(playerSrc, jobId)`
 
 Returns `true` if the online player is employed in the requested job.
@@ -143,19 +212,13 @@ Returns `true` if the online player is on duty for the requested job. If `jobId`
 
 Updates duty state through `lsrp_jobs`.
 
-Return values:
-
 ```lua
 local ok, job, errorCode = exports['lsrp_framework']:setDuty(source, true)
 ```
 
-`job` is the normalized `getJob()` payload after the change.
-
 ### `registerJobDefinition(definition)`
 
 Registers a gameplay job definition through `lsrp_jobs`.
-
-Return values:
 
 ```lua
 local ok, errorCode = exports['lsrp_framework']:registerJobDefinition(Config.JobDefinition)
@@ -165,50 +228,29 @@ local ok, errorCode = exports['lsrp_framework']:registerJobDefinition(Config.Job
 
 Assigns an online player to a job through `lsrp_jobs`.
 
-Return values:
-
 ```lua
 local ok, job, errorCode = exports['lsrp_framework']:employPlayer(source, 'police_officer', 'officer')
 ```
 
-`job` is the normalized `getJob()` payload after the assignment.
+### `getPublicJobs()`
+
+Returns the public job list exposed by `lsrp_jobs` for player-facing browsing flows such as the job center.
+
+### `resignPlayer(playerSrc)`
+
+Resigns the current online player from their active job through `lsrp_jobs`.
+
+```lua
+local ok, errorCode = exports['lsrp_framework']:resignPlayer(source)
+```
 
 ### `getInventory(playerSrc)`
 
 Returns the sanitized inventory payload exposed by `lsrp_inventory`.
 
-Return shape:
-
-```lua
-{
-    slots = 15,
-    maxWeight = 25000,
-    items = {
-        {
-            slot = 1,
-            name = 'phone',
-            label = 'Phone',
-            count = 1,
-            weight = 250,
-            totalWeight = 250,
-            image = 'phone.png',
-            description = 'A mobile phone.',
-            maxStack = 1,
-            stackable = false,
-            use = nil,
-            metadata = nil
-        }
-    }
-}
-```
-
-Returns `nil` if inventory is unavailable.
-
 ### `getPlayerContext(playerSrc)`
 
 Returns the main aggregated read model for an online player.
-
-Return shape:
 
 ```lua
 {
@@ -227,19 +269,15 @@ Return shape:
 }
 ```
 
-Returns `nil` if the player source is invalid or offline.
-
 ### `notify(playerSrc, message, level)`
 
 Sends a standard feed notification to one online player.
-
-Return values:
 
 ```lua
 local ok, errorCode = exports['lsrp_framework']:notify(source, 'Taxi requested.', 'info')
 ```
 
-`level` is optional. Current supported values are `info`, `success`, `warning`, and `error`.
+Supported levels: `info`, `success`, `warning`, `error`.
 
 ### `notifyAll(message, level)`
 
@@ -251,8 +289,6 @@ Formats an integer amount using the current economy formatter.
 
 ### `canAfford(playerSrc, amount)`
 
-Return values:
-
 ```lua
 local ok, balance = exports['lsrp_framework']:canAfford(source, 250)
 ```
@@ -261,25 +297,59 @@ local ok, balance = exports['lsrp_framework']:canAfford(source, 250)
 
 Adds LS$ balance through `lsrp_economy`.
 
-Return values:
-
 ```lua
 local ok, money, errorCode = exports['lsrp_framework']:addMoney(source, 500, 'job_payout', {
     jobId = 'taxi_driver'
 })
 ```
 
-`money` is the normalized `getMoney()` payload after the change.
-
 ### `removeMoney(playerSrc, amount, reason, metadata)`
 
 Removes LS$ balance through `lsrp_economy`.
 
-Return values:
-
 ```lua
 local ok, money, errorCode = exports['lsrp_framework']:removeMoney(source, 250, 'store_purchase', {
     shopId = 'downtown_247'
+})
+```
+
+### `addCash(playerSrc, amount, reason, metadata)`
+
+Credits on-hand cash through `lsrp_economy`.
+
+```lua
+local ok, money, errorCode = exports['lsrp_framework']:addCash(source, 500, 'atm_hack', {
+    atmId = 'legion_square'
+})
+```
+
+### `removeCash(playerSrc, amount, reason, metadata)`
+
+Debits on-hand cash through `lsrp_economy`.
+
+```lua
+local ok, money, errorCode = exports['lsrp_framework']:removeCash(source, 25000, 'vendor_purchase', {
+    vendor = 'vago_contact'
+})
+```
+
+### `addMoneyByAccountId(accountId, amount, reason, metadata)`
+
+Credits an economy account by `account_id`.
+
+```lua
+local ok, balance, errorCode = exports['lsrp_framework']:addMoneyByAccountId(42, 5000, 'vehicle_sale', {
+    shopId = 'premium_deluxe'
+})
+```
+
+### `removeMoneyByAccountId(accountId, amount, reason, metadata)`
+
+Debits an economy account by `account_id`.
+
+```lua
+local ok, balance, errorCode = exports['lsrp_framework']:removeMoneyByAccountId(42, 5000, 'vehicle_sale_reversal', {
+    shopId = 'premium_deluxe'
 })
 ```
 
@@ -288,8 +358,6 @@ local ok, money, errorCode = exports['lsrp_framework']:removeMoney(source, 250, 
 Checks job permission state through `lsrp_jobs`.
 
 ### `hasItem(playerSrc, itemName, amount)`
-
-Return values:
 
 ```lua
 local hasItem, ownedCount = exports['lsrp_framework']:hasItem(source, 'phone', 1)
@@ -303,6 +371,132 @@ Adds an inventory item through `lsrp_inventory`.
 
 Removes inventory items through `lsrp_inventory`.
 
+## Callback Exports
+
+### Server: `registerServerCallback(callbackName, handler)`
+
+Registers a framework callback that clients can call through `triggerServerCallback`.
+
+`handler` can be either:
+
+- A local Lua function for in-resource registrations.
+- An event name string for cross-resource-safe registrations.
+
+```lua
+local ok, errorCode = exports['lsrp_framework']:registerServerCallback('taxi:getDispatch', function(playerSrc, payload, meta)
+    local context = exports['lsrp_framework']:getPlayerContext(playerSrc)
+    if not context then
+        return false, nil, 'player_unavailable'
+    end
+
+    return true, {
+        player = context,
+        filters = payload
+    }, nil
+end)
+```
+
+```lua
+AddEventHandler('taxi:framework:getDispatch', function(playerSrc, payload, meta, respond)
+    local context = exports['lsrp_framework']:getPlayerContext(playerSrc)
+    if not context then
+        respond(false, nil, 'player_unavailable')
+        return
+    end
+
+    respond(true, {
+        player = context,
+        filters = payload
+    }, nil)
+end)
+
+local ok, errorCode = exports['lsrp_framework']:registerServerCallback('taxi:getDispatch', 'taxi:framework:getDispatch')
+```
+
+### Server: `unregisterServerCallback(callbackName)`
+
+Removes a previously registered server callback.
+
+### Server: `triggerClientCallback(playerSrc, callbackName, payload, timeoutMs)`
+
+Calls a client callback and waits for the standardized envelope.
+
+```lua
+local response = exports['lsrp_framework']:triggerClientCallback(source, 'phones:getUiState', {
+    includeDrafts = true
+}, 3000)
+
+if not response.ok then
+    print(response.error)
+    return
+end
+
+print(json.encode(response.data))
+```
+
+Built-in framework server callbacks:
+
+- `lsrp_prejoin:register`
+- `lsrp_prejoin:login`
+
+### Client: `registerClientCallback(callbackName, handler)`
+
+Registers a client callback that the server can call through `triggerClientCallback`.
+
+`handler` can be either a local Lua function or an event name string.
+
+```lua
+exports['lsrp_framework']:registerClientCallback('phones:getUiState', function(payload, meta)
+    return {
+        phoneOpen = LocalPlayer.state.phoneOpen == true,
+        includeDrafts = payload and payload.includeDrafts == true
+    }
+end)
+```
+
+### Client: `unregisterClientCallback(callbackName)`
+
+Removes a previously registered client callback.
+
+### Client: `triggerServerCallback(callbackName, payload, timeoutMs)`
+
+Calls a server callback and waits for the standardized envelope.
+
+```lua
+local response = exports['lsrp_framework']:triggerServerCallback('taxi:getDispatch', {
+    onlyOpen = true
+}, 3000)
+
+if not response.ok then
+    Framework.notify(('Dispatch refresh failed: %s'):format(tostring(response.error)), 'error')
+    return
+end
+
+print(json.encode(response.data))
+```
+
+### Client: `registerNuiCallback(callbackName, handler)`
+
+Wraps `RegisterNUICallback` with the same response envelope used by framework callbacks.
+
+`handler` can be either a local Lua function or an event name string. Use an event name when registering through a framework export from another resource.
+
+```lua
+exports['lsrp_framework']:registerNuiCallback('fetchDispatch', function(data, meta)
+    local response = exports['lsrp_framework']:triggerServerCallback('taxi:getDispatch', data, 3000)
+    return response
+end)
+```
+
+```lua
+AddEventHandler('phones:frameworkNui:fetchDispatch', function(data, meta, respond)
+    local response = exports['lsrp_framework']:triggerServerCallback('taxi:getDispatch', data, 3000)
+    respond(response)
+end)
+
+exports['lsrp_framework']:registerNuiCallback('fetchDispatch', 'phones:frameworkNui:fetchDispatch')
+```
+
 ## Usage Pattern
 
 For most new resources, prefer this sequence:
@@ -310,14 +504,13 @@ For most new resources, prefer this sequence:
 1. Read `getPlayerContext(source)` for UI, checks, and display logic.
 2. Use `hasPermission`, `hasItem`, and `canAfford` for gates.
 3. Use `addMoney`, `removeMoney`, `addItem`, and `removeItem` for mutations.
-4. Use `notify` for player-facing status messages instead of resource-specific notify events.
+4. Use `triggerServerCallback`, `triggerClientCallback`, and `registerNuiCallback` for request-response flows.
+5. Use `notify` for player-facing status messages instead of resource-specific notify events.
 
-## Out Of Scope In v1
+## Still Out Of Scope
 
-- Callbacks/RPC
-- Notification facade
-- Registries for items, jobs, interactions, and apps
-- Client-side API helpers
+- Registries for items, interactions, and phone apps
 - Multi-target identity lookups by `stateId` or `accountId`
+- Ownership helper contracts for vehicle, housing, and phone systems
 
-Those should be added as separate, deliberate API versions instead of growing the first pass opportunistically.
+Those remain separate framework milestones after the callback layer.

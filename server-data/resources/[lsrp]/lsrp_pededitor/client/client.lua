@@ -14,10 +14,8 @@
 --   lsrp_pededitor:close  - close the editor remotely
 --   lsrp_pededitor:toggle - toggle the editor remotely
 --
--- Server communication (request/response):
---   request:  lsrp_pededitor:serverRequest(requestId, action, data)
---   response: lsrp_pededitor:serverResponse(requestId, response)
---   Actions: listOutfits, getOutfit, getSpawnOutfit, saveOutfit, deleteOutfit
+-- Server communication uses the framework callback path.
+-- Actions: listOutfits, getOutfit, getSpawnOutfit, saveOutfit, deleteOutfit
 
 local COMPONENT_MIN = 0
 local COMPONENT_MAX = 11
@@ -37,9 +35,6 @@ local isEditorOpen = false
 local isCharacterCreationMode = false
 local previewCam = nil
 local initialAppearance = nil
-
-local requestCounter = 0
-local pendingRequests = {}
 local lastMaskByModel = {}
 local maskToggleBusy = false
 local lastMaskToggleAt = 0
@@ -521,24 +516,23 @@ end
 -- Server request/response bridge
 -- ---------------------------------------------------------------------------
 
--- Sends a request to the server and blocks until the response arrives (or timeout).
 local function awaitServerResponse(action, payload, timeoutMs)
-	requestCounter = requestCounter + 1
-	local requestId = requestCounter
-	local responsePromise = promise.new()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return { ok = false, error = 'framework_unavailable' }
+	end
 
-	pendingRequests[requestId] = responsePromise
-	TriggerServerEvent('lsrp_pededitor:serverRequest', requestId, action, payload or {})
-
-	SetTimeout(timeoutMs or 5000, function()
-		local pending = pendingRequests[requestId]
-		if pending then
-			pendingRequests[requestId] = nil
-			pending:resolve({ ok = false, error = 'timeout' })
-		end
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:triggerServerCallback('lsrp_pededitor:request', {
+			action = tostring(action or ''),
+			data = type(payload) == 'table' and payload or {}
+		}, timeoutMs or 5000)
 	end)
 
-	return Citizen.Await(responsePromise)
+	if not ok or type(response) ~= 'table' then
+		return { ok = false, error = 'framework_callback_failed' }
+	end
+
+	return response
 end
 
 -- Fetch and apply the most recently saved outfit (or a fixed configured slot) on spawn.
@@ -568,23 +562,14 @@ local function restoreOutfitOnSpawn()
 			return
 		end
 
-		if not response or not response.ok or type(response.outfit) ~= 'table' then
+		local outfit = response and response.ok and type(response.data) == 'table' and response.data.outfit or nil
+		if type(outfit) ~= 'table' then
 			return
 		end
 
-		applyOutfit(response.outfit)
+		applyOutfit(outfit)
 	end)
 end
-
-RegisterNetEvent('lsrp_pededitor:serverResponse', function(requestId, payload)
-	local pending = pendingRequests[requestId]
-	if not pending then
-		return
-	end
-
-	pendingRequests[requestId] = nil
-	pending:resolve(payload or { ok = false, error = 'empty_response' })
-end)
 
 RegisterNUICallback('getPedComponents', function(_, cb)
 	cb(captureComponents(PlayerPedId()))
@@ -640,6 +625,9 @@ end)
 
 RegisterNUICallback('getOutfit', function(data, cb)
 	local response = awaitServerResponse('getOutfit', { slot = data and data.slot }, 5000)
+	if response and response.ok and type(response.data) == 'table' and response.outfit == nil then
+		response.outfit = response.data.outfit
+	end
 	cb(response or { ok = false, error = 'no_response' })
 end)
 

@@ -55,6 +55,11 @@ local function formatFallbackCurrency(value)
 end
 
 local function notify(message)
+	if GetResourceState('lsrp_framework') == 'started' then
+		exports['lsrp_framework']:notify(message, 'info')
+		return
+	end
+
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, true)
@@ -557,16 +562,6 @@ RegisterNetEvent('lsrp_vehicleshop:client:setAccess', function(payload)
 		payload.adminCustomUnlistedPrice,
 		payload.formattedAdminCustomUnlistedPrice
 	)
-end)
-
-RegisterNetEvent('lsrp_economy:client:balanceUpdated', function(balance, currencySymbol)
-	local formatted = nil
-	if type(currencySymbol) == 'string' and currencySymbol ~= '' then
-		local amount = math.max(0, math.floor(tonumber(balance) or 0))
-		formatted = currencySymbol .. formatFallbackCurrency(amount):gsub('^LS%$', '')
-	end
-
-	setUiBalance(balance, formatted)
 end)
 
 RegisterNetEvent('lsrp_vehicleshop:client:purchaseResult', function(payload)

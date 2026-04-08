@@ -7,6 +7,8 @@ author 'LSRP Development'
 description 'Reusable transparent NUI shell/template for LSRP interfaces'
 version '1.0.0'
 
+dependency 'lsrp_framework'
+
 ui_page 'html/index.html'
 
 client_scripts {

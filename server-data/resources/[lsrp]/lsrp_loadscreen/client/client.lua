@@ -22,6 +22,28 @@ local prejoinSpawnPoints = {
 	{ x = 340.0, y = -579.0, z = 28.8, heading = 90.0, label = 'Pillbox Hill' }
 }
 
+local function triggerFrameworkCallback(callbackName, payload, timeoutMs)
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return {
+			ok = false,
+			error = 'framework_unavailable'
+		}
+	end
+
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:triggerServerCallback(callbackName, payload, timeoutMs)
+	end)
+
+	if not ok or type(response) ~= 'table' then
+		return {
+			ok = false,
+			error = 'framework_callback_failed'
+		}
+	end
+
+	return response
+end
+
 local function hideLoadingIndicators()
 	if type(BusyspinnerOff) == 'function' then
 		BusyspinnerOff()
@@ -124,46 +146,27 @@ AddEventHandler('lsrp_loadscreen:showPrejoin', showPrejoinUi)
 RegisterNUICallback = RegisterNUICallback or function() end
 
 RegisterNUICallback('prejoinRegister', function(data, cb)
-	local email = tostring(data.email or '')
-	local password = tostring(data.password or '')
+	local response = triggerFrameworkCallback('lsrp_prejoin:register', {
+		email = tostring((data and data.email) or ''),
+		password = tostring((data and data.password) or '')
+	}, 5000)
 
-	-- forward to server and await response via event
-	local requestId = math.random(100000, 999999)
-	local responded = false
-
-	local function onResult(success, reason)
-		if responded then return end
-		responded = true
-		cb({ success = success == true, reason = reason })
-	end
-
-	RegisterNetEvent('lsrp_prejoin:registerResult' .. requestId)
-	AddEventHandler('lsrp_prejoin:registerResult' .. requestId, function(ok, reason)
-		onResult(ok, reason)
-	end)
-
-	-- ask server to register; server will emit back to this source resource event name with matching id
-	TriggerServerEvent('lsrp_prejoin:register', requestId, { email = email, password = password })
+	cb({
+		success = response.ok == true,
+		reason = response.ok == true and nil or response.error
+	})
 end)
 
 RegisterNUICallback('prejoinLogin', function(data, cb)
-	local email = tostring(data.email or '')
-	local password = tostring(data.password or '')
-	local requestId = math.random(100000, 999999)
-	local responded = false
+	local response = triggerFrameworkCallback('lsrp_prejoin:login', {
+		email = tostring((data and data.email) or ''),
+		password = tostring((data and data.password) or '')
+	}, 5000)
 
-	local function onResult(success, reason)
-		if responded then return end
-		responded = true
-		cb({ success = success == true, reason = reason })
-	end
-
-	RegisterNetEvent('lsrp_prejoin:loginResult' .. requestId)
-	AddEventHandler('lsrp_prejoin:loginResult' .. requestId, function(ok, reason)
-		onResult(ok, reason)
-	end)
-
-	TriggerServerEvent('lsrp_prejoin:login', requestId, { email = email, password = password })
+	cb({
+		success = response.ok == true,
+		reason = response.ok == true and nil or response.error
+	})
 end)
 
 -- spawn selection from NUI: call local spawn export on client

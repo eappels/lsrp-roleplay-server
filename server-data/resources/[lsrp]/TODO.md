@@ -2,90 +2,63 @@
 
 ## Planned Work
 
+- MDT
+
+## In Progress
+
 - EMS job
 
+## Framework Prerequisites
+
+Build these framework pieces before or alongside the first major resource ports:
+
+1. Official callbacks and request-response layer for NUI, client-server, and server-client flows.
+2. Stable normalized contracts for player, identity, money, inventory, jobs, permissions, and notifications.
+3. Registry APIs for jobs, items, interactions, and phone apps.
+4. Standard conventions for event names, payload shapes, exports, state bags, and config layout.
+5. Shared ownership and identity helpers for vehicle, housing, and phone systems.
+
+## Resource Port Priority
+
+All currently planned LSRP resources in this repo have been ported to `lsrp_framework`.
+
 ## Framework goal
-turn LSRP into a small, opinionated platform, not a compatibility layer.
+Turn LSRP into a small, opinionated platform, not a compatibility layer.
 
-You already have the right starting shape: the server is split into focused services instead of one giant core. The resource index in server-data/resources/[lsrp]/README.md, plus the separation visible in server-data/resources/[lsrp]/lsrp_core/README.md, server-data/resources/[lsrp]/lsrp_jobs/README.md, server-data/resources/[lsrp]/lsrp_economy/README.md, and server-data/resources/[lsrp]/lsrp_inventory/README.md is a better base for extensibility than a monolithic framework. What is missing is not more features. It is a cleaner developer surface.
+## Framework principles
 
-The right direction is:
+1. One public API layer: new resources should depend on `lsrp_framework`, not directly on multiple internal services.
+2. Stable contracts: freeze normalized payloads for player, identity, money, inventory, jobs, notifications, callbacks, and permissions.
+3. Registries over hardcoding: jobs, items, interactions, phone apps, and usable actions should register themselves.
+4. Convention over improvisation: keep exports, events, callbacks, state bags, and config layout consistent across all resources.
+5. Templates and docs: every new LSRP resource should start from a standard scaffold and follow the same structure.
 
-One public API layer.
-Create a single resource that becomes the official framework entrypoint, for example lsrp_framework.
-Other resources should depend on that, not directly on five internal services.
+## Framework shape
 
-Stable contracts.
-Define a small set of framework services and freeze their payload shapes:
-player
-identity
-money
-inventory
-jobs
-notify
-callbacks
-permissions
+The framework should center on these developer-facing concepts:
 
-Registries instead of hardcoding.
-Make jobs, items, interactions, phone apps, and usable actions register themselves.
-You already do this well with jobs. Extend that pattern everywhere.
+1. Player: read-only normalized player context.
+2. Identity: stable cross-system identity lookup.
+3. Economy: add, remove, transfer, format, and query balances.
+4. Inventory: query items, mutate items, and register usable items.
+5. Jobs: register jobs, employ players, resign players, set duty, and check permissions.
+6. UI and callbacks: one official request-response path for NUI, client-server, and server-client flows.
 
-Convention over improvisation.
-Every resource should follow the same naming rules for exports, events, callbacks, state bags, and config layout.
-That is what makes a framework feel easy.
+## Guardrails
 
-Templates and docs.
-A framework is only “easy to expand” if adding a new resource feels repetitive and obvious.
-Each new LSRP resource should start from a standard skeleton with manifest, config, client, server, shared helpers, and README.
+1. Do not expose database schema as framework API.
+2. Do not allow direct cross-resource table access.
+3. Do not add undocumented or ad hoc event payloads.
+4. Do not duplicate identity, notify, or permission helper logic in each resource.
+5. Do not grow a giant mutable player object.
 
-The most important design choice is this: do not expose database schema as framework API. Your DB can change. Your public contracts should not. A new job, business, or phone app should never need to know whether identity is keyed by license, account_id, or state_id.
+## Practical roadmap
 
-If I were shaping LSRP for ease of use, I would define the framework around six developer-facing concepts:
+1. Keep `lsrp_framework` as the facade over the existing service resources.
+2. Move shared helper patterns into the facade first: player lookup, identity, notifications, and callbacks.
+3. Standardize money, inventory, and job APIs behind that layer.
+4. Add registry APIs for items, jobs, interactions, and phone apps.
+5. Use the resource template as the required starting point for all new LSRP resources.
+6. Gradually refactor older resources to consume the facade instead of each other directly.
 
-Player
-Read-only normalized view of the current player state.
-
-Identity
-Who this player is across systems.
-
-Economy
-Add, remove, transfer, format, and query balances.
-
-Inventory
-Has item, add item, remove item, register usable item.
-
-Jobs
-Register job, employ player, resign player, set duty, check permission.
-
-UI and callbacks
-One official request-response path for NUI, client-server, and server-client calls.
-
-What to avoid:
-
-No giant mutable player object like QB-Core.
-That becomes convenient short-term and messy long-term.
-
-No direct cross-resource table access.
-Only exports, callbacks, and documented events.
-
-No ad hoc event payloads.
-Every framework event should have a documented schema.
-
-No duplicated helper logic in every resource.
-Identity lookup, notifications, and permission checks should be centralized.
-
-A practical roadmap would be:
-
-Build lsrp_framework as a facade over the current resources.
-Move shared helper patterns into it first: player lookup, identity, notify, callbacks.
-Standardize money, inventory, and job APIs behind that layer.
-Add a registerItem, registerJob, registerInteraction, and registerApp style registry model.
-Create a “new resource” template and require new LSRP resources to use it.
-Gradually refactor older resources to consume the facade instead of each other directly.
-If you want the blunt version: LSRP should become more like a clean internal SDK than like QB-Core. Small public surface, strict conventions, modular services, and easy resource scaffolding. That will make it easier to use and easier to grow without inheriting the usual framework bloat.
-
-If you want, I can next do one of these:
-
-Define the exact public API for a new lsrp_framework resource.
-Draft the folder and file template for all future LSRP resources.
-Review the current resources and identify which ones should be refactored first to support that design.
+The target state is a clean internal SDK: small public surface, strict conventions, modular services, and easy resource scaffolding.

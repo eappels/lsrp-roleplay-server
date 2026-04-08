@@ -4,12 +4,12 @@
 
 `lsrp_vehicleshop` provides the dealership UI where players browse, preview, and purchase vehicles.
 
-It integrates with the economy resource for payment, with vehicle parking for persistent ownership registration, and with vehicle behaviour for owner key assignment.
+It integrates with `lsrp_framework` for identity, money, and notifications, with vehicle parking for persistent ownership registration, and with vehicle behaviour for owner key assignment.
 
 ## Main Files
 
 - `client/client.lua`: shop UI flow, demo vehicle spawning, demo vehicle cleanup, and balance updates.
-- `server/server.lua`: purchase validation, pricing, ownership registration, owner key assignment, and economy integration.
+- `server/server.lua`: purchase validation, pricing, ownership registration, owner key assignment, and framework-backed payment integration.
 - `shared/config.lua`: shop, category, and vehicle definitions.
 - `html/`: NUI for the dealership.
 
@@ -24,8 +24,7 @@ It integrates with the economy resource for payment, with vehicle parking for pe
 
 ## Integrations
 
-- `lsrp_core`
-- `lsrp_economy`
+- `lsrp_framework`
 - `lsrp_vehicleparking`
 - `oxmysql`
 - `lsrp_zones` for interaction entry points.
@@ -34,7 +33,7 @@ Preferred integration path:
 
 - Ownership registration uses `state_id` through `lsrp_vehicleparking`.
 - Purchased vehicle keys are granted through neutral vehicle-key exports that accept owner identity tables.
-- Dealership revenue is credited and reversed through `account_id`-based `lsrp_economy` exports.
+- Dealership revenue is credited and reversed through `account_id`-based `lsrp_framework` exports.
 
 ## Notes
 

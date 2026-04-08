@@ -21,6 +21,6 @@ server_scripts {
 }
 
 dependencies {
-	'lsrp_core',
+	'lsrp_framework',
 	'oxmysql'
 }

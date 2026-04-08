@@ -27,5 +27,5 @@ server_scripts {
 }
 
 dependencies {
-	'lsrp_jobs'
+	'lsrp_framework'
 }

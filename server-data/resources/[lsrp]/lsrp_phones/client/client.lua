@@ -33,6 +33,18 @@ local phoneOpenRequestPending = false
 
 local playPhoneOpenAnim
 local showPhoneUI
+local stopPhoneAnim
+local hidePhoneUI
+
+local function closePhoneInterface()
+	if not phoneOpen then
+		return
+	end
+
+	phoneOpen = false
+	stopPhoneAnim()
+	hidePhoneUI()
+end
 
 local function trimString(value)
 	if value == nil then
@@ -45,6 +57,45 @@ local function trimString(value)
 	end
 
 	return trimmed
+end
+
+local function triggerFrameworkCallback(callbackName, payload, timeoutMs)
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return {
+			ok = false,
+			error = 'framework_unavailable'
+		}
+	end
+
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:triggerServerCallback(callbackName, payload, timeoutMs)
+	end)
+
+	if not ok or type(response) ~= 'table' then
+		return {
+			ok = false,
+			error = 'framework_callback_failed'
+		}
+	end
+
+	return response
+end
+
+local function shouldUseLegacyPhoneFallback(response)
+	if type(response) ~= 'table' then
+		return true
+	end
+
+	if response.ok == true then
+		return false
+	end
+
+	local errorCode = trimString(response.error)
+	return errorCode == 'framework_unavailable'
+		or errorCode == 'framework_callback_failed'
+		or errorCode == 'callback_not_registered'
+		or errorCode == 'timeout'
+		or errorCode == 'callback_failed'
 end
 
 -- Formats an integer balance as a comma-separated LS$ string without relying on
@@ -74,43 +125,16 @@ local function getBalanceSnapshot()
 	local cash = math.max(0, math.floor(tonumber(LocalPlayer.state.ls_cash) or 0))
 	local formattedBalance = formatFallbackBalance(balance)
 	local formattedCash = formatFallbackBalance(cash)
-	local economyAvailable = GetResourceState('lsrp_economy') == 'started'
+	local economyAvailable = GetResourceState('lsrp_framework') == 'started'
 
 	if economyAvailable then
-		local okBalance, exportedBalance = pcall(function()
-			return exports['lsrp_economy']:getBalance()
-		end)
-
-		if okBalance and exportedBalance ~= nil then
-			balance = math.max(0, math.floor(tonumber(exportedBalance) or 0))
-		end
-
-		local okCash, exportedCash = pcall(function()
-			return exports['lsrp_economy']:getCash()
-		end)
-
-		if okCash and exportedCash ~= nil then
-			cash = math.max(0, math.floor(tonumber(exportedCash) or 0))
-		end
-
-		local okFormatted, exportedFormatted = pcall(function()
-			return exports['lsrp_economy']:formatCurrency(balance)
-		end)
-
-		if okFormatted and type(exportedFormatted) == 'string' and exportedFormatted ~= '' then
-			formattedBalance = exportedFormatted
-		else
-			formattedBalance = formatFallbackBalance(balance)
-		end
-
-		local okFormattedCash, exportedFormattedCash = pcall(function()
-			return exports['lsrp_economy']:formatCurrency(cash)
-		end)
-
-		if okFormattedCash and type(exportedFormattedCash) == 'string' and exportedFormattedCash ~= '' then
-			formattedCash = exportedFormattedCash
-		else
-			formattedCash = formatFallbackBalance(cash)
+		local response = triggerFrameworkCallback('lsrp_phones:getBalanceSnapshot', {}, 5000)
+		if response.ok and type(response.data) == 'table' then
+			balance = math.max(0, math.floor(tonumber(response.data.balance) or 0))
+			cash = math.max(0, math.floor(tonumber(response.data.cash) or 0))
+			formattedBalance = trimString(response.data.formattedBalance) or formatFallbackBalance(balance)
+			formattedCash = trimString(response.data.formattedCash) or formatFallbackBalance(cash)
+			economyAvailable = response.data.available ~= false
 		end
 	end
 
@@ -275,7 +299,34 @@ local function requestPhoneOpen()
 	end
 
 	phoneOpenRequestPending = true
-	TriggerServerEvent('lsrp_phones:server:requestOpenPhone')
+	CreateThread(function()
+		local response = triggerFrameworkCallback('lsrp_phones:requestOpenPhone', {}, 5000)
+
+		if shouldUseLegacyPhoneFallback(response) then
+			TriggerServerEvent('lsrp_phones:server:requestOpenPhone')
+			return
+		end
+
+		phoneOpenRequestPending = false
+
+		if response.ok and type(response.data) == 'table' and response.data.phoneNumber then
+			playerPhoneNumber = tostring(response.data.phoneNumber)
+			pushPhoneNumberToNui()
+			openPhoneInterface()
+			return
+		end
+
+		playerPhoneNumber = nil
+		phonebookEntries = {}
+		pushPhoneNumberToNui()
+		pushPhonebookToNui()
+		showPhoneNotification(response.error == 'phone_required' and 'You need to buy a phone first.' or 'Your phone is not ready yet.')
+		SendNUIMessage({
+			action = 'messageStatus',
+			message = response.error == 'phone_required' and 'You need to buy a phone first.' or 'Your phone is not ready yet.',
+			isError = true
+		})
+	end)
 end
 
 local function trimString(value)
@@ -503,7 +554,7 @@ playPhoneOpenAnim = function()
 end
 
 -- Stop phone animation
-local function stopPhoneAnim()
+stopPhoneAnim = function()
 	local ped = PlayerPedId()
 	local phoneObjectToRemove = phoneObject
 	
@@ -530,7 +581,7 @@ showPhoneUI = function()
 end
 
 -- Hide phone UI
-local function hidePhoneUI()
+hidePhoneUI = function()
 	SendNUIMessage({
 		action = 'closePhone'
 	})
@@ -550,9 +601,7 @@ local function togglePhone()
 
 	if phoneOpen then
 		-- Close phone
-		phoneOpen = false
-		stopPhoneAnim()
-		hidePhoneUI()
+		closePhoneInterface()
 		TriggerEvent('lsrp_phones:closePhone')
 	else
 		requestPhoneOpen()
@@ -570,16 +619,24 @@ RegisterCommand('-togglePhone', function()
 	-- Required by RegisterKeyMapping (+/- command pair).
 end, false)
 
+local FRAMEWORK_NUI_EVENTS = {
+	closePhone = 'lsrp_phones:frameworkNui:closePhone',
+	getBalance = 'lsrp_phones:frameworkNui:getBalance',
+	getPhonebook = 'lsrp_phones:frameworkNui:getPhonebook',
+	getTaxiAppState = 'lsrp_phones:frameworkNui:getTaxiAppState',
+	getMessageConversations = 'lsrp_phones:frameworkNui:getMessageConversations',
+	getMessageThread = 'lsrp_phones:frameworkNui:getMessageThread'
+}
+
 -- ---------------------------------------------------------------------------
 -- NUI callbacks (called from the HTML/JS front-end via fetch POST)
 -- ---------------------------------------------------------------------------
 
 -- NUI callback from phone close button
-RegisterNUICallback('closePhone', function(data, cb)
-	if phoneOpen then
-		togglePhone()
-	end
-	cb('ok')
+RegisterNUICallback('closePhone', function(_, cb)
+	closePhoneInterface()
+	TriggerEvent('lsrp_phones:closePhone')
+	cb({ ok = true })
 end)
 
 -- NUI callback to get parked vehicles
@@ -610,20 +667,11 @@ RegisterNUICallback('setParkingWaypoint', function(data, cb)
 	cb({ ok = true })
 end)
 
-RegisterNUICallback('getBalance', function(_, cb)
-	pushBalanceToNui()
-	cb('ok')
-end)
+exports['lsrp_framework']:registerNuiCallback('getBalance', FRAMEWORK_NUI_EVENTS.getBalance)
 
-RegisterNUICallback('getPhonebook', function(_, cb)
-	TriggerServerEvent('lsrp_phones:server:requestPhonebook')
-	cb('ok')
-end)
+exports['lsrp_framework']:registerNuiCallback('getPhonebook', FRAMEWORK_NUI_EVENTS.getPhonebook)
 
-RegisterNUICallback('getTaxiAppState', function(_, cb)
-	TriggerServerEvent('lsrp_phones:server:requestTaxiAppState')
-	cb({ ok = true })
-end)
+exports['lsrp_framework']:registerNuiCallback('getTaxiAppState', FRAMEWORK_NUI_EVENTS.getTaxiAppState)
 
 RegisterNUICallback('bookTaxiRide', function(data, cb)
 	local playerPed = PlayerPedId()
@@ -686,22 +734,116 @@ RegisterNUICallback('releaseTaxiRide', function(_, cb)
 	cb({ ok = true })
 end)
 
-RegisterNUICallback('getMessageConversations', function(_, cb)
-	TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
-	cb('ok')
+exports['lsrp_framework']:registerNuiCallback('getMessageConversations', FRAMEWORK_NUI_EVENTS.getMessageConversations)
+
+exports['lsrp_framework']:registerNuiCallback('getMessageThread', FRAMEWORK_NUI_EVENTS.getMessageThread)
+
+AddEventHandler(FRAMEWORK_NUI_EVENTS.getBalance, function(data, meta, respond)
+	pushBalanceToNui()
+	respond({ ok = true })
 end)
 
-RegisterNUICallback('getMessageThread', function(data, cb)
+AddEventHandler(FRAMEWORK_NUI_EVENTS.getPhonebook, function(data, meta, respond)
+	local response = triggerFrameworkCallback('lsrp_phones:getPhonebook', {}, 5000)
+	if shouldUseLegacyPhoneFallback(response) then
+		TriggerServerEvent('lsrp_phones:server:requestPhonebook')
+		respond({ ok = true, data = { legacy = true } })
+		return
+	end
+
+	if response.ok and type(response.data) == 'table' then
+		phonebookEntries = type(response.data.entries) == 'table' and response.data.entries or {}
+		if response.data.phoneNumber then
+			playerPhoneNumber = tostring(response.data.phoneNumber)
+			pushPhoneNumberToNui()
+		end
+		pushPhonebookToNui()
+	end
+
+	respond(response)
+end)
+
+AddEventHandler(FRAMEWORK_NUI_EVENTS.getTaxiAppState, function(data, meta, respond)
+	local response = triggerFrameworkCallback('lsrp_phones:getTaxiAppState', {}, 5000)
+	if shouldUseLegacyPhoneFallback(response) then
+		TriggerServerEvent('lsrp_phones:server:requestTaxiAppState')
+		respond({ ok = true, data = { legacy = true } })
+		return
+	end
+
+	if response.ok and type(response.data) == 'table' then
+		SendNUIMessage({
+			action = 'displayTaxiAppState',
+			state = type(response.data.state) == 'table' and response.data.state or {}
+		})
+
+		if response.data.message then
+			SendNUIMessage({
+				action = 'taxiAppStatus',
+				message = response.data.message,
+				isError = response.data.isError == true
+			})
+		end
+	end
+
+	respond(response)
+end)
+
+AddEventHandler(FRAMEWORK_NUI_EVENTS.getMessageConversations, function(data, meta, respond)
+	local response = triggerFrameworkCallback('lsrp_phones:getMessageConversations', {}, 5000)
+	if shouldUseLegacyPhoneFallback(response) then
+		TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
+		respond({ ok = true, data = { legacy = true } })
+		return
+	end
+
+	if response.ok and type(response.data) == 'table' then
+		SendNUIMessage({
+			action = 'displayMessageConversations',
+			conversations = type(response.data.conversations) == 'table' and response.data.conversations or {},
+			unreadTotal = tonumber(response.data.unreadTotal) or 0
+		})
+	end
+
+	respond(response)
+end)
+
+AddEventHandler(FRAMEWORK_NUI_EVENTS.getMessageThread, function(data, meta, respond)
 	local phoneNumber = tostring((data and data.phoneNumber) or '')
 	phoneNumber = phoneNumber:gsub('^%s+', ''):gsub('%s+$', '')
 
 	if phoneNumber == '' then
-		cb({ ok = false, error = 'invalid_target' })
+		respond({ ok = false, error = 'invalid_target' })
 		return
 	end
 
-	TriggerServerEvent('lsrp_phones:server:requestMessageThread', phoneNumber)
-	cb({ ok = true })
+	local response = triggerFrameworkCallback('lsrp_phones:getMessageThread', {
+		phoneNumber = phoneNumber
+	}, 5000)
+
+	if shouldUseLegacyPhoneFallback(response) then
+		TriggerServerEvent('lsrp_phones:server:requestMessageThread', phoneNumber)
+		respond({ ok = true, data = { legacy = true } })
+		return
+	end
+
+	if response.ok and type(response.data) == 'table' then
+		SendNUIMessage({
+			action = 'displayMessageThread',
+			thread = response.data.thread
+		})
+
+		local conversationsResponse = triggerFrameworkCallback('lsrp_phones:getMessageConversations', {}, 5000)
+		if conversationsResponse.ok and type(conversationsResponse.data) == 'table' then
+			SendNUIMessage({
+				action = 'displayMessageConversations',
+				conversations = type(conversationsResponse.data.conversations) == 'table' and conversationsResponse.data.conversations or {},
+				unreadTotal = tonumber(conversationsResponse.data.unreadTotal) or 0
+			})
+		end
+	end
+
+	respond(response)
 end)
 
 RegisterNUICallback('sendMessage', function(data, cb)
@@ -946,17 +1088,48 @@ end)
 
 -- Phone open event
 AddEventHandler('lsrp_phones:openPhone', function()
-	TriggerServerEvent('lsrp_phones:server:requestPhoneNumber')
-	TriggerServerEvent('lsrp_phones:server:requestPhonebook')
-	TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
-	TriggerServerEvent('lsrp_phones:server:requestTaxiAppState')
+	pushBalanceToNui()
+	local phonebookResponse = triggerFrameworkCallback('lsrp_phones:getPhonebook', {}, 5000)
+	if shouldUseLegacyPhoneFallback(phonebookResponse) then
+		TriggerServerEvent('lsrp_phones:server:requestPhoneNumber')
+		TriggerServerEvent('lsrp_phones:server:requestPhonebook')
+	else
+		if phonebookResponse.ok and type(phonebookResponse.data) == 'table' then
+			phonebookEntries = type(phonebookResponse.data.entries) == 'table' and phonebookResponse.data.entries or {}
+			if phonebookResponse.data.phoneNumber then
+				playerPhoneNumber = tostring(phonebookResponse.data.phoneNumber)
+			end
+		end
+	end
+
+	local messageResponse = triggerFrameworkCallback('lsrp_phones:getMessageConversations', {}, 5000)
+	if shouldUseLegacyPhoneFallback(messageResponse) then
+		TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
+	elseif messageResponse.ok and type(messageResponse.data) == 'table' then
+		SendNUIMessage({
+			action = 'displayMessageConversations',
+			conversations = type(messageResponse.data.conversations) == 'table' and messageResponse.data.conversations or {},
+			unreadTotal = tonumber(messageResponse.data.unreadTotal) or 0
+		})
+	end
+
+	local taxiResponse = triggerFrameworkCallback('lsrp_phones:getTaxiAppState', {}, 5000)
+	if shouldUseLegacyPhoneFallback(taxiResponse) then
+		TriggerServerEvent('lsrp_phones:server:requestTaxiAppState')
+	elseif taxiResponse.ok and type(taxiResponse.data) == 'table' then
+		SendNUIMessage({
+			action = 'displayTaxiAppState',
+			state = type(taxiResponse.data.state) == 'table' and taxiResponse.data.state or {}
+		})
+	end
+
 	pushPhoneNumberToNui()
 	pushPhonebookToNui()
 end)
 
 -- Phone close event
 AddEventHandler('lsrp_phones:closePhone', function()
-	-- Phone close logic goes here
+	closePhoneInterface()
 end)
 
 AddEventHandler('onResourceStop', function(resourceName)

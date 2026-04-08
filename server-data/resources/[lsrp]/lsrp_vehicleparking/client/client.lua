@@ -1049,7 +1049,11 @@ RegisterNetEvent('lsrp_vehicleparking:client:spawnVehicle', function(vehicleData
 end)
 
 RegisterNetEvent('lsrp_vehicleparking:client:notify', function(message, type)
-    -- Simple notification - you can replace this with your framework's notification system
+    if GetResourceState('lsrp_framework') == 'started' then
+        exports['lsrp_framework']:notify(message, type)
+        return
+    end
+
     BeginTextCommandThefeedPost("STRING")
     AddTextComponentString(message)
     EndTextCommandThefeedPostTicker(false, true)

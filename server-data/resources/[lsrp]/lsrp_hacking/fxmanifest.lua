@@ -28,7 +28,5 @@ server_scripts {
 }
 
 dependencies {
-	'lsrp_core',
-	'lsrp_economy',
-	'lsrp_inventory'
+	'lsrp_framework'
 }

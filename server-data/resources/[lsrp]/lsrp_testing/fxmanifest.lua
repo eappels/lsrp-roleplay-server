@@ -6,6 +6,8 @@ description 'LSRP testing resource'
 
 lua54 'yes'
 
+dependency 'lsrp_framework'
+
 shared_scripts {
 	'shared/config.lua'
 }

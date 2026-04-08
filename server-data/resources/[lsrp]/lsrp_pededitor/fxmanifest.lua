@@ -6,8 +6,11 @@ description 'LSRP Ped Editor'
 
 lua54 'yes'
 
-dependency 'lsrp_core'
-dependency 'oxmysql'
+dependencies {
+	'lsrp_core',
+	'lsrp_framework',
+	'oxmysql'
+}
 
 shared_scripts {
 	'@lsrp_core/shared/config.lua'

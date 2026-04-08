@@ -28,6 +28,5 @@ files {
 }
 
 dependencies {
-	'lsrp_economy',
-	'lsrp_inventory'
+	'lsrp_framework'
 }

@@ -4,6 +4,8 @@ Reusable transparent NUI shell/template for future LSRP interfaces.
 
 This resource is meant to be copied as a starting point when building a new UI. It captures the startup and transparency rules that were easy to get wrong when building ad-hoc NUIs.
 
+It is also framework-native by default: the sample client flow depends on `lsrp_framework` and registers NUI callbacks through the framework helper instead of raw `RegisterNUICallback` calls.
+
 ## What This Template Standardizes
 
 - Transparent `html` and `body` from first paint.
@@ -14,8 +16,8 @@ This resource is meant to be copied as a starting point when building a new UI. 
 
 ## Files
 
-- `fxmanifest.lua`: minimal manifest with `ui_page` and NUI asset files.
-- `client/client.lua`: preview commands plus a minimal `open` and `close` flow.
+- `fxmanifest.lua`: minimal manifest with `ui_page`, NUI asset files, and the `lsrp_framework` dependency.
+- `client/client.lua`: preview commands plus a minimal `open` and `close` flow using framework-backed NUI callbacks.
 - `html/index.html`: startup-safe document shell.
 - `html/style.css`: transparent-root styling and centered panel layout.
 - `html/script.js`: open/close handlers and payload-driven rendering.
@@ -35,7 +37,23 @@ If you temporarily `ensure lsrp_nui_template`, you can preview it in-game with:
 4. Keep the transparent startup shell in `index.html`.
 5. Keep the root app hidden by default and only show it from JavaScript when the UI opens.
 6. Do not toggle `html` visibility classes unless there is a strong reason.
-7. If FiveM serves stale assets during iteration, bump the query string in `index.html`.
+7. Keep using `exports.lsrp_framework:registerNuiCallback(...)` unless you have a specific reason to bypass the framework contract.
+8. If FiveM serves stale assets during iteration, bump the query string in `index.html`.
+
+## Framework Pattern
+
+The template now demonstrates this client pattern:
+
+```lua
+exports.lsrp_framework:registerNuiCallback('primaryAction', function(data)
+  exports.lsrp_framework:notify('Template primary action fired.', 'success')
+  return true, {
+    event = data and data.event or 'primary'
+  }
+end)
+```
+
+That keeps response envelopes, callback semantics, and future framework behavior consistent across copied resources.
 
 ## Payload Shape
 
@@ -65,4 +83,5 @@ The shell accepts this message shape:
 ## Notes
 
 - The template favors the ATM/hacking-safe pattern: transparent root plus a single hidden app container.
+- The sample buttons are intentionally lightweight; replace them with your feature logic, but keep the framework callback registration pattern.
 - If a specific UI needs a dimmed or stylized fullscreen layer, add it inside the root app instead of styling `body` or `html` directly.

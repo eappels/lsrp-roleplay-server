@@ -31,5 +31,5 @@ files {
 dependencies {
     'oxmysql',
     'polyzone',
-    'lsrp_economy'
+    'lsrp_framework'
 }

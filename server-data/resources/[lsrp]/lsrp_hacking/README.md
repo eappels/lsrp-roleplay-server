@@ -7,7 +7,7 @@ ATM hacking gameplay resource for LSRP, including the vendor flow, ATM detection
 - `fxmanifest.lua`: Resource manifest and dependency declaration.
 - `shared/config.lua`: Shared ATM, vendor, reward, and puzzle configuration.
 - `client/client.lua`: ATM detection, vendor interaction, synchronized hack animation, and puzzle UI callbacks.
-- `server/server.lua`: Vendor purchase flow, ATM cooldowns, and successful hack payouts.
+- `server/server.lua`: Vendor purchase flow, ATM cooldowns, and successful hack payouts through `lsrp_framework`.
 - `html/`: NUI files for the laptop hacking puzzle shown during ATM intrusions.
 
 ## Notes
@@ -15,3 +15,8 @@ ATM hacking gameplay resource for LSRP, including the vendor flow, ATM detection
 Set `Config.Debug = true` in `shared/config.lua` to enable basic startup logging while developing the resource.
 
 `Config.HackPuzzle` controls the time limit and node counts used by the ATM laptop puzzle. The hack always runs exactly 3 stages, and the ATM payout is only awarded when the player completes all 3 before time expires.
+
+## Integrations
+
+- `lsrp_framework`: cash checks, cash payouts, inventory checks, inventory grants, and notifications.
+- The resource keeps its ATM placement, cooldown, and puzzle flow local rather than routing gameplay state through the framework.

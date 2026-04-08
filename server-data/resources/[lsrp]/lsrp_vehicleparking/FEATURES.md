@@ -159,7 +159,7 @@ Config.RetrievalFee = 50  -- $50 to retrieve
 
 ## 🔐 Security
 
-✅ Identity validation through `lsrp_core`
+✅ Identity validation through `lsrp_framework`
 ✅ Ownership checks before retrieval
 ✅ SQL injection protection (prepared statements)
 ✅ Driver seat check before parking

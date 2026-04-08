@@ -19,6 +19,11 @@ local function trimString(value)
 end
 
 local function notify(message)
+	if GetResourceState('lsrp_framework') == 'started' then
+		exports['lsrp_framework']:notify(tostring(message or ''), 'info')
+		return
+	end
+
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
 	EndTextCommandThefeedPostTicker(false, true)
@@ -95,6 +100,57 @@ local function closeUi(silent, reason)
 	end
 end
 
+local function triggerFrameworkCallback(callbackName, payload, timeoutMs)
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return {
+			ok = false,
+			error = 'framework_unavailable'
+		}
+	end
+
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:triggerServerCallback(callbackName, payload, timeoutMs)
+	end)
+
+	if not ok or type(response) ~= 'table' then
+		return {
+			ok = false,
+			error = 'framework_callback_failed'
+		}
+	end
+
+	return response
+end
+
+local function refreshActiveCenterSnapshot()
+	if not uiOpen or not activeCenter then
+		return false
+	end
+
+	local response = triggerFrameworkCallback('lsrp_jobcenter:getSnapshot', {
+		centerId = activeCenter.id
+	}, 5000)
+
+	if not response.ok then
+		notify(('Job center refresh failed: %s'):format(tostring(response.error or 'unknown_error')))
+		return false
+	end
+
+	local payload = type(response.data) == 'table' and response.data or {}
+	payload.loading = false
+	pendingOpenPayload = payload
+	debugTrace(('Received job center payload with %s jobs.'):format(tostring((payload.jobs and #payload.jobs) or 0)))
+
+	if not uiOpen then
+		debugTrace('Discarding payload because UI is no longer marked open.')
+		forceCloseNui()
+		return false
+	end
+
+	flushPendingOpen()
+	return true
+end
+
 local function openUi(center)
 	if uiOpen or not center then
 		debugTrace('Open request ignored because UI is already open or center was invalid.')
@@ -115,7 +171,9 @@ local function openUi(center)
 	SetNuiFocus(true, true)
 	SetNuiFocusKeepInput(false)
 	flushPendingOpen()
-	TriggerServerEvent('lsrp_jobcenter:server:requestOpen', center.id)
+	CreateThread(function()
+		refreshActiveCenterSnapshot()
+	end)
 end
 
 RegisterCommand('jobcenter', function()
@@ -127,34 +185,6 @@ RegisterCommand('jobcenter', function()
 
 	openUi(center)
 end, false)
-
-RegisterNetEvent('lsrp_jobcenter:client:open', function(payload)
-	payload = type(payload) == 'table' and payload or {}
-	payload.loading = false
-	pendingOpenPayload = payload
-	notify('Job center data received.')
-	debugTrace(('Received job center payload with %s jobs.'):format(tostring((payload.jobs and #payload.jobs) or 0)))
-
-	if not uiOpen then
-		debugTrace('Discarding payload because UI is no longer marked open.')
-		forceCloseNui()
-		return
-	end
-
-	flushPendingOpen()
-end)
-
-RegisterNetEvent('lsrp_jobcenter:client:result', function(payload)
-	payload = type(payload) == 'table' and payload or {}
-
-	if payload.message then
-		notify(payload.message)
-	end
-
-	if payload.refresh and activeCenter then
-		TriggerServerEvent('lsrp_jobcenter:server:requestOpen', activeCenter.id)
-	end
-end)
 
 RegisterNUICallback('close', function(_, cb)
 	debugTrace('NUI requested close.')
@@ -187,8 +217,18 @@ RegisterNUICallback('apply', function(payload, cb)
 		return
 	end
 
-	TriggerServerEvent('lsrp_jobcenter:server:apply', payload.jobId, payload.gradeId)
-	cb({ ok = true })
+	local response = triggerFrameworkCallback('lsrp_jobcenter:apply', payload, 5000)
+	if response.data and response.data.message then
+		notify(response.data.message)
+	elseif not response.ok then
+		notify(('Application failed: %s'):format(tostring(response.error or 'unknown_error')))
+	end
+
+	if response.ok and response.data and response.data.refresh and activeCenter then
+		refreshActiveCenterSnapshot()
+	end
+
+	cb(response)
 end)
 
 RegisterNUICallback('resign', function(_, cb)
@@ -197,8 +237,18 @@ RegisterNUICallback('resign', function(_, cb)
 		return
 	end
 
-	TriggerServerEvent('lsrp_jobcenter:server:resign')
-	cb({ ok = true })
+	local response = triggerFrameworkCallback('lsrp_jobcenter:resign', {}, 5000)
+	if response.data and response.data.message then
+		notify(response.data.message)
+	elseif not response.ok then
+		notify(('Resignation failed: %s'):format(tostring(response.error or 'unknown_error')))
+	end
+
+	if response.ok and response.data and response.data.refresh and activeCenter then
+		refreshActiveCenterSnapshot()
+	end
+
+	cb(response)
 end)
 
 AddEventHandler('onClientResourceStart', function(resourceName)

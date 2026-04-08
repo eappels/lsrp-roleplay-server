@@ -2,7 +2,7 @@
 
 ## Open Bugs
 
-No currently tracked open bugs.
+- Store purchases are not appearing in the transactions list in the banking/ATM app.
 
 ## Fixed Bugs
 
