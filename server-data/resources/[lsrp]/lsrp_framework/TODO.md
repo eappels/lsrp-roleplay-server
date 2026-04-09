@@ -69,7 +69,7 @@ Use this order when framework work resumes:
 - [x] Port `lsrp_pededitor` onto framework identity and callback helpers while keeping shared editor config sourced from `lsrp_core` until config ownership is centralized.
 - [x] Port `lsrp_fuel` onto framework money and callback helpers while keeping local fuel sync and vehicle-state ownership in the resource.
 - [x] Port `lsrp_hacking` onto framework cash, inventory, and notification helpers while keeping ATM cooldowns, placement, and puzzle flow local to the resource.
-- [x] Port `lsrp_zones` onto the framework dependency path while keeping local event dispatch until the framework interaction registry is implemented.
+- [x] Port `lsrp_zones` onto the framework dependency path and route configured zone actions through the framework interaction registry.
 - [x] Port `lsrp_vehicleeditor` onto framework identity and callback helpers while keeping shared editor config sourced from `lsrp_core` until config ownership is centralized.
 - [x] Port `lsrp_loadscreen` prejoin auth onto framework callbacks while keeping spawn handoff owned by `lsrp_spawner`.
 - [x] Port `lsrp_dev` onto framework identity and migration-audit helpers while keeping dev/admin action flow local to the resource.
