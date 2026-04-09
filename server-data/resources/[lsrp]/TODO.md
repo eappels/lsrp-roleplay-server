@@ -4,7 +4,6 @@
 
 - MDT
 - Radio
-- Vehicle storage
 
 ## In Progress
 

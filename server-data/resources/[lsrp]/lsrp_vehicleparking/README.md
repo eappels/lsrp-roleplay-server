@@ -8,6 +8,7 @@ A comprehensive vehicle parking system for FiveM with zone-based parking, UI man
 - **Interactive UI**: Modern, responsive interface for managing parked vehicles
 - **Full Vehicle Persistence**: Stores all vehicle modifications, colors, damage, and extras
 - **Ownership System**: Uses `state_id` as the primary owner key with legacy license fallback/migration support
+- **Vehicle Storage MVP**: Owner-only persistent trunk storage backed by the inventory stash system
 - **Blip System**: Map blips for all parking zones
 - **Easy Configuration**: Simple config file for adding/editing parking locations
 
@@ -40,6 +41,7 @@ Or simply execute the `sql/schema.sql` file in your database.
     - `oxmysql` - Database operations
     - `polyzone` - Zone detection system
     - `lsrp_framework` - Shared identity, economy, and notification facade
+    - `lsrp_inventory` - Persistent stash backend used for vehicle storage
 2. Place `lsrp_vehicleparking` in your `resources/[lsrp]` folder
 3. Add to your `server.cfg`:
     ```
@@ -89,6 +91,16 @@ Config.OpenKey = 38 -- E key (change to any control ID)
 Config.showParkingZoneDebug = false -- Set to true to visualize zone boundaries
 Config.StorageFee = 0 -- Fee to store vehicle
 Config.RetrievalFee = 0 -- Fee to retrieve vehicle
+
+Config.VehicleStorage = {
+    enabled = true,
+    commandName = 'vehstorage',
+    defaultKey = 'G',
+    keyLabel = 'G',
+    openDistance = 2.5,
+    slots = 24,
+    maxWeight = 35000
+}
 ```
 
 **Debug Mode**: Enable `Config.showParkingZoneDebug = true` to see zone boundaries in-game (helpful when positioning zones).
@@ -109,6 +121,11 @@ Config.RetrievalFee = 0 -- Fee to retrieve vehicle
    - View your parked vehicles
    - Click "Retrieve Vehicle" on the vehicle you want
    - Vehicle will spawn with all modifications intact
+5. **Open Vehicle Storage**:
+    - Stand near the rear of your owned vehicle while it is out in the world
+    - The vehicle must be unlocked
+    - Press **G** or use `/vehstorage`
+    - The trunk opens through the shared inventory stash UI
 
 ### Vehicle Data Stored
 
@@ -143,12 +160,15 @@ The system stores **all** vehicle properties including:
 - Vehicle ownership resolution now goes through `lsrp_framework` identity helpers.
 - Retrieval fees and refunds now go through `lsrp_framework` money helpers.
 - Client notifications prefer the shared `lsrp_framework` notify path with a local fallback.
+- Trunk storage opens through `lsrp_inventory` persistent stashes keyed by owned vehicle id.
 
 ## Additional Notes
 
 - Retrieval is transactional: the server marks the row as `out` before the spawn request, then restores `status = 'parked'` and refunds the retrieval fee if client spawn fails or times out.
 - The client uses the vehicle payload's saved `parkingZone` for spawning, so retrieval still works even if the player has stepped out of the current interaction zone.
 - Only one retrieval can be pending per player at a time.
+- Vehicle storage is currently a trunk-only MVP with fixed slot and weight limits.
+- Locked vehicles block trunk storage access until they are unlocked.
 - Custom/addon vehicles resolve the spawn model from multiple candidates, including saved props, to handle rows that contain a non-spawnable display name.
 - `owned_vehicles` tracks both ownership and parking status.
 - Startup recovery moves stranded `out` vehicles back to `parked` when the server boots with no players online.

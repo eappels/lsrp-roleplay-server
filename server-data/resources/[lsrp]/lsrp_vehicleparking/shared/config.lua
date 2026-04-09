@@ -103,3 +103,16 @@ Config.showParkingZoneDebug = false -- true shows BoxZone boundaries
 -- Vehicle storage settings
 Config.StorageFee = 0 -- LS$ fee to store a vehicle (whole dollars only, set to 0 for free)
 Config.RetrievalFee = 50 -- LS$ fee to retrieve a vehicle (whole dollars only, set to 0 for free)
+
+Config.VehicleStorage = {
+    enabled = true,
+    commandName = 'vehstorage',
+    defaultKey = 'G',
+    keyLabel = 'G',
+    openDistance = 2.5,
+    rearOffsetPadding = 0.75,
+    serverValidationRange = 10.0,
+    slots = 24,
+    maxWeight = 35000,
+    displayName = 'Trunk'
+}

@@ -7,6 +7,8 @@ local uiOpen = false
 local OWNED_VEHICLE_ID_STATE_KEY = 'lsrpOwnedVehicleId'
 local OWNED_VEHICLE_OWNER_STATE_KEY = 'lsrpVehicleOwner'
 local OWNED_VEHICLE_OWNER_STATE_ID_KEY = 'lsrpVehicleOwnerStateId'
+local LOCK_STATE_BAG_KEY = 'lsrpVehicleLocked'
+local VEHICLE_STORAGE_COMMAND_NAME = tostring((Config and Config.VehicleStorage and Config.VehicleStorage.commandName) or 'vehstorage')
 
 local function canStoreVehiclesInZone(zoneCfg)
     return type(zoneCfg) == 'table' and zoneCfg.allowStore ~= false
@@ -39,6 +41,26 @@ local function trimString(value)
     end
 
     return trimmed
+end
+
+local function getVehicleStorageConfig()
+    return (Config and Config.VehicleStorage) or {}
+end
+
+local function isVehicleStorageEnabled()
+    return getVehicleStorageConfig().enabled ~= false
+end
+
+local function getVehicleStorageOpenDistance()
+    return math.max(1.5, tonumber(getVehicleStorageConfig().openDistance) or 2.5)
+end
+
+local function getVehicleStorageRearOffsetPadding()
+    return math.max(0.0, tonumber(getVehicleStorageConfig().rearOffsetPadding) or 0.75)
+end
+
+local function getVehicleStorageKeyLabel()
+    return trimString(getVehicleStorageConfig().keyLabel) or trimString(getVehicleStorageConfig().defaultKey) or 'G'
 end
 
 local function decodeVehicleProps(rawProps)
@@ -550,6 +572,25 @@ CreateThread(function()
     end
 end)
 
+CreateThread(function()
+    while true do
+        local sleep = 750
+
+        if isVehicleStorageEnabled() then
+            local target = getNearbyOwnedVehicleStorageTarget()
+            if target then
+                sleep = 0
+
+                BeginTextCommandDisplayHelp('STRING')
+                AddTextComponentString(('Press %s to open vehicle storage'):format(getVehicleStorageKeyLabel()))
+                EndTextCommandDisplayHelp(0, false, true, -1)
+            end
+        end
+
+        Wait(sleep)
+    end
+end)
+
 -- Open parking UI
 function openParkingUI()
     if not currentZone or uiOpen then return end
@@ -584,6 +625,108 @@ local function getOwnedVehicleId(vehicle)
     end
 
     return ownedVehicleId
+end
+
+local function isVehicleStorageLocked(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    local entityState = Entity(vehicle).state
+    if entityState and entityState[LOCK_STATE_BAG_KEY] ~= nil then
+        return entityState[LOCK_STATE_BAG_KEY] == true
+    end
+
+    local lockStatus = GetVehicleDoorLockStatus(vehicle)
+    return lockStatus == 2 or lockStatus == 4 or lockStatus == 7 or lockStatus == 10
+end
+
+local function getVehicleStorageAccessPoint(vehicle)
+    local modelHash = GetEntityModel(vehicle)
+    if modelHash == 0 then
+        return GetEntityCoords(vehicle)
+    end
+
+    local minDim, _ = GetModelDimensions(modelHash)
+    return GetOffsetFromEntityInWorldCoords(vehicle, 0.0, (minDim.y or 0.0) - getVehicleStorageRearOffsetPadding(), 0.0)
+end
+
+local function getNearbyOwnedVehicleStorageTarget()
+    if not isVehicleStorageEnabled() then
+        return nil, 'storage_disabled'
+    end
+
+    local playerPed = PlayerPedId()
+    if playerPed == 0 or not DoesEntityExist(playerPed) then
+        return nil, 'invalid_ped'
+    end
+
+    if IsPedInAnyVehicle(playerPed, false) then
+        return nil, 'in_vehicle'
+    end
+
+    local playerCoords = GetEntityCoords(playerPed)
+    local maxDistance = getVehicleStorageOpenDistance()
+    local bestTarget = nil
+    local lockedTargetNearby = false
+
+    for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+        if vehicle ~= 0 and DoesEntityExist(vehicle) then
+            local ownedVehicleId = getOwnedVehicleId(vehicle)
+            if ownedVehicleId then
+                local accessPoint = getVehicleStorageAccessPoint(vehicle)
+                local accessDistance = #(playerCoords - accessPoint)
+                if accessDistance <= maxDistance then
+                    if isVehicleStorageLocked(vehicle) then
+                        lockedTargetNearby = true
+                    elseif not bestTarget or accessDistance < bestTarget.distance then
+                        bestTarget = {
+                            vehicle = vehicle,
+                            ownedVehicleId = ownedVehicleId,
+                            plate = trimString(GetVehicleNumberPlateText(vehicle)),
+                            distance = accessDistance
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    if not bestTarget then
+        if lockedTargetNearby then
+            return nil, 'locked'
+        end
+
+        return nil, 'no_vehicle'
+    end
+
+    return bestTarget, nil
+end
+
+local function requestOpenVehicleStorage(showError)
+    local target, errorCode = getNearbyOwnedVehicleStorageTarget()
+    if not target then
+        if showError ~= false then
+            if errorCode == 'in_vehicle' then
+                TriggerEvent('lsrp_vehicleparking:client:notify', 'Exit the vehicle to access the trunk', 'error')
+            elseif errorCode == 'locked' then
+                TriggerEvent('lsrp_vehicleparking:client:notify', 'Unlock the vehicle before accessing the trunk', 'error')
+            else
+                TriggerEvent('lsrp_vehicleparking:client:notify', 'Move closer to the rear of an owned vehicle to access the trunk', 'error')
+            end
+        end
+        return false
+    end
+
+    if uiOpen then
+        closeParkingUI()
+    end
+
+    TriggerServerEvent('lsrp_vehicleparking:server:openVehicleStorage', {
+        ownedVehicleId = target.ownedVehicleId,
+        plate = target.plate
+    })
+    return true
 end
 
 local function setOwnedVehicleState(vehicle, ownedVehicleId, ownerLicense, ownerStateId)
@@ -1070,5 +1213,19 @@ RegisterNetEvent('lsrp_vehicleparking:client:setWaypointToZone', function(zoneNa
     SetNewWaypoint(zoneCfg.coords.x + 0.0, zoneCfg.coords.y + 0.0)
     TriggerEvent('lsrp_vehicleparking:client:notify', ('GPS set to %s'):format(zoneCfg.name), 'success')
 end)
+
+RegisterCommand(VEHICLE_STORAGE_COMMAND_NAME, function()
+    requestOpenVehicleStorage(true)
+end, false)
+
+RegisterCommand('+openVehicleStorage', function()
+    requestOpenVehicleStorage(true)
+end, false)
+
+RegisterCommand('-openVehicleStorage', function()
+    -- Required for RegisterKeyMapping.
+end, false)
+
+RegisterKeyMapping('+openVehicleStorage', 'Open nearby vehicle storage', 'keyboard', trimString(getVehicleStorageConfig().defaultKey) or 'G')
 
 print('^2[lsrp_vehicleparking]^7 Client script loaded successfully')

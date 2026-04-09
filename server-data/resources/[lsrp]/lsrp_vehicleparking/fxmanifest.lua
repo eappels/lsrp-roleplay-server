@@ -31,5 +31,6 @@ files {
 dependencies {
     'oxmysql',
     'polyzone',
-    'lsrp_framework'
+    'lsrp_framework',
+    'lsrp_inventory'
 }

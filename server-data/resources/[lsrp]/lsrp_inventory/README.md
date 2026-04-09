@@ -5,6 +5,7 @@ Rebuilt from scratch as a simple slot-based inventory resource.
 ## Included features
 
 - Runtime usable item registration for dynamic inventory management.
+- Persistent named stashes that can be reused by systems such as vehicle storage.
 
 ## Controls
 
@@ -14,6 +15,7 @@ Rebuilt from scratch as a simple slot-based inventory resource.
 - `exports['lsrp_inventory']:getInventory(playerSrc)`
 - `exports['lsrp_inventory']:addItem(playerSrc, itemName, amount, metadata)`
 - `exports['lsrp_inventory']:removeItem(playerSrc, itemName, amount)`
+- `exports['lsrp_inventory']:openStashForPlayer(playerSrc, stashName, displayName, options)`
 
 ## Config
 
@@ -34,4 +36,4 @@ Edit `shared/config.lua` to change:
 ## Notes
 
 - World drops are runtime-only and not persisted.
-- Suggested improvements: Add named stashes for trunks and gloveboxes.
+- Vehicle trunk storage now reuses named persistent stashes keyed by owned vehicle id.
