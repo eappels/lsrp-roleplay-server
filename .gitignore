@@ -1,3 +1,5 @@
 server/
 cache/
 .vscode/
+server-data/server.cfg
+server-data/server_internal.cfg

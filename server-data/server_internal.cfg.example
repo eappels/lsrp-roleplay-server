@@ -1,0 +1,13 @@
+# Copy this file to `server_internal.cfg` and keep the real file out of git.
+
+# License key for your server (https://portal.cfx.re)
+sv_licenseKey "REPLACE_WITH_YOUR_LICENSE_KEY"
+
+# Database connection string used by oxmysql and LSRP services.
+set mysql_connection_string "mysql://username:password@localhost/lsrp"
+
+# Owner-specific ACE overrides
+#add_ace identifier.license:REPLACE_WITH_LICENSE lsrp.jobs.admin allow
+#add_ace identifier.license:REPLACE_WITH_LICENSE lsrp.ems.assignself allow
+#add_ace identifier.license:REPLACE_WITH_LICENSE lsrp.police.assignself allow
+#add_principal identifier.license:REPLACE_WITH_LICENSE group.admin
