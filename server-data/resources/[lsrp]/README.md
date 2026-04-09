@@ -21,7 +21,7 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 - [lsrp_housing](lsrp_housing/README.md): Apartment rental, entry, and management flow.
 - [lsrp_hud](lsrp_hud/README.md): Standalone compass plus hunger and thirst HUD widgets.
 - [lsrp_hunger](lsrp_hunger/README.md): Persistent player hunger with decay, starvation damage, HUD sync, and food integration.
-- [lsrp_inventory](lsrp_inventory/README.md): NUI inventory scaffold and current vehicle key item.
+- [lsrp_inventory](lsrp_inventory/README.md): NUI inventory scaffold, persistent named stashes, and current vehicle key item.
 - [lsrp_jobcenter](lsrp_jobcenter/README.md): Job center kiosk and civilian job browser.
 - [lsrp_jobs](lsrp_jobs/README.md): Employment state, duty, payroll, and job permissions.
 - [lsrp_loadscreen](lsrp_loadscreen/README.md): Custom server loadscreen.
@@ -36,9 +36,9 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 - [lsrp_taxi](lsrp_taxi/README.md): Public taxi driver job with company vehicles and phone dispatch.
 - [lsrp_towing](lsrp_towing/README.md): Public towing job with yard duty, truck spawn, and tow controls.
 - [lsrp_thirst](lsrp_thirst/README.md): Persistent player thirst with decay, dehydration damage, and HUD sync.
-- [lsrp_vehiclebehaviour](lsrp_vehiclebehaviour/README.md): Ignition, locking, and shared vehicle keys.
+- [lsrp_vehiclebehaviour](lsrp_vehiclebehaviour/README.md): Ignition, locking, shared vehicle keys, and lock-state behavior used by trunk access.
 - [lsrp_vehicleeditor](lsrp_vehicleeditor/README.md): Vehicle customization editor and saved setups.
-- [lsrp_vehicleparking](lsrp_vehicleparking/README.md): Parking, ownership, retrieval, and saved vehicle props.
+- [lsrp_vehicleparking](lsrp_vehicleparking/README.md): Parking, ownership, retrieval, saved vehicle props, and trunk storage.
 - [lsrp_vehicleshop](lsrp_vehicleshop/README.md): Dealership UI, demo vehicles, and purchases.
 - [lsrp_zones](lsrp_zones/README.md): Config-driven interaction zones.
 

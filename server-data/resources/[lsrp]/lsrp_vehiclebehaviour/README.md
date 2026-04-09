@@ -76,6 +76,7 @@ Legacy license identifiers remain for compatibility and migration fallback, but 
 - Identity resolution and state-aware owner lookups now go through `lsrp_framework`.
 - Client notifications prefer the shared `lsrp_framework` notify path.
 - `lsrp_vehicleparking` remains the ownership source of truth for persisted vehicles.
+- The shared lock state bag `lsrpVehicleLocked` is also consumed by `lsrp_vehicleparking` to block trunk storage when a vehicle is locked.
 
 ## Integration Points
 
@@ -88,8 +89,11 @@ Relevant state bags:
 - `lsrpOwnedVehicleId`
 - `lsrpVehicleOwner`
 - `lsrpVehicleOwnerStateId`
+- `lsrpVehicleLocked`
 
 The client uses `lsrpVehicleOwnerStateId` as the primary live ownership check and keeps `lsrpVehicleOwner` as a compatibility fallback.
+
+`lsrp_vehicleparking` uses `lsrpVehicleLocked` to hide the trunk prompt client-side and reject storage access server-side until the vehicle is unlocked.
 
 ### lsrp_vehicleshop
 

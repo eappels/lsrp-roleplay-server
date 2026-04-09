@@ -1,4 +1,14 @@
-# ✅ Updated to Use PolyZone BoxZone
+# Vehicle Parking Changelog
+
+## 2026-04-09
+
+- Added vehicle trunk storage MVP backed by persistent inventory stashes.
+- Keyed trunk storage by owned vehicle id so plate renames do not orphan stored items.
+- Added client prompt, `G` keybind, and `/vehstorage` command for nearby trunk access.
+- Added lock-state gating so locked vehicles block trunk access until they are unlocked.
+- Added server-side ownership and proximity validation for trunk access.
+
+## PolyZone Update
 
 ## Changes Made
 

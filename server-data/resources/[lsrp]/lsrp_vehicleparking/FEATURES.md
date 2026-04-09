@@ -10,6 +10,8 @@ A complete, production-ready vehicle parking system with:
 - **Full Vehicle Persistence**: Every modification is saved and restored
 - **Multi-Zone Support**: Players can park at different locations
 - **Capacity Tracking**: Shows how many vehicles are parked
+- **Persistent Trunk Storage**: Owned vehicles can open a shared inventory-backed trunk stash while the vehicle is out
+- **Lock-Gated Storage Access**: Locked vehicles block trunk access until the owner unlocks them
 
 ### 🚗 Vehicle Data Saved (100% Complete)
 
@@ -79,6 +81,11 @@ lsrp_vehicleparking/
    - See all your parked vehicles
    - Click "Retrieve Vehicle"
    - Vehicle spawns with ALL modifications intact
+6. **Open Trunk Storage**:
+   - Stand near the rear of an owned retrieved vehicle
+   - Make sure the vehicle is unlocked
+   - Press `G` or use `/vehstorage`
+   - The trunk opens through the inventory stash UI
 
 ## 🌍 Pre-Configured Locations
 
@@ -161,6 +168,8 @@ Config.RetrievalFee = 50  -- $50 to retrieve
 
 ✅ Identity validation through `lsrp_framework`
 ✅ Ownership checks before retrieval
+✅ Ownership checks before trunk access
+✅ Locked vehicles block trunk access
 ✅ SQL injection protection (prepared statements)
 ✅ Driver seat check before parking
 ✅ Unique plate constraint in database
@@ -174,6 +183,8 @@ Single table: `owned_vehicles`
 - Parking zone name
 - Full vehicle properties (JSON)
 - Status and timestamps
+
+Persistent trunk items are stored through `lsrp_inventory_stashes`, keyed by owned vehicle id.
 
 ## 🚀 Performance
 

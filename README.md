@@ -24,9 +24,11 @@ This repository contains the local FXServer layout, the active server configurat
 
 - `lsrp_framework`: stable facade for identity, money, inventory, jobs, callbacks, interactions, phone apps, and usable items.
 - `lsrp_core`: identity, character, and shared core state.
-- `lsrp_inventory`: slot-based inventory with runtime usable-item registration.
+- `lsrp_inventory`: slot-based inventory with runtime usable-item registration and persistent named stashes.
 - `lsrp_jobs`, `lsrp_economy`, `lsrp_housing`, `lsrp_vehicleparking`, `lsrp_phones`: core gameplay backends.
 - `lsrp_pededitor`, `lsrp_vehicleeditor`, `lsrp_vehicleshop`, `lsrp_zones`: player-facing interaction and UI flows.
+
+Recent gameplay baseline additions include owner-only persistent vehicle trunk storage through `lsrp_vehicleparking` and `lsrp_inventory`.
 
 The resource index and per-resource documentation live in `server-data/resources/[lsrp]/README.md`.
 
@@ -91,6 +93,8 @@ server-data\StartServer.bat
 ## Status
 
 The framework baseline is in place and the resource set has been ported onto `lsrp_framework`.
+
+Vehicle storage is now implemented as a trunk-storage MVP backed by persistent inventory stashes and gated by vehicle lock state.
 
 Current planned feature work is tracked in `server-data/resources/[lsrp]/TODO.md`.
 
