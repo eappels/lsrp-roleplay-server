@@ -1,5 +1,8 @@
 local CALLBACK_DEFAULTS = LSRPFramework.CallbackDefaults or {}
 local CALLBACK_EVENTS = LSRPFramework.CallbackEvents or {}
+local ERROR_CODES = LSRPFramework.ErrorCodes or {}
+local NOTIFICATION_LEVELS = LSRPFramework.NotificationLevels or {}
+local VALIDATION = LSRPFramework.Validation or {}
 local registeredClientCallbacks = {}
 local registeredNuiCallbacks = {}
 local pendingServerCallbacks = {}
@@ -26,6 +29,22 @@ local function normalizeEventName(value)
 	return trimString(value)
 end
 
+local function normalizeErrorCode(value, fallback)
+	if type(VALIDATION.normalizeErrorCode) == 'function' then
+		return VALIDATION.normalizeErrorCode(value, fallback)
+	end
+
+	return trimString(value) or trimString(fallback) or 'operation_failed'
+end
+
+local function normalizeNotificationLevel(value, fallback)
+	if type(VALIDATION.normalizeNotificationLevel) == 'function' then
+		return VALIDATION.normalizeNotificationLevel(value, fallback)
+	end
+
+	return trimString(value) or trimString(fallback) or 'info'
+end
+
 local function normalizeTimeoutMs(value)
 	local timeoutMs = math.floor(tonumber(value) or tonumber(CALLBACK_DEFAULTS.timeoutMs) or 5000)
 	if timeoutMs < 1000 then
@@ -39,7 +58,7 @@ local function buildCallbackResponse(callbackName, requestId, ok, data, errorCod
 	return {
 		ok = ok == true,
 		data = ok == true and data or nil,
-		error = ok == true and nil or (trimString(errorCode) or 'callback_failed'),
+		error = ok == true and nil or normalizeErrorCode(errorCode, ERROR_CODES.callback_failed),
 		meta = {
 			callback = normalizeCallbackName(callbackName),
 			requestId = trimString(requestId)
@@ -57,7 +76,7 @@ local function normalizeCallbackResponse(callbackName, requestId, response)
 	return {
 		ok = response.ok == true,
 		data = response.ok == true and response.data or nil,
-		error = response.ok == true and nil or (trimString(response.error) or 'callback_failed'),
+		error = response.ok == true and nil or normalizeErrorCode(response.error, ERROR_CODES.callback_failed),
 		meta = {
 			callback = normalizeCallbackName(meta.callback) or normalizeCallbackName(callbackName),
 			requestId = trimString(meta.requestId) or trimString(requestId)
@@ -205,11 +224,13 @@ local function notify(message, level)
 		return
 	end
 
-	if level == 'error' then
+	local normalizedLevel = normalizeNotificationLevel(level, NOTIFICATION_LEVELS.info)
+
+	if normalizedLevel == 'error' then
 		text = ('~r~%s'):format(text)
-	elseif level == 'success' then
+	elseif normalizedLevel == 'success' then
 		text = ('~g~%s'):format(text)
-	elseif level == 'warning' then
+	elseif normalizedLevel == 'warning' then
 		text = ('~y~%s'):format(text)
 	end
 

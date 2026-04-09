@@ -19,22 +19,21 @@ This file turns the top-level framework prerequisites into concrete work inside 
 
 ## Stable Contracts
 
-- [ ] Freeze the payload shapes for `getPlayerContext`, `getIdentity`, `getCharacter`, `getMoney`, `getJob`, and `getInventory`.
-- [ ] Standardize framework error codes across reads, writes, and callbacks.
-- [ ] Add an explicit contract version policy for future payload changes.
-- [ ] Document which fields are guaranteed, optional, or nullable in each export response.
-- [ ] Add small validation helpers so contracts stay normalized before data leaves the facade.
+- [x] Freeze the payload shapes for `getPlayerContext`, `getIdentity`, `getCharacter`, `getMoney`, `getJob`, and `getInventory`.
+- [x] Standardize framework error codes across reads, writes, and callbacks.
+- [x] Add an explicit contract version policy for future payload changes.
+- [x] Document which fields are guaranteed, optional, or nullable in each export response.
+- [x] Add small validation helpers so contracts stay normalized before data leaves the facade.
 
 ## Suggested Implementation Order
 
 Use this order when framework work resumes:
 
-1. Stable contracts
-2. Interaction registry
-3. Ownership and identity helpers
-4. Phone-app registry
-5. Usable-item registry
-6. Conventions and template finalization
+1. Interaction registry
+2. Ownership and identity helpers
+3. Phone-app registry
+4. Usable-item registry
+5. Conventions and template finalization
 
 ## Registries
 
@@ -47,8 +46,8 @@ Use this order when framework work resumes:
 ## Conventions
 
 - [ ] Publish the official naming pattern for framework events, callbacks, exports, and state keys.
-- [ ] Define one standard response envelope for framework actions that can fail.
-- [ ] Define one standard notification level list and message contract.
+- [x] Define one standard response envelope for framework actions that can fail.
+- [x] Define one standard notification level list and message contract.
 - [ ] Update `lsrp_resource_template` to consume the final callback and registry APIs.
 - [ ] Add a short conventions section to the framework API docs so new resources follow one pattern by default.
 

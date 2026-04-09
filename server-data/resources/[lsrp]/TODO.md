@@ -22,12 +22,11 @@ Build these framework pieces before or alongside the first major resource ports:
 
 When framework work resumes, continue in this order:
 
-1. Freeze and document stable contracts and framework error codes.
-2. Add the interaction registry API.
-3. Add normalized ownership and identity helper contracts.
-4. Add the phone-app registry API.
-5. Add the usable-item registry API.
-6. Finalize framework conventions and update the resource template to match them.
+1. Add the interaction registry API.
+2. Add normalized ownership and identity helper contracts.
+3. Add the phone-app registry API.
+4. Add the usable-item registry API.
+5. Finalize framework conventions and update the resource template to match them.
 
 ## Resource Port Priority
 

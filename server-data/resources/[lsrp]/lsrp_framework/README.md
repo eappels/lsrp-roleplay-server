@@ -8,7 +8,7 @@ It does not replace the existing service resources. Instead, it exposes a stable
 
 ## Current Scope
 
-Version `1.1.0` is still intentionally small, but it now covers both the original facade exports and a shared callback layer.
+Version `1.2.0` keeps the facade intentionally small, but now adds explicit contract and error-code normalization on top of the shared callback layer.
 
 It currently wraps:
 
@@ -19,12 +19,15 @@ It currently wraps:
 - Inventory lookups and item mutation via `lsrp_inventory`
 - Client-server and server-client callback requests with a shared response envelope
 - NUI callback registration helpers on the client
+- Shared framework error codes and notification levels
+- A published contract version for stable read-model payloads
 
 ## Public Exports
 
 Server exports:
 
 - `getApiVersion()`
+- `getContractVersion()`
 - `getIdentity(playerSrc)`
 - `getIdentityByLicense(license)`
 - `getIdentityByStateId(stateId)`
@@ -81,6 +84,8 @@ Client exports:
 - The facade returns normalized payloads and hides internal storage details.
 - New LSRP resources should prefer `lsrp_framework` over calling multiple service resources directly.
 - The callback layer uses one response envelope with `ok`, `data`, `error`, and `meta` fields.
+- Read-model contracts are versioned separately through `getContractVersion()` and the documented field guarantees in `API.md`.
+- Framework-facing failures should use documented framework error codes instead of leaking ad hoc service strings when possible.
 - Callback registrations accept either local functions or event-name strings; use event names for cross-resource registrations.
 - The default callback timeout is `5000` ms unless a resource passes a custom timeout.
 - Built-in server callbacks now include `lsrp_prejoin:register` and `lsrp_prejoin:login` for prejoin auth UIs.

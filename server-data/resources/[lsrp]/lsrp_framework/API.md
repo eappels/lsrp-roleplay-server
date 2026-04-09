@@ -1,8 +1,10 @@
 # LSRP Framework API
 
-Version: `1.1.0`
+Version: `1.2.0`
 
-`lsrp_framework` is the public facade for the LSRP platform. Version `1.1.0` adds a shared callback layer for client-server, server-client, and NUI request-response flows.
+`lsrp_framework` is the public facade for the LSRP platform. Version `1.2.0` keeps the shared callback layer and adds a published contract version plus normalized framework error codes.
+
+Contract version: `2026-04-09`
 
 ## Design Rules
 
@@ -11,6 +13,48 @@ Version: `1.1.0`
 - Prefer `getPlayerContext` for read-heavy flows.
 - Use the focused write exports for money and inventory changes.
 - Use framework callbacks instead of inventing ad hoc request events when a response is required.
+- Read-model fields documented here are stable within the current contract version.
+- Additive optional fields are allowed without a contract-version bump; removals, renames, or type changes are not.
+
+## Standard Notification Levels
+
+- `info`
+- `success`
+- `warning`
+- `error`
+
+## Standard Error Codes
+
+The framework now reserves and normalizes these codes across callback and write-facing failure paths:
+
+- `operation_failed`
+- `invalid_player`
+- `invalid_callback`
+- `invalid_handler`
+- `invalid_response`
+- `invalid_message`
+- `invalid_level`
+- `invalid_license`
+- `invalid_state_id`
+- `invalid_account_id`
+- `invalid_amount`
+- `invalid_item`
+- `callback_failed`
+- `callback_not_registered`
+- `callback_already_registered`
+- `timeout`
+- `player_dropped`
+- `not_found`
+- `identity_unavailable`
+- `identity_error`
+- `character_service_unavailable`
+- `character_operation_failed`
+- `jobs_unavailable`
+- `jobs_error`
+- `economy_unavailable`
+- `economy_error`
+- `inventory_unavailable`
+- `inventory_error`
 
 ## Callback Response Envelope
 
@@ -61,12 +105,26 @@ return { value = 1 } -- treated as success data
 Returns the current facade API version string.
 
 ```lua
-'1.1.0'
+'1.2.0'
+```
+
+### `getContractVersion()`
+
+Returns the current stable read-contract version.
+
+```lua
+'2026-04-09'
 ```
 
 ### `getIdentity(playerSrc)`
 
 Returns normalized identity data for an online player.
+
+Guaranteed fields:
+
+- `license` may be `nil` when the underlying service cannot resolve it.
+- `accountId` may be `nil`.
+- `stateId` may be `nil`.
 
 ```lua
 {
@@ -93,6 +151,11 @@ Returns `true` when the current online player has completed prejoin login for th
 ### `getCharacter(playerSrc)`
 
 Returns normalized character data for an online player.
+
+Guaranteed fields:
+
+- `characterId`, `accountId`, and `slot` are normalized integers when present.
+- `firstName`, `lastName`, `fullName`, `dateOfBirth`, and `sex` may be `nil` if unset upstream.
 
 ```lua
 {
@@ -150,6 +213,12 @@ local ok, errorCode = exports['lsrp_framework']:loginPrejoinAccount(source, {
 
 Returns normalized economy data.
 
+Guaranteed fields:
+
+- `balance` and `cash` are non-negative whole numbers.
+- `currency` is always a string.
+- `accountId` may be `nil`.
+
 ```lua
 {
     balance = 2500,
@@ -186,6 +255,12 @@ Resolves the live player source for a license when that player is online.
 ### `getJob(playerSrc)`
 
 Returns normalized employment data for the current player.
+
+Guaranteed fields:
+
+- `id` is required when a job payload exists.
+- `permissions` is always an array.
+- `payAmount` and `payIntervalSeconds` are non-negative whole numbers.
 
 ```lua
 {
@@ -248,9 +323,21 @@ local ok, errorCode = exports['lsrp_framework']:resignPlayer(source)
 
 Returns the sanitized inventory payload exposed by `lsrp_inventory`.
 
+Guaranteed fields:
+
+- `slots` is a positive whole number.
+- `maxWeight` is a non-negative whole number.
+- `items` is always an array sorted by slot.
+- Each item includes normalized `slot`, `name`, `label`, `count`, `weight`, `totalWeight`, `maxStack`, and `stackable` fields.
+
 ### `getPlayerContext(playerSrc)`
 
 Returns the main aggregated read model for an online player.
+
+Guaranteed fields:
+
+- `source`, `name`, `online`, and `authenticated` are always present when a context payload is returned.
+- `identity`, `character`, `money`, `job`, and `status` may be `nil` when their backing services or state are unavailable.
 
 ```lua
 {
