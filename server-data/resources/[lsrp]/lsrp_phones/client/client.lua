@@ -30,6 +30,14 @@ local ringtoneSoundId = nil
 local ringtoneMode = nil
 local incomingCallAnswering = false
 local phoneOpenRequestPending = false
+local PHONE_APP_IDS = {
+	balance = 'balance',
+	messages = 'messages',
+	parking = 'parking',
+	taxi = 'taxi',
+	calls = 'calls',
+	phonebook = 'phonebook'
+}
 
 local playPhoneOpenAnim
 local showPhoneUI
@@ -94,8 +102,16 @@ local function shouldUseLegacyPhoneFallback(response)
 	return errorCode == 'framework_unavailable'
 		or errorCode == 'framework_callback_failed'
 		or errorCode == 'callback_not_registered'
+		or errorCode == 'phone_app_not_registered'
 		or errorCode == 'timeout'
 		or errorCode == 'callback_failed'
+end
+
+local function requestPhoneAppData(appId, payload, timeoutMs)
+	return triggerFrameworkCallback('lsrp_framework:phone:getAppData', {
+		appId = appId,
+		payload = type(payload) == 'table' and payload or {}
+	}, timeoutMs or 5000)
 end
 
 -- Formats an integer balance as a comma-separated LS$ string without relying on
@@ -641,9 +657,22 @@ end)
 
 -- NUI callback to get parked vehicles
 RegisterNUICallback('getParkedVehicles', function(data, cb)
-	print('[lsrp_phones] NUI requested parked vehicles')
-	TriggerServerEvent('lsrp_phones:server:requestParkedVehicles')
-	cb('ok')
+	local response = requestPhoneAppData(PHONE_APP_IDS.parking, {}, 5000)
+	if shouldUseLegacyPhoneFallback(response) then
+		print('[lsrp_phones] NUI requested parked vehicles')
+		TriggerServerEvent('lsrp_phones:server:requestParkedVehicles')
+		cb('ok')
+		return
+	end
+
+	if response.ok and type(response.data) == 'table' then
+		SendNUIMessage({
+			action = 'displayVehicles',
+			vehicles = normalizeParkedVehiclesForNui(type(response.data.vehicles) == 'table' and response.data.vehicles or {})
+		})
+	end
+
+	cb(response)
 end)
 
 RegisterNUICallback('setParkingWaypoint', function(data, cb)
@@ -739,12 +768,28 @@ exports['lsrp_framework']:registerNuiCallback('getMessageConversations', FRAMEWO
 exports['lsrp_framework']:registerNuiCallback('getMessageThread', FRAMEWORK_NUI_EVENTS.getMessageThread)
 
 AddEventHandler(FRAMEWORK_NUI_EVENTS.getBalance, function(data, meta, respond)
-	pushBalanceToNui()
-	respond({ ok = true })
+	local response = requestPhoneAppData(PHONE_APP_IDS.balance, {}, 5000)
+	if shouldUseLegacyPhoneFallback(response) then
+		pushBalanceToNui()
+		respond({ ok = true, data = { legacy = true } })
+		return
+	end
+
+	if response.ok and type(response.data) == 'table' then
+		setBalance(
+			response.data.balance,
+			response.data.formattedBalance,
+			response.data.cash,
+			response.data.formattedCash,
+			response.data.available
+		)
+	end
+
+	respond(response)
 end)
 
 AddEventHandler(FRAMEWORK_NUI_EVENTS.getPhonebook, function(data, meta, respond)
-	local response = triggerFrameworkCallback('lsrp_phones:getPhonebook', {}, 5000)
+	local response = requestPhoneAppData(PHONE_APP_IDS.phonebook, {}, 5000)
 	if shouldUseLegacyPhoneFallback(response) then
 		TriggerServerEvent('lsrp_phones:server:requestPhonebook')
 		respond({ ok = true, data = { legacy = true } })
@@ -764,7 +809,7 @@ AddEventHandler(FRAMEWORK_NUI_EVENTS.getPhonebook, function(data, meta, respond)
 end)
 
 AddEventHandler(FRAMEWORK_NUI_EVENTS.getTaxiAppState, function(data, meta, respond)
-	local response = triggerFrameworkCallback('lsrp_phones:getTaxiAppState', {}, 5000)
+	local response = requestPhoneAppData(PHONE_APP_IDS.taxi, {}, 5000)
 	if shouldUseLegacyPhoneFallback(response) then
 		TriggerServerEvent('lsrp_phones:server:requestTaxiAppState')
 		respond({ ok = true, data = { legacy = true } })
@@ -790,7 +835,7 @@ AddEventHandler(FRAMEWORK_NUI_EVENTS.getTaxiAppState, function(data, meta, respo
 end)
 
 AddEventHandler(FRAMEWORK_NUI_EVENTS.getMessageConversations, function(data, meta, respond)
-	local response = triggerFrameworkCallback('lsrp_phones:getMessageConversations', {}, 5000)
+	local response = requestPhoneAppData(PHONE_APP_IDS.messages, {}, 5000)
 	if shouldUseLegacyPhoneFallback(response) then
 		TriggerServerEvent('lsrp_phones:server:requestMessageConversations')
 		respond({ ok = true, data = { legacy = true } })

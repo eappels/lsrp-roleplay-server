@@ -28,6 +28,7 @@ It supports model changes, component changes, and saved outfit slots per player.
 ## Integrations
 
 - Uses `lsrp_framework` for player identity and request-response flows.
+- Registers its zone-open entry point through the framework interaction registry.
 - Uses `lsrp_core` shared config until appearance editor config ownership is centralized.
 - Uses `oxmysql` for outfit persistence.
 - Can be opened through `lsrp_zones` clothing-store interaction zones.

@@ -29,35 +29,31 @@ This file turns the top-level framework prerequisites into concrete work inside 
 
 Use this order when framework work resumes:
 
-1. Interaction registry
-2. Ownership and identity helpers
-3. Phone-app registry
-4. Usable-item registry
-5. Conventions and template finalization
+1. Framework baseline is complete; add new framework surface only when a resource exposes a repeated pattern that belongs in the facade.
 
 ## Registries
 
 - [x] Job registration entrypoint exists through `registerJobDefinition`.
-- [ ] Add a usable-item registry API instead of requiring direct inventory integration.
-- [ ] Add an interaction registry API for world prompts, zones, or action entries.
-- [ ] Add a phone-app registry API so the phone resource can consume registered apps through the framework.
-- [ ] Document lifecycle rules for registering and unregistering framework extensions.
+- [x] Add an interaction registry API for world prompts, zones, or action entries.
+- [x] Add a usable-item registry API instead of requiring direct inventory integration.
+- [x] Add a phone-app registry API so the phone resource can consume registered apps through the framework.
+- [x] Document lifecycle rules for registering and unregistering framework extensions.
 
 ## Conventions
 
-- [ ] Publish the official naming pattern for framework events, callbacks, exports, and state keys.
+- [x] Publish the official naming pattern for framework events, callbacks, exports, and state keys.
 - [x] Define one standard response envelope for framework actions that can fail.
 - [x] Define one standard notification level list and message contract.
-- [ ] Update `lsrp_resource_template` to consume the final callback and registry APIs.
-- [ ] Add a short conventions section to the framework API docs so new resources follow one pattern by default.
+- [x] Update `lsrp_resource_template` to consume the final callback and registry APIs.
+- [x] Add a short conventions section to the framework API docs so new resources follow one pattern by default.
 
 ## Ownership And Identity Helpers
 
-- [ ] Add a normalized owner identity shape for cross-resource use, centered on `stateId` with compatibility fallbacks.
-- [ ] Add helper exports for resolving owner identity from `playerSrc` and other common entry points.
-- [ ] Add vehicle ownership helper contracts needed by parking, vehicle shop, and vehicle behaviour.
-- [ ] Add housing ownership helper contracts needed by housing and related UI flows.
-- [ ] Add phone ownership and app-access helper contracts needed by phones and inventory-gated UI features.
+- [x] Add a normalized owner identity shape for cross-resource use, centered on `stateId` with compatibility fallbacks.
+- [x] Add helper exports for resolving owner identity from `playerSrc` and other common entry points.
+- [x] Add vehicle ownership helper contracts needed by parking, vehicle shop, and vehicle behaviour.
+- [x] Add housing ownership helper contracts needed by housing and related UI flows.
+- [x] Add phone ownership and app-access helper contracts needed by phones and inventory-gated UI features.
 
 ## Port Readiness
 

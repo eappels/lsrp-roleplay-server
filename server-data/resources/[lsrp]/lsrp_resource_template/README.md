@@ -19,14 +19,16 @@ It is not intended to be started directly in production. Copy it, rename the fol
   - `hasItem`
   - `addItem`
   - `removeItem`
-- `client/client.lua` with built-in framework notify usage and a simple world interaction example.
+- `registerServerCallback`
+- `unregisterServerCallback`
+- `client/client.lua` with built-in framework notify usage, callback helpers, and a simple registered interaction example.
 
 ## How To Use It
 
 1. Copy the folder.
 2. Rename it to your new resource name, for example `lsrp_businesses`.
 3. Update `fxmanifest.lua` metadata.
-4. Replace the example events in `client/client.lua` and `server/server.lua` with your real feature logic.
+4. Replace the example callback and interaction registrations in `client/client.lua` and `server/server.lua` with your real feature logic.
 5. Update `shared/config.lua` with resource-specific config.
 6. Add your new resource to the `[lsrp]` README index and `server.cfg` only when it is ready to run.
 
@@ -34,15 +36,22 @@ It is not intended to be started directly in production. Copy it, rename the fol
 
 - Server events: `<resourceName>:server:*`
 - Client events: `<resourceName>:client:*`
+- Server callbacks: `<resourceName>:server:*`
+- Client callbacks: `<resourceName>:client:*`
+- Interaction ids: `<resourceName>:*`
+- Shared state keys: `<resourceName>:<key>`
+- Local constants: `CALLBACK_NAMES`, `INTERACTION_IDS`, `STATE_KEYS`
 - Config table: `Config`
 - Framework entrypoint: `exports['lsrp_framework']`
 
-The template uses `GetCurrentResourceName()` when building example event names so the copied resource keeps working after it is renamed.
+The template uses `GetCurrentResourceName()` when building example callback and interaction names so the copied resource keeps working after it is renamed.
 
 ## Conventions
 
 - Read player state through `lsrp_framework` instead of direct cross-resource calls.
 - Use `lsrp_framework:notify` for player-facing messages.
+- Register framework callbacks and interactions on resource start, and unregister them on resource stop.
+- Use framework callbacks for request-response flows instead of raw net events when a response is required.
 - Keep DB schema private to the resource.
 - Add only the smallest public surface needed for other resources.
 

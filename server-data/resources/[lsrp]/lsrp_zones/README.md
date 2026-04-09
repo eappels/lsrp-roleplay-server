@@ -4,7 +4,7 @@
 
 `lsrp_zones` is the generic interaction-zone resource used to open other LSRP systems from world locations.
 
-It creates configured zones, shows the interaction prompt, and triggers the configured action event when the player presses the interaction key.
+It creates configured zones, shows the interaction prompt, and invokes the configured framework interaction when the player presses the interaction key.
 
 ## Main Files
 
@@ -28,9 +28,10 @@ The resource currently opens other UIs such as:
 - Uses `polyzone` for circle-based interaction zones.
 - Depends on `lsrp_framework` as the public LSRP platform entrypoint.
 - Acts as a thin entry-point layer for other LSRP resources.
+- Uses the framework interaction registry instead of firing target resource events directly.
 
 ## Notes
 
 - Keep zone definitions in config so new locations do not require client logic changes.
 - Prompt suppression for overlapping editors is handled here when appropriate.
-- Zone actions still dispatch local resource events directly; migrating those onto a framework interaction registry is a later framework milestone.
+- Register the target interaction in the owning resource and keep the zone config pointed at the framework interaction id.

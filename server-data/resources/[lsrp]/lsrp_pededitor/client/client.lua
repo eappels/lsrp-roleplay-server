@@ -27,6 +27,9 @@ local MASK_SWAP_DELAY_MS = 260
 local MASK_TOGGLE_COOLDOWN_MS = 300
 local OUTFIT_SLOT_MIN = 1
 local OUTFIT_SLOT_MAX = 10
+local CURRENT_LOOK_SLOT = 1
+local CURRENT_LOOK_NAME = 'Current Look'
+local OPEN_INTERACTION_ID = 'lsrp_pededitor:open'
 local DEFAULT_AUTO_RESTORE_DELAY_MS = 300
 local MODEL_HASH_INT32_MAX = 2147483647
 local MODEL_HASH_UINT32_WRAP = 4294967296
@@ -455,6 +458,8 @@ end
 -- Editor open/close
 -- ---------------------------------------------------------------------------
 
+local saveCurrentLook
+
 local function closeEditor(force)
 	if not isEditorOpen then
 		return
@@ -462,6 +467,13 @@ local function closeEditor(force)
 
 	if isCharacterCreationMode and force ~= true then
 		return
+	end
+
+	if force ~= true and not isCharacterCreationMode then
+		local response = saveCurrentLook(CURRENT_LOOK_SLOT, CURRENT_LOOK_NAME, 7000)
+		if not response or response.ok ~= true then
+			print(('[lsrp_pededitor] Failed to persist current look on close: %s'):format(tostring(response and response.error or 'no_response')))
+		end
 	end
 
 	isEditorOpen = false
@@ -533,6 +545,21 @@ local function awaitServerResponse(action, payload, timeoutMs)
 	end
 
 	return response
+end
+
+local function buildOutfitSavePayload(slot, name)
+	local appearance = captureAppearance()
+
+	return {
+		slot = slot,
+		name = name,
+		model = appearance.model,
+		comps = appearance.components
+	}
+end
+
+saveCurrentLook = function(slot, name, timeoutMs)
+	return awaitServerResponse('saveOutfit', buildOutfitSavePayload(slot, name), timeoutMs or 7000)
 end
 
 -- Fetch and apply the most recently saved outfit (or a fixed configured slot) on spawn.
@@ -632,11 +659,7 @@ RegisterNUICallback('getOutfit', function(data, cb)
 end)
 
 RegisterNUICallback('saveOutfit', function(data, cb)
-	local response = awaitServerResponse('saveOutfit', {
-		slot = data and data.slot,
-		name = data and data.name,
-		comps = data and data.comps
-	}, 7000)
+	local response = saveCurrentLook(data and data.slot, data and data.name, 7000)
 
 	cb(response or { ok = false, error = 'no_response' })
 end)
@@ -657,11 +680,7 @@ RegisterNUICallback('closeNUI', function(_, cb)
 end)
 
 RegisterNUICallback('finishCharacterCreation', function(_, cb)
-	local response = awaitServerResponse('saveOutfit', {
-		slot = 1,
-		name = 'Current Look',
-		comps = captureComponents(PlayerPedId())
-	}, 7000)
+	local response = saveCurrentLook(CURRENT_LOOK_SLOT, CURRENT_LOOK_NAME, 7000)
 
 	if not response or response.ok ~= true then
 		cb(response or { ok = false, error = 'save_failed' })
@@ -776,11 +795,34 @@ RegisterNetEvent('lsrp_pededitor:toggle', function()
 	toggleEditor()
 end)
 
+local function registerFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:registerInteraction(OPEN_INTERACTION_ID, 'lsrp_pededitor:open', {
+		label = 'Open clothing editor',
+		kind = 'zone'
+	})
+end
+
+local function unregisterFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:unregisterInteraction(OPEN_INTERACTION_ID)
+end
+
 AddEventHandler('playerSpawned', function()
 	restoreOutfitOnSpawn()
 end)
 
 AddEventHandler('onClientResourceStart', function(resourceName)
+	if resourceName == 'lsrp_framework' or resourceName == GetCurrentResourceName() then
+		registerFrameworkInteractions()
+	end
+
 	if resourceName ~= GetCurrentResourceName() then
 		return
 	end
@@ -795,6 +837,7 @@ AddEventHandler('onResourceStop', function(resourceName)
 		return
 	end
 
+	unregisterFrameworkInteractions()
 	closeEditor(true)
 	stopPreviewCamera()
 end)

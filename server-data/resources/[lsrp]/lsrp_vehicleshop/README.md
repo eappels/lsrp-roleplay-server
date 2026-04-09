@@ -29,6 +29,8 @@ It integrates with `lsrp_framework` for identity, money, and notifications, with
 - `oxmysql`
 - `lsrp_zones` for interaction entry points.
 
+The client open flow is also registered through the framework interaction registry for zone/action entry points.
+
 Preferred integration path:
 
 - Ownership registration uses `state_id` through `lsrp_vehicleparking`.

@@ -1,6 +1,6 @@
 LSRPFramework = LSRPFramework or {}
 
-LSRPFramework.Version = '1.2.0'
+LSRPFramework.Version = '1.6.0'
 LSRPFramework.ContractVersion = '2026-04-09'
 
 LSRPFramework.Resources = {
@@ -38,6 +38,9 @@ LSRPFramework.ErrorCodes = {
 	operation_failed = 'operation_failed',
 	invalid_player = 'invalid_player',
 	invalid_callback = 'invalid_callback',
+	invalid_interaction = 'invalid_interaction',
+	invalid_phone_app = 'invalid_phone_app',
+	invalid_usable_item = 'invalid_usable_item',
 	invalid_handler = 'invalid_handler',
 	invalid_response = 'invalid_response',
 	invalid_message = 'invalid_message',
@@ -50,6 +53,13 @@ LSRPFramework.ErrorCodes = {
 	callback_failed = 'callback_failed',
 	callback_not_registered = 'callback_not_registered',
 	callback_already_registered = 'callback_already_registered',
+	interaction_failed = 'interaction_failed',
+	interaction_not_registered = 'interaction_not_registered',
+	interaction_already_registered = 'interaction_already_registered',
+	phone_app_not_registered = 'phone_app_not_registered',
+	phone_app_already_registered = 'phone_app_already_registered',
+	usable_item_not_registered = 'usable_item_not_registered',
+	usable_item_already_registered = 'usable_item_already_registered',
 	timeout = 'timeout',
 	player_dropped = 'player_dropped',
 	not_found = 'not_found',

@@ -3,6 +3,8 @@
 ## Planned Work
 
 - MDT
+- Radio
+- Vehicle storage
 
 ## In Progress
 
@@ -22,11 +24,7 @@ Build these framework pieces before or alongside the first major resource ports:
 
 When framework work resumes, continue in this order:
 
-1. Add the interaction registry API.
-2. Add normalized ownership and identity helper contracts.
-3. Add the phone-app registry API.
-4. Add the usable-item registry API.
-5. Finalize framework conventions and update the resource template to match them.
+1. Framework baseline is complete; extend it only when a repeated cross-resource pattern deserves a facade API.
 
 ## Resource Port Priority
 

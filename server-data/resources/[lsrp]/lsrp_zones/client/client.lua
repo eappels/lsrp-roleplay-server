@@ -1,19 +1,49 @@
 -- LSRP Zone System - Client Script
 --
 -- Creates proximity CircleZones that show a context-key prompt and fire a
--- local event when the player presses E.  Zones and their target events are
+-- framework interaction when the player presses E. Zones and their target
+-- interaction ids are
 -- configured in shared/config.lua.
 --
 -- Current zones:
 --   Clothing Store   -> lsrp_pededitor:open
 --   Vehicle Mod Shop -> lsrp_vehicleeditor:open
---   Vehicle Shop     -> lsrp_vehicleshop:open  (UI to be implemented)
+--   Vehicle Shop     -> lsrp_vehicleshop:open
 
 local activeZones = {}
 local zoneBlips   = {}
 local inZone      = false
 local currentZone = nil
 local suppressPrompt = false
+
+local function invokeZoneInteraction(zoneCfg)
+    if GetResourceState('lsrp_framework') ~= 'started' then
+        return false
+    end
+
+    local interactionName = tostring(zoneCfg and (zoneCfg.interaction or zoneCfg.action) or '')
+    if interactionName == '' then
+        return false
+    end
+
+    local ok, response = pcall(function()
+        return exports['lsrp_framework']:invokeInteraction(interactionName, {
+            zone = {
+                name = zoneCfg.name,
+                prompt = zoneCfg.prompt,
+                coords = zoneCfg.coords,
+                radius = zoneCfg.radius
+            }
+        })
+    end)
+
+    if not ok or type(response) ~= 'table' or response.ok ~= true then
+        print(('[lsrp_zones] Failed to invoke interaction %s: %s'):format(interactionName, tostring(response and response.error or 'no_response')))
+        return false
+    end
+
+    return true
+end
 
 AddEventHandler('lsrp_vehicleeditor:opened',  function() suppressPrompt = true  end)
 AddEventHandler('lsrp_vehicleeditor:closed',  function() suppressPrompt = false end)
@@ -111,7 +141,7 @@ CreateThread(function()
             end
 
             if IsControlJustReleased(0, Config.OpenKey) then
-                TriggerEvent(currentZone.action)
+                invokeZoneInteraction(currentZone)
             end
         end
 

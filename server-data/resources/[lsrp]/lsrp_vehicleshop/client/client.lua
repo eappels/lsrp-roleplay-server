@@ -11,6 +11,7 @@ local DEMO_SPAWN_HEIGHT_OFFSET = 1.25
 local DEMO_FLOAT_HEIGHT_THRESHOLD = 0.35
 local DEMO_MAX_SETTLE_ATTEMPTS = 8
 local DEMO_SETTLE_RETRY_INTERVAL_MS = 500
+local OPEN_INTERACTION_ID = 'lsrp_vehicleshop:open'
 local spawnedDemoShops = {}
 local canAdminCustomPurchase = false
 local adminCustomUnlistedPrice = 0
@@ -605,6 +606,25 @@ RegisterNetEvent('lsrp_vehicleshop:open', function(shopId)
 	notify('No dealership is nearby.')
 end)
 
+local function registerFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:registerInteraction(OPEN_INTERACTION_ID, 'lsrp_vehicleshop:open', {
+		label = 'Open vehicle shop',
+		kind = 'zone'
+	})
+end
+
+local function unregisterFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:unregisterInteraction(OPEN_INTERACTION_ID)
+end
+
 RegisterCommand('vehicleshop', function()
 	if uiOpen then
 		closeShop()
@@ -794,11 +814,18 @@ CreateThread(function()
 	TriggerServerEvent('lsrp_vehicleshop:server:requestAccess')
 end)
 
+AddEventHandler('onClientResourceStart', function(resourceName)
+	if resourceName == 'lsrp_framework' or resourceName == GetCurrentResourceName() then
+		registerFrameworkInteractions()
+	end
+end)
+
 AddEventHandler('onResourceStop', function(resourceName)
 	if resourceName ~= GetCurrentResourceName() then
 		return
 	end
 
+	unregisterFrameworkInteractions()
 	clearDemoVehicles()
 
 	if uiOpen then

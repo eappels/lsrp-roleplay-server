@@ -27,6 +27,7 @@ local MOD_TYPES = {
 local TOGGLE_MOD_TYPES = { 18, 20, 22 }
 local MIN_SLOT = 1
 local MAX_SLOT = 10
+local OPEN_INTERACTION_ID = 'lsrp_vehicleeditor:open'
 
 local NEON_SIDE_TO_NATIVE_INDEX = {
 	left = 2,
@@ -1116,11 +1117,37 @@ RegisterNetEvent('lsrp_vehicleeditor:toggle', function()
 	toggleEditor()
 end)
 
+local function registerFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:registerInteraction(OPEN_INTERACTION_ID, 'lsrp_vehicleeditor:open', {
+		label = 'Open vehicle editor',
+		kind = 'zone'
+	})
+end
+
+local function unregisterFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:unregisterInteraction(OPEN_INTERACTION_ID)
+end
+
+AddEventHandler('onClientResourceStart', function(resourceName)
+	if resourceName == 'lsrp_framework' or resourceName == GetCurrentResourceName() then
+		registerFrameworkInteractions()
+	end
+end)
+
 AddEventHandler('onResourceStop', function(resourceName)
 	if resourceName ~= GetCurrentResourceName() then
 		return
 	end
 
+	unregisterFrameworkInteractions()
 	closeEditor()
 	stopPreviewCamera()
 end)

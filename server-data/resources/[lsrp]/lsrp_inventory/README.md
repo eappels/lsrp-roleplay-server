@@ -4,22 +4,10 @@ Rebuilt from scratch as a simple slot-based inventory resource.
 
 ## Included features
 
-- Simple NUI with fixed slots.
-- Drag and drop within your own inventory.
-- Same-item stacking.
-- Side-by-side target inventory for player-to-player giving.
-- Split stacks with an amount modal.
-- Drag to a ground drop zone to drop items.
-- World pickup markers for dropped items.
-- Player inventory persistence through `oxmysql`.
-- Persistent named storage stashes.
-- Server exports for adding and removing items.
+- Runtime usable item registration for dynamic inventory management.
 
 ## Controls
 
-- Open inventory: `I`
-- Close inventory: `ESC`
-- Pick up world drops: `E`
 
 ## Exports
 

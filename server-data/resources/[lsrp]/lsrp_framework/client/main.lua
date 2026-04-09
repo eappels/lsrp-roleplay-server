@@ -5,6 +5,7 @@ local NOTIFICATION_LEVELS = LSRPFramework.NotificationLevels or {}
 local VALIDATION = LSRPFramework.Validation or {}
 local registeredClientCallbacks = {}
 local registeredNuiCallbacks = {}
+local registeredInteractions = {}
 local pendingServerCallbacks = {}
 local clientCallbackRequestCounter = 0
 
@@ -26,6 +27,10 @@ local function normalizeCallbackName(value)
 end
 
 local function normalizeEventName(value)
+	return trimString(value)
+end
+
+local function normalizeInteractionName(value)
 	return trimString(value)
 end
 
@@ -94,6 +99,81 @@ local function normalizeCallbackHandlerResult(callbackName, requestId, result, d
 	end
 
 	return buildCallbackResponse(callbackName, requestId, true, result, nil)
+end
+
+local function buildInteractionResponse(interactionName, ok, data, errorCode)
+	return {
+		ok = ok == true,
+		data = ok == true and data or nil,
+		error = ok == true and nil or normalizeErrorCode(errorCode, ERROR_CODES.interaction_failed),
+		meta = {
+			interaction = normalizeInteractionName(interactionName)
+		}
+	}
+end
+
+local function normalizeInteractionHandlerResult(interactionName, result, data, errorCode)
+	if type(result) == 'table' and (result.ok ~= nil or result.error ~= nil or result.data ~= nil or result.meta ~= nil) then
+		return {
+			ok = result.ok == true,
+			data = result.ok == true and result.data or nil,
+			error = result.ok == true and nil or normalizeErrorCode(result.error, ERROR_CODES.interaction_failed),
+			meta = {
+				interaction = normalizeInteractionName(type(result.meta) == 'table' and result.meta.interaction or interactionName)
+			}
+		}
+	end
+
+	if type(result) == 'boolean' then
+		return buildInteractionResponse(interactionName, result, data, errorCode)
+	end
+
+	return buildInteractionResponse(interactionName, true, result, nil)
+end
+
+local function cloneInteractionOptions(options)
+	local clone = {}
+	for key, value in pairs(type(options) == 'table' and options or {}) do
+		if type(value) ~= 'function' and type(value) ~= 'thread' and key ~= 'handler' and key ~= 'eventName' then
+			clone[key] = value
+		end
+	end
+	return clone
+end
+
+local function invokeRegisteredInteraction(registration, interactionName, payload)
+	if type(registration) ~= 'table' then
+		return buildInteractionResponse(interactionName, false, nil, ERROR_CODES.interaction_not_registered)
+	end
+
+	if registration.kind == 'function' and type(registration.handler) == 'function' then
+		local ok, result, data, errorCode = pcall(registration.handler, payload, {
+			interaction = interactionName,
+			options = cloneInteractionOptions(registration.options)
+		})
+		if not ok then
+			return buildInteractionResponse(interactionName, false, nil, ERROR_CODES.interaction_failed)
+		end
+
+		return normalizeInteractionHandlerResult(interactionName, result, data, errorCode)
+	end
+
+	if registration.kind == 'event' and registration.eventName then
+		local ok = pcall(function()
+			TriggerEvent(registration.eventName, payload, {
+				interaction = interactionName,
+				options = cloneInteractionOptions(registration.options)
+			})
+		end)
+
+		if not ok then
+			return buildInteractionResponse(interactionName, false, nil, ERROR_CODES.interaction_failed)
+		end
+
+		return buildInteractionResponse(interactionName, true, nil, nil)
+	end
+
+	return buildInteractionResponse(interactionName, false, nil, ERROR_CODES.invalid_handler)
 end
 
 local function nextClientCallbackRequestId()
@@ -372,6 +452,84 @@ exports('registerNuiCallback', function(callbackName, handler)
 	end)
 
 	return true, nil
+end)
+
+exports('registerInteraction', function(interactionName, handler, options)
+	local normalizedName = normalizeInteractionName(interactionName)
+	if not normalizedName then
+		return false, ERROR_CODES.invalid_interaction
+	end
+
+	if type(handler) ~= 'function' and type(handler) ~= 'string' then
+		return false, ERROR_CODES.invalid_handler
+	end
+
+	if registeredInteractions[normalizedName] ~= nil then
+		return false, ERROR_CODES.interaction_already_registered
+	end
+
+	if type(handler) == 'function' then
+		registeredInteractions[normalizedName] = {
+			kind = 'function',
+			handler = handler,
+			options = cloneInteractionOptions(options)
+		}
+		return true, nil
+	end
+
+	local eventName = normalizeEventName(handler)
+	if not eventName then
+		return false, ERROR_CODES.invalid_handler
+	end
+
+	registeredInteractions[normalizedName] = {
+		kind = 'event',
+		eventName = eventName,
+		options = cloneInteractionOptions(options)
+	}
+	return true, nil
+end)
+
+exports('unregisterInteraction', function(interactionName)
+	local normalizedName = normalizeInteractionName(interactionName)
+	if not normalizedName then
+		return false, ERROR_CODES.invalid_interaction
+	end
+
+	if registeredInteractions[normalizedName] == nil then
+		return false, ERROR_CODES.interaction_not_registered
+	end
+
+	registeredInteractions[normalizedName] = nil
+	return true, nil
+end)
+
+exports('getInteraction', function(interactionName)
+	local normalizedName = normalizeInteractionName(interactionName)
+	if not normalizedName then
+		return nil
+	end
+
+	local registration = registeredInteractions[normalizedName]
+	if type(registration) ~= 'table' then
+		return nil
+	end
+
+	return {
+		name = normalizedName,
+		kind = registration.kind,
+		eventName = registration.eventName,
+		options = cloneInteractionOptions(registration.options)
+	}
+end)
+
+exports('invokeInteraction', function(interactionName, payload)
+	local normalizedName = normalizeInteractionName(interactionName)
+	if not normalizedName then
+		return buildInteractionResponse(nil, false, nil, ERROR_CODES.invalid_interaction)
+	end
+
+	return invokeRegisteredInteraction(registeredInteractions[normalizedName], normalizedName, type(payload) == 'table' and payload or {})
 end)
 
 exports('notify', function(message, level)

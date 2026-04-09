@@ -1,4 +1,10 @@
 local RESOURCE_NAME = GetCurrentResourceName()
+local CALLBACK_NAMES = {
+	exampleAction = RESOURCE_NAME .. ':server:exampleAction'
+}
+local INTERACTION_IDS = {
+	exampleAction = RESOURCE_NAME .. ':exampleAction'
+}
 
 local Framework = {}
 
@@ -34,6 +40,62 @@ function Framework.notify(message, level)
 	EndTextCommandThefeedPostTicker(false, true)
 end
 
+function Framework.triggerServerCallback(callbackName, payload, timeoutMs)
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return {
+			ok = false,
+			error = 'framework_unavailable',
+			meta = {
+				callback = trimString(callbackName)
+			}
+		}
+	end
+
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:triggerServerCallback(callbackName, type(payload) == 'table' and payload or {}, timeoutMs)
+	end)
+
+	if not ok or type(response) ~= 'table' then
+		return {
+			ok = false,
+			error = 'framework_callback_failed',
+			meta = {
+				callback = trimString(callbackName)
+			}
+		}
+	end
+
+	return response
+end
+
+function Framework.invokeInteraction(interactionName, payload)
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return {
+			ok = false,
+			error = 'framework_unavailable',
+			meta = {
+				interaction = trimString(interactionName)
+			}
+		}
+	end
+
+	local ok, response = pcall(function()
+		return exports['lsrp_framework']:invokeInteraction(interactionName, type(payload) == 'table' and payload or {})
+	end)
+
+	if not ok or type(response) ~= 'table' then
+		return {
+			ok = false,
+			error = 'interaction_failed',
+			meta = {
+				interaction = trimString(interactionName)
+			}
+		}
+	end
+
+	return response
+end
+
 local function showHelpPrompt(message)
 	BeginTextCommandDisplayHelp('STRING')
 	AddTextComponentSubstringPlayerName(tostring(message or ''))
@@ -45,12 +107,51 @@ local function isInteractionJustPressed()
 	return IsControlJustPressed(0, control) or IsDisabledControlJustPressed(0, control)
 end
 
-RegisterNetEvent(RESOURCE_NAME .. ':client:exampleResult', function(payload)
-	payload = type(payload) == 'table' and payload or {}
-	if payload.message then
-		Framework.notify(payload.message, payload.success == true and 'success' or 'error')
+local function handleExampleInteraction(payload, meta)
+	local response = Framework.triggerServerCallback(CALLBACK_NAMES.exampleAction, payload, 5000)
+	if response.ok == true then
+		local data = type(response.data) == 'table' and response.data or {}
+		Framework.notify(data.message or 'Example action completed.', 'success')
+		debugPrint(('Example interaction completed via %s.'):format(tostring(meta and meta.interaction or INTERACTION_IDS.exampleAction)))
+		return response
 	end
-	debugPrint('Received example result payload from server.')
+
+	Framework.notify('Example action failed.', 'error')
+	debugPrint(('Example interaction failed: %s'):format(tostring(response.error or 'unknown_error')))
+	return response
+end
+
+local function registerFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:registerInteraction(INTERACTION_IDS.exampleAction, handleExampleInteraction, {
+		label = 'Template interaction',
+		kind = 'marker'
+	})
+end
+
+local function unregisterFrameworkInteractions()
+	if GetResourceState('lsrp_framework') ~= 'started' then
+		return
+	end
+
+	exports['lsrp_framework']:unregisterInteraction(INTERACTION_IDS.exampleAction)
+end
+
+AddEventHandler('onClientResourceStart', function(resourceName)
+	if resourceName == 'lsrp_framework' or resourceName == GetCurrentResourceName() then
+		registerFrameworkInteractions()
+	end
+end)
+
+AddEventHandler('onResourceStop', function(resourceName)
+	if resourceName ~= GetCurrentResourceName() then
+		return
+	end
+
+	unregisterFrameworkInteractions()
 end)
 
 CreateThread(function()
@@ -74,10 +175,13 @@ CreateThread(function()
 				if distance <= interactionDistance then
 					showHelpPrompt(('Press ~INPUT_CONTEXT~ to trigger %s'):format(tostring(marker.label or 'the example interaction')))
 					if isInteractionJustPressed() then
-						TriggerServerEvent(RESOURCE_NAME .. ':server:exampleAction', {
+						local response = Framework.invokeInteraction(INTERACTION_IDS.exampleAction, {
 							marker = trimString(marker.label),
 							coords = { x = marker.coords.x, y = marker.coords.y, z = marker.coords.z }
 						})
+						if response.ok ~= true and (response.error == 'framework_unavailable' or response.error == 'interaction_not_registered' or response.error == 'interaction_failed') then
+							Framework.notify('Example interaction is unavailable right now.', 'error')
+						end
 						Wait(300)
 					end
 				end

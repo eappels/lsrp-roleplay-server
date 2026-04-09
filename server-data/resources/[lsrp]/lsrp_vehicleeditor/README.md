@@ -29,6 +29,7 @@ The player must normally be in the driver seat to use the editor.
 ## Integrations
 
 - Uses `lsrp_framework` for player identity and request-response flows.
+- Registers its zone-open entry point through the framework interaction registry.
 - Uses `lsrp_core` shared configuration until vehicle editor config ownership is centralized.
 - Uses `oxmysql` for saved setup persistence.
 - Can be opened through `lsrp_zones` vehicle-mod-shop interaction zones.
