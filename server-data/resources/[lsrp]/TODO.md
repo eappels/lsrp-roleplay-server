@@ -7,7 +7,20 @@
 
 ## Completed
 
-- EMS job
+- EMS
+- Taxi
+- Towing
+- Vehicle shop
+- Clothing shop
+- Thirst and hunger
+- Police
+- Phone
+- Housing
+- Vehicle parking
+- Job center
+- ATM hacking
+- Fuel
+- Economy
 
 ## Framework Prerequisites
 

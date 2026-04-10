@@ -343,12 +343,12 @@ local function getNeedPreviewState(effect)
 		return nil
 	end
 
-	if effectType == 'thirst' and GetResourceState('lsrp_thirst') == 'started' then
+	if effectType == 'thirst' and GetResourceState('lsrp_hunger') == 'started' then
 		local okCurrent, currentThirst = pcall(function()
-			return exports['lsrp_thirst']:getCurrentThirst()
+			return exports['lsrp_hunger']:getCurrentThirst()
 		end)
 		local okMax, maxThirst = pcall(function()
-			return exports['lsrp_thirst']:getMaxThirst()
+			return exports['lsrp_hunger']:getMaxThirst()
 		end)
 		if okCurrent then
 			local currentValue = math.max(0, math.floor(tonumber(currentThirst) or 0))
@@ -405,12 +405,12 @@ local function pushCurrentNeedPercent(needType)
 		return
 	end
 
-	if normalizedType == 'thirst' and GetResourceState('lsrp_thirst') == 'started' then
+	if normalizedType == 'thirst' and GetResourceState('lsrp_hunger') == 'started' then
 		local okCurrent, currentValue = pcall(function()
-			return exports['lsrp_thirst']:getCurrentThirst()
+			return exports['lsrp_hunger']:getCurrentThirst()
 		end)
 		local okMax, maxValue = pcall(function()
-			return exports['lsrp_thirst']:getMaxThirst()
+			return exports['lsrp_hunger']:getMaxThirst()
 		end)
 		if okCurrent then
 			local maxThirst = math.max(1, math.floor(tonumber(okMax and maxValue or 100) or 100))
@@ -969,13 +969,13 @@ local function canApplyUseEffect(effect, context)
 	end
 
 	if tostring(effect.type or '') == 'thirst' then
-		if GetResourceState('lsrp_thirst') ~= 'started' then
+		if GetResourceState('lsrp_hunger') ~= 'started' then
 			return false, 'Thirst service is unavailable right now.'
 		end
 
 		local maxThirst = 100
 		local okMaxThirst, exportedMaxThirst = pcall(function()
-			return exports['lsrp_thirst']:getMaxThirst()
+			return exports['lsrp_hunger']:getMaxThirst()
 		end)
 		if okMaxThirst then
 			maxThirst = math.max(1, math.floor(tonumber(exportedMaxThirst) or maxThirst))
@@ -983,7 +983,7 @@ local function canApplyUseEffect(effect, context)
 
 		local currentThirst = nil
 		local okCurrentThirst, exportedCurrentThirst = pcall(function()
-			return exports['lsrp_thirst']:getCurrentThirst()
+			return exports['lsrp_hunger']:getCurrentThirst()
 		end)
 		if okCurrentThirst then
 			currentThirst = tonumber(exportedCurrentThirst)

@@ -17,7 +17,7 @@ It exists so HUD iterations can be restarted independently without restarting `l
 
 - Depends on `lsrp_framework` as the public LSRP platform entrypoint.
 - Imports `@lsrp_core/shared/config.lua` to reuse existing HUD toggles and update interval settings until shared config ownership moves behind the framework.
-- Reads hunger state from `lsrp_hunger`, thirst state from `lsrp_thirst`, and active vehicle fuel from `lsrp_fuel` when those resources are running.
+- Reads hunger and thirst state from `lsrp_hunger`, and active vehicle fuel from `lsrp_fuel` when those resources are running.
 - Reads widget layout overrides from `lsrpConfig.hudWidgets` so future HUD additions can share one central layout definition point.
 
 ## Layout Config

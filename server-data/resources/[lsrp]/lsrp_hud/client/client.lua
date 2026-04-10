@@ -255,7 +255,7 @@ local function getCurrentThirstValue()
 		return tonumber(cachedThirstValue)
 	end
 
-	if GetResourceState('lsrp_thirst') ~= 'started' then
+	if GetResourceState('lsrp_hunger') ~= 'started' then
 		return nil
 	end
 
@@ -271,7 +271,7 @@ local function getCurrentThirstValue()
 	end
 
 	local ok, value = pcall(function()
-		return exports['lsrp_thirst']:getCurrentThirst()
+		return exports['lsrp_hunger']:getCurrentThirst()
 	end)
 
 	if not ok then
@@ -282,12 +282,12 @@ local function getCurrentThirstValue()
 end
 
 local function getMaxThirstValue()
-	if GetResourceState('lsrp_thirst') ~= 'started' then
+	if GetResourceState('lsrp_hunger') ~= 'started' then
 		return DEFAULT_MAX_THIRST
 	end
 
 	local ok, value = pcall(function()
-		return exports['lsrp_thirst']:getMaxThirst()
+		return exports['lsrp_hunger']:getMaxThirst()
 	end)
 
 	if not ok then

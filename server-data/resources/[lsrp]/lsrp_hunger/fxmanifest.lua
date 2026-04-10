@@ -4,7 +4,7 @@ game 'gta5'
 lua54 'yes'
 
 author 'LSRP'
-description 'Persistent hunger system for LSRP players'
+description 'Persistent hunger and thirst system for LSRP players'
 version '1.0.0'
 
 shared_scripts {

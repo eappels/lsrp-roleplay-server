@@ -63,8 +63,7 @@ Use this order when framework work resumes:
 - [x] Port `lsrp_housing` onto framework identity, owner lookup, player lookup, money, and notification helpers while keeping apartment stash access direct to inventory.
 - [x] Port `lsrp_towing` server-side job and notification flows onto the framework while keeping the legacy client employment-updated event listener for cleanup compatibility.
 - [x] Port `lsrp_vehiclebehaviour` onto framework identity and notification helpers while keeping vehicleparking as the ownership source of truth.
-- [x] Port `lsrp_hunger` onto framework identity and notification helpers while keeping persistence and HUD sync local to the resource.
-- [x] Port `lsrp_thirst` onto framework identity and notification helpers while keeping persistence and HUD sync local to the resource.
+- [x] Port `lsrp_hunger` onto framework identity and notification helpers, then fold thirst persistence and HUD sync into the same resource.
 - [x] Port `lsrp_hud` onto the framework dependency path while keeping shared HUD config sourced from `lsrp_core` until config ownership is centralized.
 - [x] Port `lsrp_pededitor` onto framework identity and callback helpers while keeping shared editor config sourced from `lsrp_core` until config ownership is centralized.
 - [x] Port `lsrp_fuel` onto framework money and callback helpers while keeping local fuel sync and vehicle-state ownership in the resource.

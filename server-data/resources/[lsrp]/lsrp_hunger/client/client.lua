@@ -1,11 +1,64 @@
-local function getHungerConfig()
-	return (Config and Config.Hunger) or {}
-end
+local RESOURCE_NAME = GetCurrentResourceName()
 
-local currentHunger = nil
-local hungerCollapseActive = false
-local hungerCollapseStartedAt = 0
-local hungerKnockoutPoseApplied = false
+local NEED_ORDER = {
+	'hunger',
+	'thirst'
+}
+
+local NEED_DEFINITIONS = {
+	hunger = {
+		key = 'hunger',
+		label = 'hunger',
+		configKey = 'Hunger',
+		stateKey = 'lsrp_hunger',
+		collapseStateKey = 'lsrp_hunger_collapsed',
+		clientUpdateEvent = 'lsrp_hunger:client:update',
+		clientNotifyEvent = 'lsrp_hunger:client:notify',
+		clientReviveEvent = 'lsrp_hunger:client:revive',
+		clientDamageEvent = 'lsrp_hunger:client:applyDamage',
+		serverRequestSyncEvent = 'lsrp_hunger:server:requestSync',
+		getCurrentExport = 'getCurrentHunger',
+		getMaxExport = 'getMaxHunger',
+		maxField = 'maxHunger',
+		collapseMessage = 'You collapse from starvation and cannot move.'
+	},
+	thirst = {
+		key = 'thirst',
+		label = 'thirst',
+		configKey = 'Thirst',
+		stateKey = 'lsrp_thirst',
+		collapseStateKey = 'lsrp_thirst_collapsed',
+		clientUpdateEvent = 'lsrp_thirst:client:update',
+		clientNotifyEvent = 'lsrp_thirst:client:notify',
+		clientReviveEvent = 'lsrp_thirst:client:revive',
+		clientDamageEvent = 'lsrp_thirst:client:applyDamage',
+		serverRequestSyncEvent = 'lsrp_thirst:server:requestSync',
+		getCurrentExport = 'getCurrentThirst',
+		getMaxExport = 'getMaxThirst',
+		maxField = 'maxThirst',
+		collapseMessage = 'You collapse from dehydration and cannot move.'
+	}
+}
+
+local currentValues = {
+	hunger = nil,
+	thirst = nil
+}
+
+local collapseActiveByNeed = {
+	hunger = false,
+	thirst = false
+}
+
+local collapseStartedAtByNeed = {
+	hunger = 0,
+	thirst = 0
+}
+
+local knockoutPoseAppliedByNeed = {
+	hunger = false,
+	thirst = false
+}
 
 local KNOCKOUT_ANIM_DICT = 'dead'
 local KNOCKOUT_ANIM_NAME = 'dead_a'
@@ -16,32 +69,36 @@ local BLOCKED_CONTROLS = {
 	21, 22, 23, 24, 25, 30, 31, 32, 33, 34, 35, 44, 45, 75, 140, 141, 142, 143
 }
 
-local function getMaxHunger()
-	return math.max(1, math.floor(tonumber(getHungerConfig().maxHunger) or 100))
+local function getNeedConfig(definition)
+	return (Config and Config[definition.configKey]) or {}
 end
 
-local function normalizeHunger(value)
-	local hunger = math.floor(tonumber(value) or getMaxHunger())
-	if hunger < 0 then
+local function getMaxValue(definition)
+	return math.max(1, math.floor(tonumber(getNeedConfig(definition)[definition.maxField]) or 100))
+end
+
+local function normalizeValue(definition, value)
+	local normalizedValue = math.floor(tonumber(value) or getMaxValue(definition))
+	if normalizedValue < 0 then
 		return 0
 	end
 
-	local maxHunger = getMaxHunger()
-	if hunger > maxHunger then
-		return maxHunger
+	local maxValue = getMaxValue(definition)
+	if normalizedValue > maxValue then
+		return maxValue
 	end
 
-	return hunger
+	return normalizedValue
 end
 
-local function getHungerPercentValue(hunger)
-	local maxHunger = getMaxHunger()
-	if maxHunger <= 0 then
-		maxHunger = 100
+local function getPercentValue(definition, value)
+	local maxValue = getMaxValue(definition)
+	if maxValue <= 0 then
+		maxValue = 100
 	end
 
-	hunger = normalizeHunger(hunger)
-	return math.floor(((hunger / maxHunger) * 100.0) + 0.5)
+	value = normalizeValue(definition, value)
+	return math.floor(((value / maxValue) * 100.0) + 0.5)
 end
 
 local function showNotification(message)
@@ -58,16 +115,14 @@ local function showNotification(message)
 	BeginTextCommandThefeedPost('STRING')
 	AddTextComponentSubstringPlayerName(text)
 	EndTextCommandThefeedPostTicker(false, false)
-	if text ~= '' then
-		print(('[lsrp_hunger] %s'):format(text))
-	end
+	print(('[%s] %s'):format(RESOURCE_NAME, text))
 end
 
-local function clearHungerCollapseState()
-	hungerCollapseActive = false
-	hungerCollapseStartedAt = 0
-	hungerKnockoutPoseApplied = false
-	LocalPlayer.state:set('lsrp_hunger_collapsed', false, true)
+local function clearCollapseState(definition)
+	collapseActiveByNeed[definition.key] = false
+	collapseStartedAtByNeed[definition.key] = 0
+	knockoutPoseAppliedByNeed[definition.key] = false
+	LocalPlayer.state:set(definition.collapseStateKey, false, true)
 
 	local ped = PlayerPedId()
 	if ped ~= 0 and DoesEntityExist(ped) and not IsEntityDead(ped) then
@@ -126,103 +181,119 @@ local function shouldSuspendCollapsePose(ped)
 	return ped ~= 0 and DoesEntityExist(ped) and IsPedInAnyVehicle(ped, false)
 end
 
-RegisterNetEvent('lsrp_hunger:client:update', function(hunger)
-	currentHunger = normalizeHunger(hunger)
-	TriggerEvent('lsrp_hud:client:setNeedPercent', 'hunger', getHungerPercentValue(currentHunger))
-end)
+for _, needName in ipairs(NEED_ORDER) do
+	local definition = NEED_DEFINITIONS[needName]
+	RegisterNetEvent(definition.clientUpdateEvent, function(value)
+		currentValues[definition.key] = normalizeValue(definition, value)
+		TriggerEvent('lsrp_hud:client:setNeedPercent', definition.key, getPercentValue(definition, currentValues[definition.key]))
+	end)
 
-RegisterNetEvent('lsrp_hunger:client:notify', function(message)
-	showNotification(message)
-end)
+	RegisterNetEvent(definition.clientNotifyEvent, function(message)
+		showNotification(message)
+	end)
 
-RegisterNetEvent('lsrp_hunger:client:revive', function()
-	clearHungerCollapseState()
-end)
+	RegisterNetEvent(definition.clientReviveEvent, function()
+		clearCollapseState(definition)
+	end)
 
-RegisterNetEvent('lsrp_hunger:client:applyDamage', function(amount)
-	local damage = math.max(0, math.floor(tonumber(amount) or 0))
-	if damage <= 0 then
-		return
-	end
+	RegisterNetEvent(definition.clientDamageEvent, function(amount)
+		local damage = math.max(0, math.floor(tonumber(amount) or 0))
+		if damage <= 0 then
+			return
+		end
 
-	local ped = PlayerPedId()
-	if ped == 0 or not DoesEntityExist(ped) then
-		return
-	end
+		local ped = PlayerPedId()
+		if ped == 0 or not DoesEntityExist(ped) then
+			return
+		end
 
-	local currentHealth = GetEntityHealth(ped)
-	if currentHealth <= 0 then
-		return
-	end
+		local currentHealth = GetEntityHealth(ped)
+		if currentHealth <= 0 then
+			return
+		end
 
-	SetEntityHealth(ped, math.max(0, currentHealth - damage))
-end)
+		SetEntityHealth(ped, math.max(0, currentHealth - damage))
+	end)
+
+	local currentDefinition = definition
+	exports(definition.getCurrentExport, function()
+		if currentValues[currentDefinition.key] ~= nil then
+			return currentValues[currentDefinition.key]
+		end
+
+		return normalizeValue(currentDefinition, LocalPlayer and LocalPlayer.state and LocalPlayer.state[currentDefinition.stateKey])
+	end)
+
+	exports(definition.getMaxExport, function()
+		return getMaxValue(currentDefinition)
+	end)
+end
 
 AddEventHandler('onClientResourceStart', function(resourceName)
-	if resourceName ~= GetCurrentResourceName() then
+	if resourceName ~= RESOURCE_NAME then
 		return
 	end
 
-	TriggerServerEvent('lsrp_hunger:server:requestSync')
+	for _, needName in ipairs(NEED_ORDER) do
+		TriggerServerEvent(NEED_DEFINITIONS[needName].serverRequestSyncEvent)
+	end
 end)
 
 AddEventHandler('playerSpawned', function()
-	clearHungerCollapseState()
-	TriggerServerEvent('lsrp_hunger:server:requestSync')
-end)
-
-exports('getCurrentHunger', function()
-	if currentHunger ~= nil then
-		return currentHunger
+	for _, needName in ipairs(NEED_ORDER) do
+		local definition = NEED_DEFINITIONS[needName]
+		clearCollapseState(definition)
+		TriggerServerEvent(definition.serverRequestSyncEvent)
 	end
-
-	return normalizeHunger(LocalPlayer and LocalPlayer.state and LocalPlayer.state.lsrp_hunger)
-end)
-
-exports('getMaxHunger', function()
-	return getMaxHunger()
 end)
 
 CreateThread(function()
 	while true do
 		Wait(0)
 
-		if currentHunger == nil then
-			goto continue
-		end
-
 		local ped = PlayerPedId()
 		if ped == 0 or not DoesEntityExist(ped) or IsEntityDead(ped) then
 			goto continue
 		end
 
-		if currentHunger <= 0 and not hungerCollapseActive then
-			hungerCollapseActive = true
-			hungerCollapseStartedAt = GetGameTimer()
-			hungerKnockoutPoseApplied = false
-			LocalPlayer.state:set('lsrp_hunger_collapsed', true, true)
-			showNotification('You collapse from starvation and cannot move.')
-			FreezeEntityPosition(ped, false)
-			SetPedCanRagdoll(ped, true)
-			applyCollapseRagdoll(ped)
+		local anyCollapseActive = false
+		for _, needName in ipairs(NEED_ORDER) do
+			local definition = NEED_DEFINITIONS[needName]
+			local currentValue = currentValues[definition.key]
+			if currentValue ~= nil then
+				if currentValue <= 0 and not collapseActiveByNeed[definition.key] then
+					collapseActiveByNeed[definition.key] = true
+					collapseStartedAtByNeed[definition.key] = GetGameTimer()
+					knockoutPoseAppliedByNeed[definition.key] = false
+					LocalPlayer.state:set(definition.collapseStateKey, true, true)
+					showNotification(definition.collapseMessage)
+					FreezeEntityPosition(ped, false)
+					SetPedCanRagdoll(ped, true)
+					applyCollapseRagdoll(ped)
+				end
+
+				if collapseActiveByNeed[definition.key] then
+					anyCollapseActive = true
+					if shouldSuspendCollapsePose(ped) then
+						FreezeEntityPosition(ped, false)
+						SetPedCanRagdoll(ped, true)
+					else
+						if not knockoutPoseAppliedByNeed[definition.key]
+							and collapseStartedAtByNeed[definition.key] > 0
+							and (GetGameTimer() - collapseStartedAtByNeed[definition.key]) >= COLLAPSE_POSE_DELAY_MS then
+							knockoutPoseAppliedByNeed[definition.key] = true
+							applyKnockedOutPose(ped)
+						elseif knockoutPoseAppliedByNeed[definition.key]
+							and not IsEntityPlayingAnim(ped, KNOCKOUT_ANIM_DICT, KNOCKOUT_ANIM_NAME, 3) then
+							applyKnockedOutPose(ped)
+						end
+					end
+				end
+			end
 		end
 
-		if not hungerCollapseActive then
-			goto continue
-		end
-
-		disableCollapseControls()
-		if shouldSuspendCollapsePose(ped) then
-			FreezeEntityPosition(ped, false)
-			SetPedCanRagdoll(ped, true)
-			goto continue
-		end
-
-		if not hungerKnockoutPoseApplied and hungerCollapseStartedAt > 0 and (GetGameTimer() - hungerCollapseStartedAt) >= COLLAPSE_POSE_DELAY_MS then
-			hungerKnockoutPoseApplied = true
-			applyKnockedOutPose(ped)
-		elseif hungerKnockoutPoseApplied and not IsEntityPlayingAnim(ped, KNOCKOUT_ANIM_DICT, KNOCKOUT_ANIM_NAME, 3) then
-			applyKnockedOutPose(ped)
+		if anyCollapseActive then
+			disableCollapseControls()
 		end
 
 		::continue::
