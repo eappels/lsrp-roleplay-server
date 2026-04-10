@@ -1,11 +1,11 @@
 # LSRP TODO
 
-## Planned Work
+## In Testing
 
-- MDT
-- Radio
+- MDT (starter resource)
+- Radio (partly implemented)
 
-## In Progress
+## Completed
 
 - EMS job
 

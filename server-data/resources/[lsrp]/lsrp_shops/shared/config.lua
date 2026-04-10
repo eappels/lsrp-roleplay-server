@@ -50,6 +50,13 @@ Config.Catalogs = {
 				description = 'A prepaid handset for calls, contacts, and messages.'
 			},
 			{
+				name = 'radio',
+				label = 'Handheld Radio',
+				price = 500,
+				maxQuantity = 1,
+				description = 'A handheld radio for tuned voice channels.'
+			},
+			{
 				name = 'bandage',
 				label = 'Bandage',
 				price = 45,

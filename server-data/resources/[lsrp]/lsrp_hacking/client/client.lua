@@ -761,7 +761,7 @@ local function performAtmHack(context)
 			atmCoords.y,
 			atmCoords.z
 		))
-		return false, 'Stand next to an outdoor ATM to use the hacking device.'
+		return false, 'Stand next to an ATM to use the hacking device.'
 	end
 
 	debugLog(('device used near ATM at %.2f, %.2f, %.2f'):format(

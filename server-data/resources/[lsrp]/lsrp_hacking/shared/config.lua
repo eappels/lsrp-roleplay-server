@@ -1,10 +1,10 @@
 Config = Config or {}
 
 Config.Debug = false
-Config.AtmUseDistance = 1.8
+Config.AtmUseDistance = 2.4
 Config.AtmScanRadius = 5.0
-Config.ValidationDistance = 2.5
-Config.ExteriorOnlyAtms = true
+Config.ValidationDistance = 3.0
+Config.ExteriorOnlyAtms = false
 Config.CooldownSeconds = 600
 Config.HackPuzzle = {
 	rounds = 2,

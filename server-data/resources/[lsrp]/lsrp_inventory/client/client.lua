@@ -673,7 +673,7 @@ local function buildUseEffectContext(effect)
 		local maxDistance = math.max(0.5, tonumber(effect.maxDistance) or 1.8)
 		local atm = getClosestAtm(maxDistance)
 		if not atm then
-			return nil, 'Stand next to an outdoor ATM to use the hacking device.'
+			return nil, 'Stand next to an ATM to use the hacking device.'
 		end
 
 		local atmCoords = atm.coords or GetEntityCoords(atm.entity)
@@ -847,18 +847,12 @@ local function applyUseEffect(effect, context)
 		end
 
 		if GetResourceState('lsrp_hacking') == 'started' then
-			local ok, success, errorMessage = pcall(function()
-				return exports['lsrp_hacking']:startAtmHack({
-					x = tonumber(context.coords.x) or 0.0,
-					y = tonumber(context.coords.y) or 0.0,
-					z = tonumber(context.coords.z) or 0.0,
-					atm = tonumber(context.atm) or 0
-				})
-			end)
-			if not ok or success ~= true then
-				notifyLocal(tostring(errorMessage or 'The ATM hack failed.'))
-				return false
-			end
+			TriggerEvent('lsrp_hacking:client:deviceUsed', {
+				x = tonumber(context.coords.x) or 0.0,
+				y = tonumber(context.coords.y) or 0.0,
+				z = tonumber(context.coords.z) or 0.0,
+				atm = tonumber(context.atm) or 0
+			})
 		else
 			notifyLocal('Hacking service is unavailable right now.')
 			return false

@@ -19,6 +19,13 @@ Config.Items = {
 		image = 'phone-COQO-GzR.png',
 		description = 'Your personal phone.'
 	},
+	radio = {
+		label = 'Handheld Radio',
+		weight = 450,
+		maxStack = 1,
+		image = 'radio3.png',
+		description = 'A handheld radio for tuned voice channels.'
+	},
 	burger = {
 		label = 'Burger',
 		weight = 350,
@@ -103,7 +110,7 @@ Config.Items = {
 			requireOnFoot = true,
 			effect = {
 				type = 'atm_hacking_animation',
-				maxDistance = 1.8
+				maxDistance = 2.4
 			}
 		}
 	},

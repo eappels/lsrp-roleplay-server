@@ -14,6 +14,8 @@ ATM hacking gameplay resource for LSRP, including the vendor flow, ATM detection
 
 Set `Config.Debug = true` in `shared/config.lua` to enable basic startup logging while developing the resource.
 
+ATM hacking now allows all configured ATM models by default instead of limiting use to exterior-only placements.
+
 `Config.HackPuzzle` controls the time limit and node counts used by the ATM laptop puzzle. The hack always runs exactly 3 stages, and the ATM payout is only awarded when the player completes all 3 before time expires.
 
 ## Integrations

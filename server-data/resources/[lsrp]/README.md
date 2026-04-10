@@ -25,11 +25,13 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 - [lsrp_jobcenter](lsrp_jobcenter/README.md): Job center kiosk and civilian job browser.
 - [lsrp_jobs](lsrp_jobs/README.md): Employment state, duty, payroll, and job permissions.
 - [lsrp_loadscreen](lsrp_loadscreen/README.md): Custom server loadscreen.
+- [lsrp_mdt](lsrp_mdt/README.md): Starter MDT resource with a basic duty-gated NUI shell.
 - [lsrp_nui_template](lsrp_nui_template/README.md): Reusable transparent NUI shell/template for future interfaces.
 - [lsrp_mapedits](lsrp_mapedits/README.md): Client-side map edits, barrier removal, and prop hiding.
 - [lsrp_pededitor](lsrp_pededitor/README.md): Character appearance editor and outfit persistence.
 - [lsrp_police](lsrp_police/README.md): Private police job with Mission Row duty and patrol vehicle access.
 - [lsrp_phones](lsrp_phones/README.md): Phone UI, phonebook, and call flow.
+- [lsrp_radio](lsrp_radio/README.md): Handheld radio channels with inventory gating and pma-voice integration.
 - [lsrp_resource_template](lsrp_resource_template/README.md): Standard scaffold for new LSRP resources using `lsrp_framework`.
 - [lsrp_shops](lsrp_shops/README.md): 24/7 convenience stores and item purchases.
 - [lsrp_spawner](lsrp_spawner/README.md): Player spawn and respawn flow.

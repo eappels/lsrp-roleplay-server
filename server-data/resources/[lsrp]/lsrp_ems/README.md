@@ -30,11 +30,14 @@ EMS starter resource built on top of `lsrp_framework`.
 - When a patient collapses from hunger or thirst, they stay down on the floor until hospital-bed treatment completes or EMS uses `/emsrelease [playerId]`.
 - On-duty EMS responders can press `E` near a collapsed patient to kneel and check their vitals, putting them into a stabilized transport state instead of reviving them on the spot.
 - Stabilized collapsed patients stop hunger and thirst decay plus damage while they wait for transport and treatment.
+- Non-EMS players can still escort, load into a normal road vehicle, drop off, and check in a collapsed patient so they can reach hospital treatment even when no medic is around.
 - Once stabilized, the patient should be loaded directly into a nearby ambulance with `E` rather than escorted on foot.
 - Stabilized patients who are still mobile can still be escorted on foot first if needed.
 - An actively escorted patient can be checked in at the EMS desk and placed directly onto a treatment bed.
-- Driving the ambulance to the Pillbox drop-off marker admits the patient to a treatment bed instead of reviving them immediately.
+- Patients who make it to the Pillbox check-in desk on their own can also press `E` to admit themselves for treatment.
+- The driver can get out anywhere near the active transport vehicle, press `E` to pull the patient from it, and then escort them to the Pillbox check-in desk.
 - Completing the treatment-bed timer revives the patient, restores hunger to 100, restores thirst to 100, and releases them beside the bed.
+- Completing hospital treatment automatically charges the patient a configurable Pillbox treatment fee from their LS$ balance.
 - `/emsrelease [playerId]` uses the same full-revive path and can be used as the manual EMS revive command.
 - Revive uses the existing respawn flow from `lsrp_spawner` and clears hunger or thirst collapse state.
 - Stabilize still restores health for injured patients who are alive, but collapsed patients remain down until full revive.

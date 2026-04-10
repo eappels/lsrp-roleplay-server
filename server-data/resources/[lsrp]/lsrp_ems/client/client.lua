@@ -7,6 +7,10 @@ local activeTransport = nil
 local activeEscort = nil
 local patientStatusByServerId = {}
 local activeTreatment = nil
+local isEmsEmployee
+local isEmsOnDuty
+local ESCORT_COLLAPSE_ANIM_DICT = 'dead'
+local ESCORT_COLLAPSE_ANIM_NAME = 'dead_a'
 
 local function trimString(value)
 	if value == nil then
@@ -130,6 +134,41 @@ local function resolveTreatmentBedAnchor(treatment)
 	return anchorCoords, anchorHeading
 end
 
+local function getTreatmentBedAnchorBaseCoords(treatment)
+	if type(treatment) ~= 'table' then
+		return nil, nil
+	end
+
+	local anchorCoords, anchorHeading = resolveTreatmentBedAnchor(treatment)
+	if not anchorCoords then
+		return nil, nil
+	end
+
+	local baseCoords = vector3(anchorCoords.x, anchorCoords.y, anchorCoords.z)
+	local anchorEntity = treatment.anchorEntity
+	if anchorEntity and DoesEntityExist(anchorEntity) then
+		local minDim, maxDim = GetModelDimensions(GetEntityModel(anchorEntity))
+		local worldTop = GetOffsetFromEntityInWorldCoords(
+			anchorEntity,
+			0.0,
+			0.0,
+			tonumber(maxDim.z) or 0.0
+		)
+		baseCoords = vector3(
+			tonumber(worldTop.x) or anchorCoords.x,
+			tonumber(worldTop.y) or anchorCoords.y,
+			tonumber(worldTop.z) or anchorCoords.z
+		)
+
+		local surfaceAdjust = tonumber(treatment.surfaceZAdjust)
+			or tonumber(Config.Treatment and Config.Treatment.bed and Config.Treatment.bed.surfaceZAdjust)
+			or -0.02
+		baseCoords = vector3(baseCoords.x, baseCoords.y, baseCoords.z + surfaceAdjust)
+	end
+
+	return baseCoords, anchorHeading
+end
+
 local function getTreatmentPoseOffset(treatment)
 	if type(treatment) ~= 'table' then
 		return vector3(0.0, 0.0, 0.55)
@@ -153,20 +192,23 @@ local function getTreatmentBedPoseCoords(treatment)
 		return nil
 	end
 
-	local anchorCoords, anchorHeading = resolveTreatmentBedAnchor(treatment)
+	local anchorCoords, anchorHeading = getTreatmentBedAnchorBaseCoords(treatment)
 	if not anchorCoords then
 		return nil
 	end
 
 	local poseOffset = getTreatmentPoseOffset(treatment)
+	local heading = tonumber(treatment.heading) or tonumber(anchorHeading) or 340.0
+	local hasLiveAnchor = treatment.anchorEntity and DoesEntityExist(treatment.anchorEntity)
+	local verticalOffset = hasLiveAnchor and 0.0 or (tonumber(poseOffset.z) or 0.55)
 	local worldCoords = GetOffsetFromCoordAndHeadingInWorldCoords(
 		tonumber(anchorCoords.x) or 0.0,
 		tonumber(anchorCoords.y) or 0.0,
 		tonumber(anchorCoords.z) or 0.0,
-		tonumber(anchorHeading) or 340.0,
+		heading,
 		tonumber(poseOffset.x) or 0.0,
 		tonumber(poseOffset.y) or 0.0,
-		tonumber(poseOffset.z) or 0.55
+		verticalOffset
 	)
 
 	return vector3(
@@ -216,7 +258,7 @@ local function playTreatmentBedAnimation(ped, treatment)
 		poseCoords.z,
 		0.0,
 		0.0,
-		treatment.heading,
+		tonumber(treatment.heading) or 340.0,
 		8.0,
 		-8.0,
 		-1,
@@ -325,8 +367,7 @@ local function placePedAtTreatmentBed(ped, treatment, force)
 		SetEntityCoordsNoOffset(ped, targetCoords.x, targetCoords.y, targetCoords.z, false, false, false)
 	end
 
-	local _, targetHeading = resolveTreatmentBedAnchor(treatment)
-	targetHeading = tonumber(targetHeading) or tonumber(treatment.heading) or 340.0
+	local targetHeading = tonumber(treatment.heading) or 340.0
 	local currentHeading = GetEntityHeading(ped)
 	if force == true or math.abs(currentHeading - targetHeading) > 2.5 then
 		SetEntityHeading(ped, targetHeading)
@@ -402,11 +443,24 @@ local function getAllowedAmbulanceHashes()
 	return normalizeHashModelList(Config.Transport and Config.Transport.allowedVehicleModels)
 end
 
+local function getCivilianTransportDisallowedVehicleClasses()
+	return type(Config.Transport and Config.Transport.civilianDisallowedVehicleClasses) == 'table'
+		and Config.Transport.civilianDisallowedVehicleClasses
+		or { 8, 13, 14, 15, 16, 21 }
+end
+
 local function getPatientStatus(playerId, serverId)
 	local playerState = Player(serverId) and Player(serverId).state or nil
 	local override = patientStatusByServerId[serverId] or {}
+	local targetPed = playerId and GetPlayerPed(playerId) or 0
+	local isNeedsCollapsed = playerState and ((tonumber(playerState.lsrp_hunger) or 100) <= 0 or (tonumber(playerState.lsrp_thirst) or 100) <= 0) or false
+	local isKnockedOut = targetPed ~= 0 and DoesEntityExist(targetPed)
+		and (IsPedRagdoll(targetPed) or IsEntityPlayingAnim(targetPed, 'dead', 'dead_a', 3))
 	return {
-		isCollapsed = playerState and (playerState.lsrp_hunger_collapsed == true or playerState.lsrp_thirst_collapsed == true) or false,
+		isCollapsed = override.isCollapsed == true
+			or (playerState and (playerState.lsrp_hunger_collapsed == true or playerState.lsrp_thirst_collapsed == true) or false)
+			or isNeedsCollapsed
+			or isKnockedOut,
 		isStabilized = override.stabilized == true or (playerState and playerState.lsrp_ems_stabilized == true) or false,
 		isInTransport = override.inTransport == true or (playerState and playerState.lsrp_ems_in_transport == true) or false,
 		isEscorted = override.escorted == true or (playerState and playerState.lsrp_ems_escorted == true) or false,
@@ -420,6 +474,35 @@ local function stopEscortTasks()
 	if playerPed ~= 0 and DoesEntityExist(playerPed) then
 		DetachEntity(playerPed, true, false)
 	end
+end
+
+local function isLocalPlayerCollapsedForEscort()
+	local playerState = LocalPlayer and LocalPlayer.state or nil
+	return playerState and (
+		playerState.lsrp_hunger_collapsed == true
+		or playerState.lsrp_thirst_collapsed == true
+		or (tonumber(playerState.lsrp_hunger) or 100) <= 0
+		or (tonumber(playerState.lsrp_thirst) or 100) <= 0
+	) or false
+end
+
+local function ensureEscortCollapsedPose(playerPed)
+	if playerPed == 0 or not DoesEntityExist(playerPed) or isLocalPlayerCollapsedForEscort() ~= true then
+		return
+	end
+
+	if IsEntityPlayingAnim(playerPed, ESCORT_COLLAPSE_ANIM_DICT, ESCORT_COLLAPSE_ANIM_NAME, 3) then
+		return
+	end
+
+	if not ensureAnimDictLoaded(ESCORT_COLLAPSE_ANIM_DICT, 3000) then
+		return
+	end
+
+	SetPedCanRagdoll(playerPed, false)
+	ClearPedTasksImmediately(playerPed)
+	TaskPlayAnim(playerPed, ESCORT_COLLAPSE_ANIM_DICT, ESCORT_COLLAPSE_ANIM_NAME, 8.0, -8.0, -1, 1, 0.0, false, false, false)
+	SetPedKeepTask(playerPed, true)
 end
 
 local function ensureEscortAttachThread()
@@ -483,6 +566,8 @@ local function ensureEscortAttachThread()
 				)
 			end
 
+			ensureEscortCollapsedPose(playerPed)
+
 			::continue::
 		end
 
@@ -499,12 +584,40 @@ local function isAllowedAmbulance(vehicle)
 	return allowedHashes[GetEntityModel(vehicle)] == true
 end
 
-local function findNearestAmbulance(originCoords, maxDistance)
+local function isAllowedCivilianTransportVehicle(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	if GetVehicleMaxNumberOfPassengers(vehicle) < 1 then
+		return false
+	end
+
+	local vehicleClass = GetVehicleClass(vehicle)
+	for _, disallowedClass in ipairs(getCivilianTransportDisallowedVehicleClasses()) do
+		if vehicleClass == math.floor(tonumber(disallowedClass) or -1) then
+			return false
+		end
+	end
+
+	return true
+end
+
+local function isAllowedTransportVehicle(vehicle, allowAnyVehicle)
+	if allowAnyVehicle == true then
+		return isAllowedCivilianTransportVehicle(vehicle)
+	end
+
+	return isAllowedAmbulance(vehicle)
+end
+
+
+local function findNearestTransportVehicle(originCoords, maxDistance, allowAnyVehicle)
 	local bestVehicle = nil
 	local bestDistance = maxDistance or 10.0
 
 	for _, vehicle in ipairs(GetGamePool('CVehicle')) do
-		if DoesEntityExist(vehicle) and isAllowedAmbulance(vehicle) then
+		if DoesEntityExist(vehicle) and isAllowedTransportVehicle(vehicle, allowAnyVehicle) then
 			local distance = #(originCoords - GetEntityCoords(vehicle))
 			if distance <= bestDistance then
 				bestVehicle = vehicle
@@ -541,7 +654,7 @@ local function getFreePassengerSeat(vehicle)
 	return nil
 end
 
-local function getAmbulanceLoadPoint(vehicle)
+local function getTransportLoadPoint(vehicle)
 	if vehicle == 0 or not DoesEntityExist(vehicle) then
 		return nil
 	end
@@ -561,24 +674,24 @@ local function getAmbulanceLoadPoint(vehicle)
 	)
 end
 
-local function findNearbyAmbulanceLoad(originCoords, maxVehicleDistance)
-	local nearestAmbulance = findNearestAmbulance(originCoords, maxVehicleDistance)
-	if not nearestAmbulance then
+local function findNearbyTransportLoad(originCoords, maxVehicleDistance, allowAnyVehicle)
+	local nearestVehicle = findNearestTransportVehicle(originCoords, maxVehicleDistance, allowAnyVehicle)
+	if not nearestVehicle then
 		return nil, nil, nil
 	end
 
-	local seatIndex = getFreePassengerSeat(nearestAmbulance)
+	local seatIndex = getFreePassengerSeat(nearestVehicle)
 	if seatIndex == nil then
 		return nil, nil, nil
 	end
 
-	local loadPoint = getAmbulanceLoadPoint(nearestAmbulance)
+	local loadPoint = getTransportLoadPoint(nearestVehicle)
 	if not loadPoint then
 		return nil, nil, nil
 	end
 
 	local loadRadius = math.max(1.0, tonumber(Config.Transport and Config.Transport.loadPointRadius) or 3.25)
-	local localOffset = GetOffsetFromEntityGivenWorldCoords(nearestAmbulance, originCoords.x, originCoords.y, originCoords.z)
+	local localOffset = GetOffsetFromEntityGivenWorldCoords(nearestVehicle, originCoords.x, originCoords.y, originCoords.z)
 	local halfWidth = math.max(1.0, tonumber(Config.Transport and Config.Transport.loadZoneHalfWidth) or 2.2)
 	local rearMin = math.max(0.0, tonumber(Config.Transport and Config.Transport.loadZoneRearMin) or 1.0)
 	local rearMax = math.max(rearMin + 0.5, tonumber(Config.Transport and Config.Transport.loadZoneRearMax) or 6.0)
@@ -590,7 +703,7 @@ local function findNearbyAmbulanceLoad(originCoords, maxVehicleDistance)
 		return nil, nil, nil
 	end
 
-	return nearestAmbulance, seatIndex, loadPoint
+	return nearestVehicle, seatIndex, loadPoint
 end
 
 local function isHospitalDropoffNearby(playerCoords)
@@ -601,6 +714,38 @@ local function isHospitalDropoffNearby(playerCoords)
 
 	local radius = math.max(2.0, tonumber(dropoff.radius) or 8.0)
 	return #(playerCoords - dropoff.coords) <= radius
+end
+
+local function getActiveTransportVehicle()
+	if not activeTransport or activeTransport.asPatient == true or not activeTransport.vehicleNetId then
+		return 0
+	end
+
+	local vehicle = NetworkGetEntityFromNetworkId(math.floor(tonumber(activeTransport.vehicleNetId) or 0))
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return 0
+	end
+
+	return vehicle
+end
+
+local function canUnloadTransportPatient(playerPed, playerCoords)
+	if playerPed == 0 or not DoesEntityExist(playerPed) or not activeTransport or activeTransport.asPatient == true then
+		return false, nil
+	end
+
+	if IsPedInAnyVehicle(playerPed, false) then
+		return false, nil
+	end
+
+	local transportVehicle = getActiveTransportVehicle()
+	if transportVehicle == 0 then
+		return false, nil
+	end
+
+	local transportCoords = GetEntityCoords(transportVehicle)
+	local unloadDistance = math.max(2.0, tonumber(Config.Transport and Config.Transport.unloadDistance) or 5.0)
+	return #(playerCoords - transportCoords) <= unloadDistance, transportVehicle
 end
 
 local function getNearbyPatient()
@@ -615,6 +760,7 @@ local function getNearbyPatient()
 	local transportRange = tonumber(Config.Transport and Config.Transport.range) or 3.0
 	local maxRange = math.max(reviveRange, stabilizeRange, transportRange)
 	local stabilizeThreshold = math.max(101, math.floor(tonumber(Config.Stabilize and Config.Stabilize.minHealthThreshold) or 175))
+	local allowCivilianTransport = not isEmsOnDuty()
 	local bestCandidate = nil
 
 	for _, playerId in ipairs(GetActivePlayers()) do
@@ -635,37 +781,37 @@ local function getNearbyPatient()
 					local vehicleNetId = nil
 					local seatIndex = nil
 					if IsEntityDead(targetPed) or IsPedFatallyInjured(targetPed) or isCollapsed then
-						if isStabilized and not isInTransport then
-							local nearestAmbulance, availableSeat = nil, nil
+						if (isStabilized or (allowCivilianTransport and isCollapsed)) and not isInTransport then
+							local nearestVehicle, availableSeat = nil, nil
 							if isEscorted then
-								nearestAmbulance, availableSeat = findNearbyAmbulanceLoad(playerCoords, tonumber(Config.Transport and Config.Transport.vehicleRange) or 10.0)
+								nearestVehicle, availableSeat = findNearbyTransportLoad(playerCoords, tonumber(Config.Transport and Config.Transport.vehicleRange) or 10.0, allowCivilianTransport)
 							end
-							if isEscorted and nearestAmbulance and availableSeat ~= nil then
+							if isEscorted and nearestVehicle and availableSeat ~= nil then
 								action = 'load'
-								vehicleNetId = NetworkGetNetworkIdFromEntity(nearestAmbulance)
+								vehicleNetId = NetworkGetNetworkIdFromEntity(nearestVehicle)
 								seatIndex = availableSeat
 							else
 								action = 'escort'
 							end
-						else
+						elseif isEmsOnDuty() then
 							action = 'stabilize'
 						end
 					elseif isStabilized and not isInTransport and not IsPedInAnyVehicle(targetPed, false) then
-						local nearestAmbulance, availableSeat = nil, nil
+						local nearestVehicle, availableSeat = nil, nil
 						if isEscorted then
-							nearestAmbulance, availableSeat = findNearbyAmbulanceLoad(playerCoords, tonumber(Config.Transport and Config.Transport.vehicleRange) or 10.0)
+							nearestVehicle, availableSeat = findNearbyTransportLoad(playerCoords, tonumber(Config.Transport and Config.Transport.vehicleRange) or 10.0, false)
 						end
 
-						if isEscorted and nearestAmbulance and availableSeat ~= nil then
+						if isEscorted and nearestVehicle and availableSeat ~= nil then
 							action = 'load'
-							vehicleNetId = NetworkGetNetworkIdFromEntity(nearestAmbulance)
+							vehicleNetId = NetworkGetNetworkIdFromEntity(nearestVehicle)
 							seatIndex = availableSeat
 						else
 							action = 'escort'
 						end
 					elseif isStabilized and isEscorted then
 						action = 'escort'
-					elseif GetEntityHealth(targetPed) < stabilizeThreshold then
+					elseif isEmsOnDuty() and GetEntityHealth(targetPed) < stabilizeThreshold then
 						action = 'stabilize'
 					end
 
@@ -874,7 +1020,7 @@ local function forcePedOutOfVehicleForEscort(playerPed, vehicle)
 		return
 	end
 
-	local unloadPoint = getAmbulanceLoadPoint(vehicle)
+	local unloadPoint = getTransportLoadPoint(vehicle)
 	TaskLeaveVehicle(playerPed, vehicle, 0)
 	local timeoutAt = GetGameTimer() + 4000
 	while IsPedInAnyVehicle(playerPed, false) and GetGameTimer() < timeoutAt do
@@ -914,13 +1060,13 @@ local function isPedSeatedInVehicleSeat(ped, vehicle, seatIndex)
 	return GetVehiclePedIsIn(ped, false) == vehicle and GetPedInVehicleSeat(vehicle, math.floor(seatIndex)) == ped
 end
 
-local function tryEnterTransportVehicle(playerPed, vehicle, seatIndex)
+local function tryEnterTransportVehicle(playerPed, vehicle, seatIndex, transportLabel)
 	if playerPed == 0 or not DoesEntityExist(playerPed) or vehicle == 0 or not DoesEntityExist(vehicle) then
-		return false, 'No ambulance was available for transport.'
+		return false, ('No %s was available for transport.'):format(tostring(transportLabel or 'vehicle'))
 	end
 
 	local normalizedSeatIndex = math.floor(tonumber(seatIndex) or 0)
-	local loadPoint = getAmbulanceLoadPoint(vehicle)
+	local loadPoint = getTransportLoadPoint(vehicle)
 	local heading = GetEntityHeading(vehicle)
 
 	for attempt = 1, 4 do
@@ -935,7 +1081,7 @@ local function tryEnterTransportVehicle(playerPed, vehicle, seatIndex)
 		end
 
 		if not IsVehicleSeatFree(vehicle, normalizedSeatIndex) and GetPedInVehicleSeat(vehicle, normalizedSeatIndex) ~= playerPed then
-			return false, 'The ambulance no longer has a free patient seat.'
+			return false, ('The %s no longer has a free patient seat.'):format(tostring(transportLabel or 'vehicle'))
 		end
 
 		TaskEnterVehicle(playerPed, vehicle, 1500, normalizedSeatIndex, 1.0, 1, 0)
@@ -957,7 +1103,7 @@ local function tryEnterTransportVehicle(playerPed, vehicle, seatIndex)
 		end
 	end
 
-	return false, 'The patient could not be seated in the ambulance.'
+	return false, ('The patient could not be seated in the %s.'):format(tostring(transportLabel or 'vehicle'))
 end
 
 local function runReviveEffect(payload)
@@ -1076,14 +1222,25 @@ local function prepareHospitalUnload(payload)
 
 	if IsPedInAnyVehicle(playerPed, false) then
 		local vehicle = GetVehiclePedIsIn(playerPed, false)
-		forcePedOutOfVehicleForEscort(playerPed, vehicle)
+		local unloadPoint = getTransportLoadPoint(vehicle)
+		local heading = GetEntityHeading(vehicle)
+		ClearPedTasksImmediately(playerPed)
+		TaskWarpPedOutOfVehicle(playerPed, vehicle)
+		DetachEntity(playerPed, true, false)
+		if unloadPoint then
+			SetEntityCoordsNoOffset(playerPed, unloadPoint.x, unloadPoint.y, unloadPoint.z + 0.15, false, false, false)
+			SetEntityHeading(playerPed, heading)
+		end
 	end
+
+	ensureEscortCollapsedPose(playerPed)
 
 	activeTransport = nil
 	FreezeEntityPosition(playerPed, false)
 	ClearPedTasksImmediately(playerPed)
 	DetachEntity(playerPed, true, false)
-	Framework.notify(('EMS is taking you inside %s.'):format(tostring(payload.medicName or 'Pillbox')), 'info')
+	ensureEscortCollapsedPose(playerPed)
+	Framework.notify(('Transport is taking you inside %s.'):format(tostring(payload.medicName or 'Pillbox')), 'info')
 end
 
 local function finishBedTreatment(payload)
@@ -1263,7 +1420,7 @@ local function placeOnTreatmentBed(payload)
 			end
 		end
 	end)
-	Framework.notify(('You were checked in by %s and placed on a treatment bed.'):format(tostring(payload.medicName or 'EMS')), 'info')
+	Framework.notify(('You were checked in by %s and placed on a treatment bed.'):format(tostring(payload.medicName or 'Pillbox')), 'info')
 end
 
 local function enterTransportVehicle(payload)
@@ -1271,6 +1428,8 @@ local function enterTransportVehicle(payload)
 	local requestId = trimString(payload.requestId)
 	local vehicleNetId = tonumber(payload.vehicleNetId)
 	local seatIndex = tonumber(payload.seatIndex)
+	local allowAnyVehicle = payload.allowAnyVehicle == true
+	local transportLabel = allowAnyVehicle and 'vehicle' or 'ambulance'
 	if not requestId or not vehicleNetId or seatIndex == nil then
 		TriggerServerEvent(RESOURCE_NAME .. ':server:confirmTransportLoad', {
 			requestId = requestId,
@@ -1282,11 +1441,11 @@ local function enterTransportVehicle(payload)
 
 	local vehicle = NetworkGetEntityFromNetworkId(math.floor(vehicleNetId))
 	local playerPed = PlayerPedId()
-	if vehicle == 0 or not DoesEntityExist(vehicle) or not isAllowedAmbulance(vehicle) then
+	if vehicle == 0 or not DoesEntityExist(vehicle) or not isAllowedTransportVehicle(vehicle, allowAnyVehicle) then
 		TriggerServerEvent(RESOURCE_NAME .. ':server:confirmTransportLoad', {
 			requestId = requestId,
 			ok = false,
-			error = 'No ambulance was available for transport.'
+			error = ('No %s was available for transport.'):format(transportLabel)
 		})
 		return
 	end
@@ -1295,7 +1454,7 @@ local function enterTransportVehicle(payload)
 		TriggerServerEvent(RESOURCE_NAME .. ':server:confirmTransportLoad', {
 			requestId = requestId,
 			ok = false,
-			error = 'The ambulance no longer has a free patient seat.'
+			error = ('The %s no longer has a free patient seat.'):format(transportLabel)
 		})
 		return
 	end
@@ -1306,7 +1465,7 @@ local function enterTransportVehicle(payload)
 	ClearPedTasksImmediately(playerPed)
 	DetachEntity(playerPed, true, false)
 
-	local success, errorMessage = tryEnterTransportVehicle(playerPed, vehicle, seatIndex)
+	local success, errorMessage = tryEnterTransportVehicle(playerPed, vehicle, seatIndex, transportLabel)
 	if not success then
 		TriggerServerEvent(RESOURCE_NAME .. ':server:confirmTransportLoad', {
 			requestId = requestId,
@@ -1324,7 +1483,7 @@ local function enterTransportVehicle(payload)
 		requestId = requestId,
 		ok = true
 	})
-	Framework.notify(('EMS loaded you into the ambulance. Stay inside until you reach the hospital.'), 'info')
+	Framework.notify((allowAnyVehicle and 'You were loaded into the vehicle. Stay inside until you reach the hospital.' or 'EMS loaded you into the ambulance. Stay inside until you reach the hospital.'), 'info')
 end
 
 local function isInteractionJustPressed()
@@ -1332,14 +1491,45 @@ local function isInteractionJustPressed()
 	return IsControlJustPressed(0, control) or IsDisabledControlJustPressed(0, control)
 end
 
-local function isEmsEmployee()
+isEmsEmployee = function()
 	local playerState = LocalPlayer and LocalPlayer.state
 	return playerState and playerState.lsrp_job == Config.JobId or false
 end
 
-local function isEmsOnDuty()
+isEmsOnDuty = function()
 	local playerState = LocalPlayer and LocalPlayer.state
 	return playerState and playerState.lsrp_job == Config.JobId and playerState.lsrp_job_duty == true or false
+end
+
+local function canLocalPlayerSelfCheckIn(playerPed)
+	if playerPed == 0 or not DoesEntityExist(playerPed) then
+		return false
+	end
+
+	local playerState = LocalPlayer and LocalPlayer.state or nil
+	if playerState and playerState.lsrp_ems_in_treatment == true then
+		return false
+	end
+
+	if IsEntityDead(playerPed) or IsPedFatallyInjured(playerPed) then
+		return false
+	end
+
+	if playerState and (
+		playerState.lsrp_hunger_collapsed == true
+		or playerState.lsrp_thirst_collapsed == true
+		or (tonumber(playerState.lsrp_hunger) or 100) <= 0
+		or (tonumber(playerState.lsrp_thirst) or 100) <= 0
+	) then
+		return true
+	end
+
+	if playerState and (playerState.lsrp_ems_stabilized == true or playerState.lsrp_ems_escorted == true or playerState.lsrp_ems_in_transport == true) then
+		return true
+	end
+
+	local targetHealth = math.max(150, math.floor(tonumber(Config.Treatment and Config.Treatment.healthAfterTreatment) or 200))
+	return GetEntityHealth(playerPed) < targetHealth
 end
 
 local function createBlip()
@@ -1523,13 +1713,9 @@ CreateThread(function()
 			local playerCoords = GetEntityCoords(playerPed)
 			local marker = Config.Markers and Config.Markers.duty or nil
 			local checkInMarker = Config.Markers and Config.Markers.checkIn or nil
-			local nearbyPatient = isEmsOnDuty() and not IsPedInAnyVehicle(playerPed, false) and getNearbyPatient() or nil
-			local playerVehicle = GetVehiclePedIsIn(playerPed, false)
-			local isTransportDriver = activeTransport ~= nil
-				and activeTransport.asPatient ~= true
-				and playerVehicle ~= 0
-				and NetworkGetNetworkIdFromEntity(playerVehicle) == activeTransport.vehicleNetId
-				and GetPedInVehicleSeat(playerVehicle, -1) == playerPed
+			local nearbyPatient = not IsPedInAnyVehicle(playerPed, false) and getNearbyPatient() or nil
+			local canSelfCheckIn = activeTreatment == nil and not IsPedInAnyVehicle(playerPed, false) and canLocalPlayerSelfCheckIn(playerPed)
+			local canUnloadPatient, transportVehicle = canUnloadTransportPatient(playerPed, playerCoords)
 			if marker and marker.coords then
 				local drawDistance = tonumber(Config.DrawDistance) or 30.0
 				local interactionDistance = tonumber(Config.InteractionDistance) or 2.0
@@ -1561,21 +1747,10 @@ CreateThread(function()
 				end
 			end
 
-			local dropoff = Config.Transport and Config.Transport.dropoff or nil
-			if isTransportDriver and type(dropoff) == 'table' and dropoff.coords then
-				local radius = math.max(2.0, tonumber(dropoff.radius) or 8.0)
-				local distance = #(playerCoords - dropoff.coords)
-				if distance <= math.max(radius + 20.0, tonumber(Config.DrawDistance) or 30.0) then
-					waitMs = 0
-					local markerConfig = dropoff.marker or {}
-					local markerType = math.floor(tonumber(markerConfig.type) or 1)
-					local scale = markerConfig.scale or vector3(3.0, 3.0, 0.9)
-					local color = markerConfig.color or { r = 214, g = 69, b = 69, a = 110 }
-					DrawMarker(markerType, dropoff.coords.x, dropoff.coords.y, dropoff.coords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, scale.x or 3.0, scale.y or 3.0, scale.z or 0.9, color.r or 214, color.g or 69, color.b or 69, color.a or 110, false, false, 2, false, nil, nil, false)
-				end
-
-				if distance <= radius then
-					showHelpPrompt(('Press ~INPUT_CONTEXT~ to %s'):format(tostring(Config.Transport and Config.Transport.hospitalLabel or 'admit the patient at Pillbox')))
+			if activeTransport and activeTransport.asPatient ~= true and transportVehicle ~= 0 then
+				waitMs = 0
+				if canUnloadPatient == true then
+					showHelpPrompt(('Press ~INPUT_CONTEXT~ to %s'):format(tostring(Config.Transport and Config.Transport.hospitalLabel or 'grab the patient from the vehicle')))
 					if isInteractionJustPressed() then
 						TriggerServerEvent(RESOURCE_NAME .. ':server:completeHospitalTransport')
 						Wait(300)
@@ -1583,7 +1758,7 @@ CreateThread(function()
 				end
 			end
 
-			if activeEscort and activeEscort.asPatient ~= true and checkInMarker and checkInMarker.coords then
+			if (activeEscort and activeEscort.asPatient ~= true or canSelfCheckIn) and checkInMarker and checkInMarker.coords then
 				local checkInDistance = #(playerCoords - checkInMarker.coords)
 				if checkInDistance <= math.max(tonumber(Config.DrawDistance) or 30.0, 20.0) then
 					waitMs = 0
@@ -1591,10 +1766,18 @@ CreateThread(function()
 				end
 
 				if checkInDistance <= math.max(1.5, tonumber(Config.Treatment and Config.Treatment.checkInRange) or 2.5) then
-					showHelpPrompt(('Press ~INPUT_CONTEXT~ to %s'):format(tostring(Config.Treatment and Config.Treatment.checkInLabel or 'check in the escorted patient')))
-					if isInteractionJustPressed() then
-						TriggerServerEvent(RESOURCE_NAME .. ':server:checkInEscortedPatient')
-						Wait(300)
+					if activeEscort and activeEscort.asPatient ~= true then
+						showHelpPrompt(('Press ~INPUT_CONTEXT~ to %s'):format(tostring(Config.Treatment and Config.Treatment.checkInLabel or 'check in the escorted patient')))
+						if isInteractionJustPressed() then
+							TriggerServerEvent(RESOURCE_NAME .. ':server:checkInEscortedPatient')
+							Wait(300)
+						end
+					elseif canSelfCheckIn then
+						showHelpPrompt(('Press ~INPUT_CONTEXT~ to %s'):format(tostring(Config.Treatment and Config.Treatment.selfCheckInLabel or 'check yourself in for treatment')))
+						if isInteractionJustPressed() then
+							TriggerServerEvent(RESOURCE_NAME .. ':server:selfCheckIn')
+							Wait(300)
+						end
 					end
 				end
 			end

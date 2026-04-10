@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>LSRP MDT</title>
+	<style>
+		html,
+		body {
+			background: transparent !important;
+			background-color: transparent !important;
+		}
+
+		body {
+			display: none;
+			visibility: hidden;
+			opacity: 0;
+		}
+	</style>
+	<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+	<main id="app" class="app hidden" aria-hidden="true">
+		<div class="backdrop"></div>
+		<section class="shell" role="dialog" aria-modal="true" aria-labelledby="mdt-title">
+			<aside class="rail">
+				<p id="eyebrow" class="eyebrow">LSRP MDT</p>
+				<h1 id="mdt-title">Mobile Data Terminal</h1>
+				<p id="subtitle" class="subtitle">Starter law and medical terminal interface.</p>
+
+				<div class="profile-card">
+					<span class="profile-card__label">Signed In</span>
+					<strong id="unit-name">Unit</strong>
+					<p id="unit-meta">Agency</p>
+					<div class="profile-pill-row">
+						<span id="unit-duty" class="profile-pill">Duty</span>
+						<span id="unit-state" class="profile-pill">State ID</span>
+					</div>
+				</div>
+
+				<div id="shortcut-list" class="shortcut-list"></div>
+
+				<div class="rail-actions">
+					<button id="refresh-button" class="button button--primary" type="button">Refresh</button>
+					<button id="close-button" class="button button--ghost" type="button">Close</button>
+				</div>
+			</aside>
+
+			<section class="content">
+				<section id="status-strip" class="status-strip"></section>
+
+				<section class="workspace-grid">
+					<article class="panel panel--lookup">
+						<div class="panel__header">
+							<h2>Quick Lookup</h2>
+							<p>Basic search shell for the first MDT pass.</p>
+						</div>
+						<div class="lookup-grid">
+							<label class="field">
+								<span>Person or State ID</span>
+								<input id="person-query" type="text" placeholder="Name or state ID">
+							</label>
+							<button id="person-search" class="button button--primary" type="button">Search Person</button>
+							<label class="field">
+								<span>Plate or VIN</span>
+								<input id="vehicle-query" type="text" placeholder="Plate or VIN">
+							</label>
+							<button id="vehicle-search" class="button button--primary" type="button">Search Vehicle</button>
+						</div>
+					</article>
+
+					<article class="panel">
+						<div class="panel__header">
+							<h2>Lookup Results</h2>
+							<p id="lookup-summary">Run a search to populate this panel.</p>
+						</div>
+						<div id="result-list" class="result-list"></div>
+					</article>
+
+					<article class="panel">
+						<div class="panel__header">
+							<h2>System Notices</h2>
+							<p>Starter announcements and implementation reminders.</p>
+						</div>
+						<ul id="notice-list" class="notice-list"></ul>
+					</article>
+
+					<article class="panel">
+						<div class="panel__header">
+							<h2>Active Units</h2>
+							<p id="roster-summary">No active roster data loaded yet.</p>
+						</div>
+						<div id="roster-list" class="result-list"></div>
+					</article>
+
+					<article class="panel panel--wide">
+						<div class="panel__header">
+							<h2>Terminal Sections</h2>
+							<p>High-level cards for the next MDT milestones.</p>
+						</div>
+						<div id="section-list" class="section-list"></div>
+					</article>
+				</section>
+
+				<footer class="footer">
+					<span id="footer-text">Press Escape to close the terminal.</span>
+				</footer>
+			</section>
+		</section>
+	</main>
+
+	<script src="script.js?v=1"></script>
+</body>
+</html>
