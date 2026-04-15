@@ -1,4 +1,5 @@
-﻿local RESOURCE_NAME = GetCurrentResourceName()
+local RESOURCE_NAME = GetCurrentResourceName()
+
 local inZone = false
 local currentZone = nil
 local parkingBlips = {}
@@ -623,6 +624,10 @@ local function openParkingZoneByName(zoneName)
     openParkingUI()
     return true
 end
+
+exports('openParkingForZone', function(zoneName)
+    return openParkingZoneByName(zoneName)
+end)
 
 local function getOwnedVehicleId(vehicle)
     if vehicle == 0 or not DoesEntityExist(vehicle) then

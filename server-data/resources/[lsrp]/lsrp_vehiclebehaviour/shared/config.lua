@@ -17,6 +17,13 @@ Config.VehicleBehaviour = {
 		driverSeatOnly = true,
 		notify = true
 	},
+	emergencyLights = {
+		enabled = true,
+		commandName = 'emlights',
+		key = 'Q',
+		driverSeatOnly = true,
+		notify = false
+	},
 	keys = {
 		enabled = true,
 		lockCommandName = 'vehiclelock',

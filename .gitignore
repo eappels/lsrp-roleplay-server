@@ -3,3 +3,4 @@ cache/
 .vscode/
 server-data/server.cfg
 server-data/server_internal.cfg
+server-data/resources/PLOKS_CARS/

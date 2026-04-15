@@ -39,6 +39,8 @@ local DOOR_CONTROL_OPEN_RATIO_THRESHOLD = 0.05
 local DOOR_CONTROL_REQUEST_TIMEOUT_MS = 750
 local DOOR_CONTROL_REFRESH_INTERVAL_MS = 200
 local DOOR_CONTROL_POST_TOGGLE_REFRESH_DELAY_MS = 150
+local EMERGENCY_SIREN_CONTROL = 86
+local emergencyLightsOnlyVehicles = {}
 local VEHICLE_DOOR_OPTIONS = {
 	{ index = 0, label = 'Front Left' },
 	{ index = 1, label = 'Front Right' },
@@ -55,6 +57,11 @@ end
 local function getIgnitionConfig()
 	local vehicleBehaviour = getVehicleBehaviourConfig()
 	return vehicleBehaviour and vehicleBehaviour.ignition or nil
+end
+
+local function getEmergencyLightConfig()
+	local vehicleBehaviour = getVehicleBehaviourConfig()
+	return vehicleBehaviour and vehicleBehaviour.emergencyLights or nil
 end
 
 local function getDoorControlConfig()
@@ -1398,6 +1405,178 @@ local function canToggleIgnition(ped, vehicle, ignitionConfig)
 	return true
 end
 
+local function canToggleEmergencyLights(ped, vehicle, emergencyLightConfig)
+	if ped == 0 or IsPedFatallyInjured(ped) then
+		return false
+	end
+
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	if emergencyLightConfig and emergencyLightConfig.driverSeatOnly ~= false and GetPedInVehicleSeat(vehicle, -1) ~= ped then
+		return false
+	end
+
+	return (tonumber(GetVehicleClass(vehicle)) or -1) == 18
+end
+
+local function isEmergencyLightsActive(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	return IsVehicleSirenOn(vehicle) == true
+end
+
+local function isEmergencySirenAudioActive(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return false
+	end
+
+	if type(IsVehicleSirenAudioOn) == 'function' then
+		return IsVehicleSirenAudioOn(vehicle) == true
+	end
+
+	return false
+end
+
+local function setEmergencySirenMuted(vehicle, muted)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	if type(SetVehicleHasMutedSirens) == 'function' then
+		SetVehicleHasMutedSirens(vehicle, muted == true)
+	end
+end
+
+local function clearEmergencyLightsOnlyState(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	emergencyLightsOnlyVehicles[vehicle] = nil
+	setEmergencySirenMuted(vehicle, false)
+end
+
+local function promoteEmergencyLightsOnlyToFullSiren(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	clearEmergencyLightsOnlyState(vehicle)
+	SetVehicleSiren(vehicle, true)
+
+	CreateThread(function()
+		local expiresAt = GetGameTimer() + 200
+		while GetGameTimer() < expiresAt do
+			if vehicle == 0 or not DoesEntityExist(vehicle) then
+				return
+			end
+
+			SetVehicleSiren(vehicle, true)
+			setEmergencySirenMuted(vehicle, false)
+			Wait(0)
+		end
+	end)
+end
+
+local function setEmergencyLightsOnlyState(vehicle, enabled)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	if enabled == true then
+		emergencyLightsOnlyVehicles[vehicle] = true
+		SetVehicleSiren(vehicle, true)
+		setEmergencySirenMuted(vehicle, true)
+		return
+	end
+
+	clearEmergencyLightsOnlyState(vehicle)
+	SetVehicleSiren(vehicle, false)
+end
+
+local function toggleEmergencySirenState()
+	local vehicleBehaviour = getVehicleBehaviourConfig()
+	local emergencyLightConfig = getEmergencyLightConfig()
+	if not vehicleBehaviour or vehicleBehaviour.enabled == false or not emergencyLightConfig or emergencyLightConfig.enabled == false then
+		return
+	end
+
+	local ped = PlayerPedId()
+	if ped == 0 or not IsPedInAnyVehicle(ped, false) then
+		return
+	end
+
+	local vehicle = GetVehiclePedIsIn(ped, false)
+	if not canToggleEmergencyLights(ped, vehicle, emergencyLightConfig) then
+		return
+	end
+
+	local lightsOnlyActive = emergencyLightsOnlyVehicles[vehicle] == true
+	local lightsActive = isEmergencyLightsActive(vehicle)
+
+	if lightsOnlyActive == true then
+		promoteEmergencyLightsOnlyToFullSiren(vehicle)
+		return
+	end
+
+	if lightsActive == true then
+		clearEmergencyLightsOnlyState(vehicle)
+		SetVehicleSiren(vehicle, false)
+		return
+	end
+
+	clearEmergencyLightsOnlyState(vehicle)
+	SetVehicleSiren(vehicle, true)
+	setEmergencySirenMuted(vehicle, false)
+end
+
+local function toggleEmergencyLights()
+	local vehicleBehaviour = getVehicleBehaviourConfig()
+	local emergencyLightConfig = getEmergencyLightConfig()
+	if not vehicleBehaviour or vehicleBehaviour.enabled == false or not emergencyLightConfig or emergencyLightConfig.enabled == false then
+		return
+	end
+
+	local ped = PlayerPedId()
+	if ped == 0 or not IsPedInAnyVehicle(ped, false) then
+		return
+	end
+
+	local vehicle = GetVehiclePedIsIn(ped, false)
+	if not canToggleEmergencyLights(ped, vehicle, emergencyLightConfig) then
+		return
+	end
+
+	local lightsOnlyActive = emergencyLightsOnlyVehicles[vehicle] == true
+	local lightsActive = isEmergencyLightsActive(vehicle)
+	local sirenAudioActive = isEmergencySirenAudioActive(vehicle)
+
+	if lightsOnlyActive == true then
+		setEmergencyLightsOnlyState(vehicle, false)
+		if emergencyLightConfig.notify ~= false then
+			notify('Emergency lights off')
+		end
+		return
+	end
+
+	if lightsActive == true and sirenAudioActive == true then
+		setEmergencyLightsOnlyState(vehicle, true)
+		if emergencyLightConfig.notify ~= false then
+			notify('Emergency lights only')
+		end
+		return
+	end
+
+	setEmergencyLightsOnlyState(vehicle, true)
+	if emergencyLightConfig.notify ~= false then
+		notify('Emergency lights only')
+	end
+end
+
 local function toggleIgnition()
 	local vehicleBehaviour = getVehicleBehaviourConfig()
 	local ignitionConfig = getIgnitionConfig()
@@ -1447,6 +1626,11 @@ local defaultIgnitionKey = ((getIgnitionConfig() and getIgnitionConfig().key) or
 local defaultIgnitionModifierKey = tostring((getIgnitionConfig() and getIgnitionConfig().modifierKey) or ''):gsub('^%s+', ''):gsub('%s+$', '')
 local ignitionModifierRequired = defaultIgnitionModifierKey ~= ''
 local ignitionCommandName = ((getIgnitionConfig() and getIgnitionConfig().commandName) or 'ignition')
+local defaultEmergencyLightKey = ((getEmergencyLightConfig() and getEmergencyLightConfig().key) or 'Q')
+local emergencyLightCommandName = ((getEmergencyLightConfig() and getEmergencyLightConfig().commandName) or 'emlights')
+local emergencyLightKeyMappingCommandName = emergencyLightCommandName .. '_key'
+local emergencyLightKeyMappingCommand = '+' .. emergencyLightKeyMappingCommandName
+local emergencyLightKeyMappingReleaseCommand = '-' .. emergencyLightKeyMappingCommandName
 local defaultDoorControlKey = ((getDoorControlConfig() and getDoorControlConfig().key) or 'F2')
 local doorControlCommandName = ((getDoorControlConfig() and getDoorControlConfig().commandName) or 'vehdoors')
 local doorControlKeyMappingCommandName = doorControlCommandName .. '_key'
@@ -1479,6 +1663,18 @@ RegisterCommand(ignitionCommandName, function()
 	toggleIgnition()
 end, false)
 
+RegisterCommand(emergencyLightCommandName, function()
+	toggleEmergencyLights()
+end, false)
+
+RegisterCommand(emergencyLightKeyMappingCommand, function()
+	toggleEmergencyLights()
+end, false)
+
+RegisterCommand(emergencyLightKeyMappingReleaseCommand, function()
+	-- Required by RegisterKeyMapping (+/- command pair).
+end, false)
+
 RegisterCommand(ignitionKeyMappingCommand, function()
 	ignitionPrimaryPressed = true
 	attemptIgnitionToggleFromKeybind()
@@ -1489,6 +1685,8 @@ RegisterCommand('-' .. ignitionCommandName, function()
 end, false)
 
 RegisterKeyMapping(ignitionKeyMappingCommand, 'Toggle vehicle ignition', 'keyboard', defaultIgnitionKey)
+
+RegisterKeyMapping(emergencyLightKeyMappingCommand, 'Toggle emergency lights only', 'keyboard', defaultEmergencyLightKey)
 
 if ignitionModifierRequired then
 	RegisterCommand(ignitionModifierKeyMappingCommand, function()
@@ -1636,6 +1834,46 @@ CreateThread(function()
 					Wait(250)
 				end
 			else
+				Wait(250)
+			end
+		end
+	end
+end)
+
+CreateThread(function()
+	while true do
+		local vehicleBehaviour = getVehicleBehaviourConfig()
+		local emergencyLightConfig = getEmergencyLightConfig()
+		local vehicleBehaviourEnabled = vehicleBehaviour and vehicleBehaviour.enabled ~= false
+
+		if not vehicleBehaviourEnabled or not emergencyLightConfig or emergencyLightConfig.enabled == false then
+			Wait(1000)
+		else
+			local ped = PlayerPedId()
+
+			if ped ~= 0 and IsPedInAnyVehicle(ped, false) then
+				local vehicle = GetVehiclePedIsIn(ped, false)
+
+				if canToggleEmergencyLights(ped, vehicle, emergencyLightConfig) then
+					DisableControlAction(0, EMERGENCY_SIREN_CONTROL, true)
+
+					if IsDisabledControlJustPressed(0, EMERGENCY_SIREN_CONTROL) then
+						toggleEmergencySirenState()
+						Wait(200)
+					elseif emergencyLightsOnlyVehicles[vehicle] == true then
+						setEmergencySirenMuted(vehicle, true)
+						Wait(0)
+					else
+						Wait(250)
+					end
+				else
+					Wait(250)
+				end
+			else
+				for vehicle in pairs(emergencyLightsOnlyVehicles) do
+					clearEmergencyLightsOnlyState(vehicle)
+				end
+
 				Wait(250)
 			end
 		end

@@ -623,9 +623,13 @@ local function returnPatrolVehicle(station)
 		return
 	end
 
-	TriggerEvent('lsrp_policevehicleparking:client:openParkingForZone', {
-		zoneName = zoneName
-	})
+	local ok, opened = pcall(function()
+		return exports['lsrp_policevehicleparking']:openParkingForZone(zoneName)
+	end)
+
+	if not ok or opened ~= true then
+		notify('Police fleet parking could not be opened right now.')
+	end
 end
 
 local function openFleetGarage(station)
@@ -640,9 +644,13 @@ local function openFleetGarage(station)
 		return
 	end
 
-	TriggerEvent('lsrp_policevehicleparking:client:openParkingForZone', {
-		zoneName = zoneName
-	})
+	local ok, opened = pcall(function()
+		return exports['lsrp_policevehicleparking']:openParkingForZone(zoneName)
+	end)
+
+	if not ok or opened ~= true then
+		notify('Police fleet parking could not be opened right now.')
+	end
 end
 
 local function openPoliceDressingRoom(station)

@@ -1562,9 +1562,13 @@ local function openEmsGarage()
 		return
 	end
 
-	TriggerEvent('lsrp_policevehicleparking:client:openParkingForZone', {
-		zoneName = zoneName
-	})
+	local ok, opened = pcall(function()
+		return exports['lsrp_policevehicleparking']:openParkingForZone(zoneName)
+	end)
+
+	if not ok or opened ~= true then
+		Framework.notify('Ambulance garage parking could not be opened right now.', 'error')
+	end
 end
 
 RegisterNetEvent(RESOURCE_NAME .. ':client:dutyResult', function(payload)
