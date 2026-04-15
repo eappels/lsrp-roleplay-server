@@ -8,7 +8,7 @@ EMS starter resource built on top of `lsrp_framework`.
 
 - Registers the private `ems_responder` job through `lsrp_framework`.
 - Provides a Pillbox duty locker marker for clocking in and out.
-- Includes owner or admin self-assignment support through `/emsme [grade]` gated by ACE `lsrp.ems.assignself`.
+- Includes owner or admin self-assignment support through toggle command `/emsme [grade]` gated by ACE `lsrp.ems.assignself`.
 - Supports nearby-patient EMS vitals checks and stabilization while on duty.
 - Supports ambulance transport for stabilized patients and treatment-bed recovery at Pillbox.
 - Uses framework-native notify, player context, and job mutation helpers from day one.
@@ -22,7 +22,7 @@ EMS starter resource built on top of `lsrp_framework`.
 ## Commands
 
 - `/lsrp_ems_debug`: show a simple framework-context debug notification.
-- `/emsme [grade]`: assign yourself to EMS if you have the required ACE.
+- `/emsme [grade]`: toggle EMS employment for yourself if you have the required ACE. If you are not EMS, it assigns the requested grade; if you are already EMS, it resigns you.
 - `/emsrelease [playerId]`: on-duty EMS can fully revive the specified patient, including early release from an active treatment bed.
 
 ## Current Gameplay

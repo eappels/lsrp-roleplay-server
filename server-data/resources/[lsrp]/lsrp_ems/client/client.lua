@@ -1549,6 +1549,24 @@ local function createBlip()
 	EndTextCommandSetBlipName(blip)
 end
 
+local function openEmsGarage()
+	local garageMarker = Config.Markers and Config.Markers.garage or nil
+	local zoneName = trimString(garageMarker and garageMarker.parkingZone)
+	if not zoneName then
+		Framework.notify('Ambulance garage parking is not configured.', 'error')
+		return
+	end
+
+	if GetResourceState('lsrp_policevehicleparking') ~= 'started' then
+		Framework.notify('Ambulance garage parking is unavailable right now.', 'error')
+		return
+	end
+
+	TriggerEvent('lsrp_policevehicleparking:client:openParkingForZone', {
+		zoneName = zoneName
+	})
+end
+
 RegisterNetEvent(RESOURCE_NAME .. ':client:dutyResult', function(payload)
 	payload = type(payload) == 'table' and payload or {}
 	if payload.message then
@@ -1713,6 +1731,7 @@ CreateThread(function()
 			local playerCoords = GetEntityCoords(playerPed)
 			local marker = Config.Markers and Config.Markers.duty or nil
 			local checkInMarker = Config.Markers and Config.Markers.checkIn or nil
+			local garageMarker = Config.Markers and Config.Markers.garage or nil
 			local nearbyPatient = not IsPedInAnyVehicle(playerPed, false) and getNearbyPatient() or nil
 			local canSelfCheckIn = activeTreatment == nil and not IsPedInAnyVehicle(playerPed, false) and canLocalPlayerSelfCheckIn(playerPed)
 			local canUnloadPatient, transportVehicle = canUnloadTransportPatient(playerPed, playerCoords)
@@ -1741,6 +1760,36 @@ CreateThread(function()
 							TriggerServerEvent(RESOURCE_NAME .. ':server:toggleDuty', not isEmsOnDuty())
 						else
 							Framework.notify('Apply for the EMS job before using the duty locker.', 'warning')
+						end
+						Wait(300)
+					end
+				end
+			end
+
+			if garageMarker and garageMarker.coords then
+				local garageDistance = #(playerCoords - garageMarker.coords)
+				if garageDistance <= math.max(tonumber(Config.DrawDistance) or 30.0, 20.0) then
+					waitMs = 0
+					local color = isEmsOnDuty() and { r = 214, g = 69, b = 69 } or { r = 94, g = 176, b = 255 }
+					DrawMarker(36, garageMarker.coords.x, garageMarker.coords.y, garageMarker.coords.z + 0.45, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.55, 0.55, 0.55, color.r, color.g, color.b, 150, false, false, 2, false, nil, nil, false)
+				end
+
+				if garageDistance <= math.max(1.5, tonumber(Config.InteractionDistance) or 2.0) then
+					if isEmsOnDuty() then
+						showHelpPrompt('Press ~INPUT_CONTEXT~ to open the ambulance garage')
+					elseif isEmsEmployee() then
+						showHelpPrompt('Go on duty before using the ambulance garage')
+					else
+						showHelpPrompt('You must be employed by EMS to use the ambulance garage')
+					end
+
+					if isInteractionJustPressed() then
+						if isEmsOnDuty() then
+							openEmsGarage()
+						elseif isEmsEmployee() then
+							Framework.notify('Go on duty before using the ambulance garage.', 'warning')
+						else
+							Framework.notify('Apply for the EMS job before using the ambulance garage.', 'warning')
 						end
 						Wait(300)
 					end

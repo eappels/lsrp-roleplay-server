@@ -7,10 +7,20 @@ Config.EmptyFuelThreshold = 0.1
 Config.RefuelControl = 38
 Config.PumpScanRadius = 5.0
 Config.PumpInteractDistance = 2.75
+Config.EVChargerScanRadius = 8.0
+Config.EVChargerInteractDistance = 4.5
+Config.EVChargerLocationInteractDistance = 2.75
+Config.EVChargingStationRadius = 10.0
 Config.VehicleSearchRadius = 4.0
 Config.PumpVehicleDistance = 6.0
+Config.EVChargerVehicleDistance = 8.0
+Config.EVChargerLocationVehicleDistance = 6.0
 Config.FullRefuelDurationMs = 60000
 Config.MinRefuelDurationMs = 1500
+Config.FullEVChargeDurationMultiplier = 3.0
+Config.MinEVChargeDurationMs = 1500
+Config.EVChargeFastThresholdPercent = 80.0
+Config.EVChargeFastPhaseTimeShare = 0.6
 Config.RefuelCostPerUnit = 2
 Config.FuelRevenueLicense = 'business:fuel'
 Config.RefuelAnimationMode = 'anim'
@@ -21,6 +31,7 @@ Config.RefuelAnimationScenario = 'WORLD_HUMAN_VEHICLE_MECHANIC'
 Config.FullTankSnapTolerance = 0.25
 Config.NativeFuelDriveFloorPercent = 10.0
 Config.NativeFuelDriveFloorAbsolute = 0.0
+Config.UseNativeElectricVehicleDetection = true
 Config.ConsumptionTickMs = 1000
 Config.BaseUsagePerSecond = 0.18
 Config.IdleUsageMultiplier = 0.1
@@ -67,4 +78,33 @@ Config.PumpModels = {
     `prop_gas_pump_old2`,
     `prop_gas_pump_old3`,
     `prop_vintage_pump`
+}
+
+Config.EVChargerLocations = {
+    vector3(-142.43, 6277.65, 31.48),
+    vector3(-137.56, 6282.52, 31.49),
+    vector3(-132.87, 6287.21, 31.49),
+    vector3(-122.27, 6278.99, 31.46),
+    vector3(-124.75, 6276.51, 31.44),
+    vector3(-126.98, 6274.27, 31.46),
+    vector3(-129.34, 6271.90, 31.44),
+    vector3(-131.70, 6269.54, 31.44),
+    vector3(-134.33, 6266.92, 31.44),
+    vector3(196.32, 6633.04, 31.52),
+    vector3(199.87, 6632.08, 31.50),
+    vector3(286.92, -1275.47, 29.29),
+    vector3(286.95, -1270.01, 29.29),
+    vector3(639.87, 260.17, 103.30),
+    vector3(-2076.04, -331.73, 13.17),
+    vector3(-721.09, -913.11, 19.01),
+    vector3(-1788.44, 814.27, 138.50),
+}
+
+Config.ElectricVehicleModels = {
+    `tr22`,
+    `p90d`,
+    `models`,
+    `tmodel`,
+    `teslax`,
+    `teslapd`
 }

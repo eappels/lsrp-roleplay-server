@@ -1,11 +1,14 @@
 local refuelInProgress = false
 local modelTankCapacityCache = {}
+local electricVehicleModelCache = {}
 local refuelProgressState = {
     visible = false,
     label = '',
     progress = 0.0,
     totalCost = 0,
-    liters = 0.0
+    liters = 0.0,
+    serviceMode = 'refuel',
+    displayPercent = 0.0
 }
 
 local function trimString(value)
@@ -19,6 +22,27 @@ local function trimString(value)
     end
 
     return trimmed
+end
+
+local function normalizeLookupString(value)
+    local trimmed = trimString(value)
+    if not trimmed then
+        return nil
+    end
+
+    return trimmed:lower()
+end
+
+local function rotationToDirection(rotation)
+    local adjustedX = math.rad(tonumber(rotation and rotation.x) or 0.0)
+    local adjustedZ = math.rad(tonumber(rotation and rotation.z) or 0.0)
+    local cosX = math.abs(math.cos(adjustedX))
+
+    return vector3(
+        -math.sin(adjustedZ) * cosX,
+        math.cos(adjustedZ) * cosX,
+        math.sin(adjustedX)
+    )
 end
 
 local function clampTankCapacity(value)
@@ -226,6 +250,212 @@ local function getFuelPercent(fuelLevel, tankCapacity)
     return math.max(0.0, math.min(100.0, (clampFuelLevel(fuelLevel, normalizedTankCapacity) / normalizedTankCapacity) * 100.0))
 end
 
+local function clampPercent(value)
+    return math.max(0.0, math.min(100.0, tonumber(value) or 0.0))
+end
+
+local function getEVChargeCurveConfig()
+    local fullRefuelDurationMs = math.max(1, math.floor(tonumber(Config.FullRefuelDurationMs) or 60000))
+    local fullChargeDurationMs = math.max(fullRefuelDurationMs, math.floor(fullRefuelDurationMs * math.max(1.0, tonumber(Config.FullEVChargeDurationMultiplier) or 3.0)))
+    local minChargeDurationMs = math.max(1, math.floor(tonumber(Config.MinEVChargeDurationMs) or tonumber(Config.MinRefuelDurationMs) or 1500))
+    local thresholdPercent = clampPercent(tonumber(Config.EVChargeFastThresholdPercent) or 80.0)
+    local fastPhaseTimeShare = math.max(0.05, math.min(0.95, tonumber(Config.EVChargeFastPhaseTimeShare) or 0.6))
+
+    thresholdPercent = math.max(1.0, math.min(99.0, thresholdPercent))
+
+    return {
+        fullChargeDurationMs = fullChargeDurationMs,
+        minChargeDurationMs = minChargeDurationMs,
+        thresholdPercent = thresholdPercent,
+        fastPhaseTimeShare = fastPhaseTimeShare
+    }
+end
+
+local function calculateEVChargeSegmentDurationMs(segmentStartPercent, segmentEndPercent, curveConfig)
+    local startPercent = clampPercent(segmentStartPercent)
+    local endPercent = clampPercent(segmentEndPercent)
+    if endPercent <= startPercent then
+        return 0.0
+    end
+
+    local thresholdPercent = curveConfig.thresholdPercent
+    local fullChargeDurationMs = curveConfig.fullChargeDurationMs
+    local fastPhaseTimeShare = curveConfig.fastPhaseTimeShare
+
+    if endPercent <= thresholdPercent then
+        return fullChargeDurationMs
+            * fastPhaseTimeShare
+            * ((endPercent - startPercent) / math.max(1.0, thresholdPercent))
+    end
+
+    return fullChargeDurationMs
+        * (1.0 - fastPhaseTimeShare)
+        * ((endPercent - startPercent) / math.max(1.0, 100.0 - thresholdPercent))
+end
+
+local function createEVChargeProfile(currentFuel, targetFuel, tankCapacity)
+    local startPercent = getFuelPercent(currentFuel, tankCapacity)
+    local targetPercent = getFuelPercent(targetFuel, tankCapacity)
+    local curveConfig = getEVChargeCurveConfig()
+    local thresholdPercent = curveConfig.thresholdPercent
+    local fastEndPercent = math.min(targetPercent, thresholdPercent)
+    local slowStartPercent = math.max(startPercent, thresholdPercent)
+    local rawFastDurationMs = 0.0
+    local rawSlowDurationMs = 0.0
+
+    if startPercent < fastEndPercent then
+        rawFastDurationMs = calculateEVChargeSegmentDurationMs(startPercent, fastEndPercent, curveConfig)
+    end
+
+    if slowStartPercent < targetPercent then
+        rawSlowDurationMs = calculateEVChargeSegmentDurationMs(slowStartPercent, targetPercent, curveConfig)
+    end
+
+    local rawDurationMs = rawFastDurationMs + rawSlowDurationMs
+    local durationMs = math.max(curveConfig.minChargeDurationMs, math.floor(rawDurationMs + 0.5))
+    local scale = rawDurationMs > 0.0 and (durationMs / rawDurationMs) or 1.0
+
+    return {
+        startPercent = startPercent,
+        targetPercent = targetPercent,
+        fastEndPercent = fastEndPercent,
+        durationMs = durationMs,
+        fastDurationMs = rawFastDurationMs * scale,
+        slowDurationMs = rawSlowDurationMs * scale
+    }
+end
+
+local function getEVChargePercentAtElapsed(profile, elapsedMs)
+    if type(profile) ~= 'table' then
+        return 0.0
+    end
+
+    local clampedElapsedMs = math.max(0.0, math.min(tonumber(elapsedMs) or 0.0, tonumber(profile.durationMs) or 0.0))
+    local startPercent = clampPercent(profile.startPercent)
+    local targetPercent = clampPercent(profile.targetPercent)
+    local fastEndPercent = clampPercent(profile.fastEndPercent)
+    local fastDurationMs = math.max(0.0, tonumber(profile.fastDurationMs) or 0.0)
+    local slowDurationMs = math.max(0.0, tonumber(profile.slowDurationMs) or 0.0)
+
+    if clampedElapsedMs <= 0.0 then
+        return startPercent
+    end
+
+    if clampedElapsedMs >= math.max(1.0, tonumber(profile.durationMs) or 0.0) then
+        return targetPercent
+    end
+
+    if fastDurationMs > 0.0 and startPercent < fastEndPercent then
+        if clampedElapsedMs <= fastDurationMs then
+            local phaseProgress = clampedElapsedMs / fastDurationMs
+            return startPercent + ((fastEndPercent - startPercent) * phaseProgress)
+        end
+
+        clampedElapsedMs = clampedElapsedMs - fastDurationMs
+    end
+
+    if slowDurationMs > 0.0 and fastEndPercent < targetPercent then
+        local phaseProgress = math.max(0.0, math.min(1.0, clampedElapsedMs / slowDurationMs))
+        return fastEndPercent + ((targetPercent - fastEndPercent) * phaseProgress)
+    end
+
+    return targetPercent
+end
+
+local function isModelConfiguredElectric(modelHash)
+    if not modelHash or modelHash == 0 then
+        return false
+    end
+
+    for _, configuredModelHash in ipairs(Config.ElectricVehicleModels or {}) do
+        if configuredModelHash == modelHash then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function isVehicleElectric(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    local modelHash = GetEntityModel(vehicle)
+    if modelHash and modelHash ~= 0 and electricVehicleModelCache[modelHash] ~= nil then
+        return electricVehicleModelCache[modelHash] == true
+    end
+
+    local isElectric = false
+    if Config.UseNativeElectricVehicleDetection ~= false and type(GetIsVehicleElectric) == 'function' then
+        local ok, result = pcall(GetIsVehicleElectric, vehicle)
+        if ok and result == true then
+            isElectric = true
+        end
+    end
+
+    if not isElectric then
+        isElectric = isModelConfiguredElectric(modelHash)
+    end
+
+    if modelHash and modelHash ~= 0 then
+        electricVehicleModelCache[modelHash] = isElectric == true
+    end
+
+    return isElectric
+end
+
+local function getServiceModeForVehicle(vehicle)
+    if isVehicleElectric(vehicle) then
+        return 'charge'
+    end
+
+    return 'refuel'
+end
+
+local function getServicePresentParticiple(serviceMode)
+    if serviceMode == 'charge' then
+        return 'Charging'
+    end
+
+    return 'Refueling'
+end
+
+local function getRequiredStationLabel(serviceMode)
+    if serviceMode == 'charge' then
+        return 'EV charging station'
+    end
+
+    return 'pump'
+end
+
+local function getEntityArchetypeNameSafe(entity)
+    if entity == 0 or not DoesEntityExist(entity) or type(GetEntityArchetypeName) ~= 'function' then
+        return nil
+    end
+
+    local ok, archetypeName = pcall(GetEntityArchetypeName, entity)
+    if not ok then
+        return nil
+    end
+
+    return trimString(archetypeName)
+end
+
+local function formatModelHash(modelHash)
+    local numericHash = tonumber(modelHash)
+    if not numericHash then
+        return 'nil'
+    end
+
+    if numericHash < 0 then
+        numericHash = numericHash + 4294967296
+    end
+
+    numericHash = math.floor(numericHash)
+    return ('%u (0x%08X)'):format(numericHash, numericHash)
+end
+
 local function isFuelManagedVehicle(vehicle)
     if vehicle == 0 or not DoesEntityExist(vehicle) then
         return false
@@ -377,16 +607,18 @@ local function getFuelNeeded(vehicle)
     return math.max(0.0, getVehicleTankCapacity(vehicle) - fuelLevel)
 end
 
-local function setRefuelProgressVisible(visible, label, progress, totalCost, liters)
+local function setRefuelProgressVisible(visible, label, progress, totalCost, liters, serviceMode, displayPercent)
     refuelProgressState.visible = visible == true
     refuelProgressState.label = tostring(label or '')
     refuelProgressState.progress = math.max(0.0, math.min(1.0, tonumber(progress) or 0.0))
     refuelProgressState.totalCost = math.max(0, math.floor(tonumber(totalCost) or 0))
     refuelProgressState.liters = math.max(0.0, tonumber(liters) or 0.0)
+    refuelProgressState.serviceMode = serviceMode == 'charge' and 'charge' or 'refuel'
+    refuelProgressState.displayPercent = clampPercent(displayPercent)
 end
 
 local function hideRefuelProgress()
-    setRefuelProgressVisible(false, '', 0.0, 0, 0.0)
+    setRefuelProgressVisible(false, '', 0.0, 0, 0.0, 'refuel', 0.0)
 end
 
 local function drawFuelHudRect(x, y, width, height, red, green, blue, alpha)
@@ -422,10 +654,15 @@ local function drawRefuelProgress()
     local barY = cardY + 0.012
     local progress = math.max(0.0, math.min(1.0, refuelProgressState.progress))
     local fillWidth = barWidth * progress
+    local detailText = ('%d%%  |  %.1fL  |  %s'):format(math.floor((progress * 100.0) + 0.5), refuelProgressState.liters, formatCurrency(refuelProgressState.totalCost))
+
+    if refuelProgressState.serviceMode == 'charge' then
+        detailText = ('%d%%  |  %s'):format(math.floor(refuelProgressState.displayPercent + 0.5), formatCurrency(refuelProgressState.totalCost))
+    end
 
     drawFuelHudRect(cardX, cardY, cardWidth, cardHeight, 9, 16, 24, 205)
     drawFuelHudText(cardX, cardY - 0.018, refuelProgressState.label ~= '' and refuelProgressState.label or 'Refueling vehicle', 0.31, 244, 241, 236, 225, true)
-    drawFuelHudText(cardX, cardY - 0.001, ('%d%%  |  %.1fL  |  %s'):format(math.floor((progress * 100.0) + 0.5), refuelProgressState.liters, formatCurrency(refuelProgressState.totalCost)), 0.24, 214, 221, 228, 215, true)
+    drawFuelHudText(cardX, cardY - 0.001, detailText, 0.24, 214, 221, 228, 215, true)
     drawFuelHudRect(cardX, barY, barWidth, barHeight, 24, 33, 42, 225)
 
     if fillWidth > 0.0005 then
@@ -486,14 +723,20 @@ local function disableRefuelControls()
     DisableControlAction(0, 72, true)
 end
 
-local function ensurePedReadyForRefuel(ped, vehicle)
+local function ensurePedReadyForRefuel(ped, vehicle, serviceMode)
     if ped == 0 or not DoesEntityExist(ped) then
         return false
     end
 
+    serviceMode = serviceMode == 'charge' and 'charge' or 'refuel'
+
     if IsPedInAnyVehicle(ped, false) then
         if vehicle == 0 or not DoesEntityExist(vehicle) or GetVehiclePedIsIn(ped, false) ~= vehicle or GetPedInVehicleSeat(vehicle, -1) ~= ped then
             return false
+        end
+
+        if serviceMode == 'charge' then
+            return true
         end
 
         TaskLeaveVehicle(ped, vehicle, 0)
@@ -512,6 +755,26 @@ local function ensurePedReadyForRefuel(ped, vehicle)
     return true
 end
 
+local function leaveVehicleForCharging(ped, vehicle)
+    if ped == 0 or not DoesEntityExist(ped) or vehicle == 0 or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    if not IsPedInAnyVehicle(ped, false) or GetVehiclePedIsIn(ped, false) ~= vehicle then
+        return true
+    end
+
+    TaskLeaveVehicle(ped, vehicle, 0)
+
+    local timeoutAt = GetGameTimer() + 4000
+    while IsPedInAnyVehicle(ped, false) and GetGameTimer() < timeoutAt do
+        DisableControlAction(0, 75, true)
+        Wait(0)
+    end
+
+    return not IsPedInAnyVehicle(ped, false)
+end
+
 local function quoteRefuelCost(units)
     local normalizedUnits = tonumber(units)
     if not normalizedUnits or normalizedUnits <= 0 then
@@ -521,44 +784,191 @@ local function quoteRefuelCost(units)
     return math.max(1, math.ceil(normalizedUnits * (tonumber(Config.RefuelCostPerUnit) or 1)))
 end
 
-local function getNearestFuelPumpInteraction(playerCoords)
-    local nearestPump = nil
-    local scanRadius = tonumber(Config.PumpScanRadius or Config.PumpSearchRadius) or 5.0
-    local interactDistance = tonumber(Config.PumpInteractDistance or Config.PumpSearchRadius) or 1.8
+local function getNearestWorldObjectInteraction(playerCoords, modelHashes, scanRadius, interactDistance)
+    local nearestObject = nil
     local nearestDistance = interactDistance + 0.001
 
-    for _, modelHash in ipairs(Config.PumpModels or {}) do
-        local pump = GetClosestObjectOfType(playerCoords.x, playerCoords.y, playerCoords.z, scanRadius, modelHash, false, false, false)
-        if pump ~= 0 and DoesEntityExist(pump) then
-            local pumpCoords = GetEntityCoords(pump)
-            local distance = #(playerCoords - pumpCoords)
+    for _, modelHash in ipairs(modelHashes or {}) do
+        local worldObject = GetClosestObjectOfType(playerCoords.x, playerCoords.y, playerCoords.z, scanRadius, modelHash, false, false, false)
+        if worldObject ~= 0 and DoesEntityExist(worldObject) then
+            local objectCoords = GetEntityCoords(worldObject)
+            local distance = #(playerCoords - objectCoords)
 
             if distance <= interactDistance and distance < nearestDistance then
                 nearestDistance = distance
-                nearestPump = {
-                    entity = pump,
-                    coords = pumpCoords,
+                nearestObject = {
+                    entity = worldObject,
+                    coords = objectCoords,
                     distance = distance
                 }
             end
         end
     end
 
-    return nearestPump
+    return nearestObject
 end
 
-local function getClosestFuelVehicle(originCoords, maxDistance)
+local function getNearestConfiguredStationInteraction(playerCoords, stations, interactDistance)
+    local nearestStation = nil
+    local nearestDistance = (tonumber(interactDistance) or 0.0) + 0.001
+
+    for _, station in ipairs(stations or {}) do
+        local stationCoords = nil
+        local stationLabel = nil
+
+        if type(station) == 'vector3' then
+            stationCoords = station
+        elseif type(station) == 'table' then
+            stationCoords = station.coords
+            stationLabel = trimString(station.label)
+        end
+
+        if stationCoords then
+            local distance = #(playerCoords - stationCoords)
+            if distance <= interactDistance and distance < nearestDistance then
+                nearestDistance = distance
+                nearestStation = {
+                    entity = 0,
+                    coords = stationCoords,
+                    distance = distance,
+                    label = stationLabel
+                }
+            end
+        end
+    end
+
+    return nearestStation
+end
+
+local function getCloserInteraction(primaryInteraction, secondaryInteraction)
+    if primaryInteraction and secondaryInteraction then
+        if (tonumber(secondaryInteraction.distance) or 999999.0) < (tonumber(primaryInteraction.distance) or 999999.0) then
+            return secondaryInteraction
+        end
+
+        return primaryInteraction
+    end
+
+    return primaryInteraction or secondaryInteraction
+end
+
+local function getNearestFuelPumpInteraction(playerCoords)
+    return getNearestWorldObjectInteraction(
+        playerCoords,
+        Config.PumpModels,
+        tonumber(Config.PumpScanRadius or Config.PumpSearchRadius) or 5.0,
+        tonumber(Config.PumpInteractDistance or Config.PumpSearchRadius) or 1.8
+    )
+end
+
+local function getEVChargerVehicleDistance(interaction)
+    if interaction and tonumber(interaction.vehicleDistanceOverride) then
+        return tonumber(interaction.vehicleDistanceOverride) or 0.0
+    end
+
+    return tonumber(Config.EVChargerVehicleDistance) or tonumber(Config.PumpVehicleDistance) or tonumber(Config.VehicleSearchRadius) or 4.0
+end
+
+local function getNearestEVChargerInteraction(playerCoords)
+    local configuredLocationInteraction = getNearestConfiguredStationInteraction(
+        playerCoords,
+        Config.EVChargerLocations,
+        tonumber(Config.EVChargerLocationInteractDistance or Config.PumpInteractDistance or Config.EVChargerInteractDistance) or 2.75
+    )
+
+    if configuredLocationInteraction then
+        configuredLocationInteraction.vehicleDistanceOverride = tonumber(Config.EVChargerLocationVehicleDistance or Config.PumpVehicleDistance or Config.EVChargerVehicleDistance) or 6.0
+        return configuredLocationInteraction
+    end
+
+    return nil
+end
+
+local function collectNearbyObjectDebug(radius)
+    local playerPed = PlayerPedId()
+    if playerPed == 0 or not DoesEntityExist(playerPed) then
+        return {}
+    end
+
+    local playerCoords = GetEntityCoords(playerPed)
+    local maxDistance = tonumber(radius) or 10.0
+    local nearbyObjects = {}
+
+    for _, worldObject in ipairs(GetGamePool('CObject')) do
+        if worldObject ~= 0 and DoesEntityExist(worldObject) then
+            local objectCoords = GetEntityCoords(worldObject)
+            local distance = #(playerCoords - objectCoords)
+
+            if distance <= maxDistance then
+                nearbyObjects[#nearbyObjects + 1] = {
+                    entity = worldObject,
+                    distance = distance,
+                    modelHash = GetEntityModel(worldObject),
+                    archetypeName = getEntityArchetypeNameSafe(worldObject),
+                    coords = objectCoords
+                }
+            end
+        end
+    end
+
+    table.sort(nearbyObjects, function(left, right)
+        return (left.distance or 999999.0) < (right.distance or 999999.0)
+    end)
+
+    return nearbyObjects
+end
+
+local function getLookTargetDebug(maxDistance)
+    local playerPed = PlayerPedId()
+    if playerPed == 0 or not DoesEntityExist(playerPed) then
+        return nil
+    end
+
+    local cameraCoords = GetGameplayCamCoord()
+    local direction = rotationToDirection(GetGameplayCamRot(2))
+    local distance = tonumber(maxDistance) or 20.0
+    local destination = cameraCoords + (direction * distance)
+    local rayHandle = StartShapeTestLosProbe(
+        cameraCoords.x,
+        cameraCoords.y,
+        cameraCoords.z,
+        destination.x,
+        destination.y,
+        destination.z,
+        16,
+        playerPed,
+        7
+    )
+
+    local _, hit, endCoords, _, entityHit = GetShapeTestResult(rayHandle)
+    if hit ~= 1 or entityHit == 0 or not DoesEntityExist(entityHit) then
+        return nil
+    end
+
+    return {
+        entity = entityHit,
+        entityType = GetEntityType(entityHit),
+        modelHash = GetEntityModel(entityHit),
+        archetypeName = getEntityArchetypeNameSafe(entityHit),
+        coords = GetEntityCoords(entityHit),
+        hitCoords = endCoords
+    }
+end
+
+local function getClosestFuelVehicle(originCoords, maxDistance, expectElectric)
     local closestVehicle = 0
     local closestDistance = (tonumber(maxDistance) or tonumber(Config.VehicleSearchRadius) or 4.0) + 0.001
 
     for _, vehicle in ipairs(GetGamePool('CVehicle')) do
         if DoesEntityExist(vehicle) and isFuelManagedVehicle(vehicle) then
-            local vehicleCoords = GetEntityCoords(vehicle)
-            local distance = #(originCoords - vehicleCoords)
+            if expectElectric == nil or isVehicleElectric(vehicle) == expectElectric then
+                local vehicleCoords = GetEntityCoords(vehicle)
+                local distance = #(originCoords - vehicleCoords)
 
-            if distance <= closestDistance then
-                closestDistance = distance
-                closestVehicle = vehicle
+                if distance <= closestDistance then
+                    closestDistance = distance
+                    closestVehicle = vehicle
+                end
             end
         end
     end
@@ -566,19 +976,21 @@ local function getClosestFuelVehicle(originCoords, maxDistance)
     return closestVehicle, closestDistance
 end
 
-local function beginRefuel(vehicle, purchasedFuelUnits, totalCost)
+local function beginRefuel(vehicle, purchasedFuelUnits, totalCost, serviceMode)
     if refuelInProgress then
         return
     end
 
+    serviceMode = serviceMode == 'charge' and 'charge' or 'refuel'
+
     if vehicle == 0 or not DoesEntityExist(vehicle) then
-        notify('Refuel failed: vehicle is no longer available.')
+        notify(('%s failed: vehicle is no longer available.'):format(getServicePresentParticiple(serviceMode)))
         return
     end
 
     local currentFuel = getVehicleFuelLevelSafe(vehicle)
     if currentFuel == nil then
-        notify('Refuel failed: vehicle fuel data is unavailable.')
+        notify(('%s failed: vehicle fuel data is unavailable.'):format(getServicePresentParticiple(serviceMode)))
         return
     end
 
@@ -591,10 +1003,17 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost)
     end
 
     local fillFraction = litersAdded / math.max(0.1, tankCapacity)
+    local evChargeProfile = nil
     local durationMs = math.max(
         math.floor(tonumber(Config.MinRefuelDurationMs) or 1500),
         math.floor((tonumber(Config.FullRefuelDurationMs) or 60000) * fillFraction)
     )
+
+    if serviceMode == 'charge' then
+        evChargeProfile = createEVChargeProfile(currentFuel, targetFuel, tankCapacity)
+        durationMs = math.max(1, math.floor(evChargeProfile.durationMs or durationMs))
+    end
+
     local vehicleName = getVehicleDisplayName(vehicle)
 
     refuelInProgress = true
@@ -602,20 +1021,34 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost)
 
     CreateThread(function()
         local ped = PlayerPedId()
-        if not ensurePedReadyForRefuel(ped, vehicle) then
+        if not ensurePedReadyForRefuel(ped, vehicle, serviceMode) then
             refuelInProgress = false
-            notify('Exit the vehicle to start refueling.')
+            if serviceMode == 'charge' then
+                notify('Sit in the driver seat or stand next to the vehicle to start charging.')
+            else
+                notify('Exit the vehicle to start refueling.')
+            end
             return
         end
 
         if not DoesEntityExist(vehicle) then
             refuelInProgress = false
-            notify('Refuel failed: vehicle is no longer available.')
+            notify(('%s failed: vehicle is no longer available.'):format(getServicePresentParticiple(serviceMode)))
             return
         end
 
         SetVehicleEngineOn(vehicle, false, true, true)
-        startRefuelAnimation(ped, vehicle)
+        if serviceMode ~= 'charge' then
+            startRefuelAnimation(ped, vehicle)
+        else
+            ClearPedTasks(ped)
+
+            if GetPedInVehicleSeat(vehicle, -1) == ped and not leaveVehicleForCharging(ped, vehicle) then
+                refuelInProgress = false
+                notify('Exit the vehicle to keep charging.')
+                return
+            end
+        end
 
         local endAt = GetGameTimer() + durationMs
 
@@ -624,42 +1057,58 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost)
                 break
             end
 
-            disableRefuelControls()
+            if serviceMode ~= 'charge' then
+                disableRefuelControls()
+            end
 
-            if not IsEntityPlayingAnim(ped, trimString(Config and Config.RefuelAnimationDict) or '', trimString(Config and Config.RefuelAnimationName) or '', 3)
+            if serviceMode ~= 'charge'
+                and not IsEntityPlayingAnim(ped, trimString(Config and Config.RefuelAnimationDict) or '', trimString(Config and Config.RefuelAnimationName) or '', 3)
                 and not IsPedActiveInScenario(ped)
             then
                 startRefuelAnimation(ped, vehicle)
             end
 
             local remainingMs = math.max(0, endAt - GetGameTimer())
+            local elapsedMs = math.max(0, durationMs - remainingMs)
             local progress = 1.0 - (remainingMs / math.max(1, durationMs))
             local currentRefuelFuel = currentFuel + (litersAdded * progress)
+            local displayProgress = progress
+            local displayPercent = progress * 100.0
+
+            if serviceMode == 'charge' and evChargeProfile then
+                displayPercent = getEVChargePercentAtElapsed(evChargeProfile, elapsedMs)
+                displayProgress = displayPercent / 100.0
+                currentRefuelFuel = tankCapacity * (displayPercent / 100.0)
+            end
 
             setVehicleFuelLevelSafe(vehicle, currentRefuelFuel, true)
-            setRefuelProgressVisible(true, ('Refueling %s'):format(vehicleName), progress, totalCost, litersAdded)
-            showHelpPrompt(('Refueling %s...'):format(vehicleName))
+            setRefuelProgressVisible(true, ('%s %s'):format(getServicePresentParticiple(serviceMode), vehicleName), displayProgress, totalCost, litersAdded, serviceMode, displayPercent)
+            showHelpPrompt(('%s %s...'):format(getServicePresentParticiple(serviceMode), vehicleName))
             Wait(0)
         end
 
-        stopRefuelAnimation(ped)
+        if serviceMode ~= 'charge' then
+            stopRefuelAnimation(ped)
+        end
         hideRefuelProgress()
 
         if DoesEntityExist(vehicle) then
             setVehicleFuelLevelSafe(vehicle, targetFuel, true)
-            notify(('Refueled %s for %s.'):format(vehicleName, formatCurrency(totalCost)))
+            notify(('%s %s for %s.'):format(serviceMode == 'charge' and 'Charged' or 'Refueled', vehicleName, formatCurrency(totalCost)))
         else
-            notify('Refuel completed, but the vehicle is no longer nearby.')
+            notify(('%s completed, but the vehicle is no longer nearby.'):format(getServicePresentParticiple(serviceMode)))
         end
 
         refuelInProgress = false
     end)
 end
 
-local function requestRefuel(vehicle)
+local function requestRefuel(vehicle, serviceMode)
     if refuelInProgress or vehicle == 0 or not DoesEntityExist(vehicle) then
         return
     end
+
+    serviceMode = serviceMode == 'charge' and 'charge' or 'refuel'
 
     local fuelNeeded = getFuelNeeded(vehicle)
     if fuelNeeded <= (tonumber(Config.EmptyFuelThreshold) or 0.1) then
@@ -677,7 +1126,7 @@ local function requestRefuel(vehicle)
             return
         end
 
-        beginRefuel(vehicle, response.data.units, response.data.cost)
+        beginRefuel(vehicle, response.data.units, response.data.cost, serviceMode)
     end)
 end
 
@@ -783,57 +1232,132 @@ CreateThread(function()
             local ped = PlayerPedId()
             if ped ~= 0 and DoesEntityExist(ped) then
                 local playerCoords = GetEntityCoords(ped)
+                local seatedVehicle = 0
                 local pumpInteraction = getNearestFuelPumpInteraction(playerCoords)
+                local evChargerInteraction = getNearestEVChargerInteraction(playerCoords)
 
-                if pumpInteraction then
+                if IsPedInAnyVehicle(ped, false) then
+                    seatedVehicle = GetVehiclePedIsIn(ped, false)
+                end
+
+                if seatedVehicle ~= 0 and DoesEntityExist(seatedVehicle) and GetPedInVehicleSeat(seatedVehicle, -1) == ped then
+                    local vehicleCoords = GetEntityCoords(seatedVehicle)
+                    pumpInteraction = getCloserInteraction(pumpInteraction, getNearestFuelPumpInteraction(vehicleCoords))
+                    evChargerInteraction = getCloserInteraction(evChargerInteraction, getNearestEVChargerInteraction(vehicleCoords))
+                end
+
+                if pumpInteraction or evChargerInteraction then
                     waitMs = 0
 
                     local vehicle = 0
-                    local seatedVehicle = 0
-
-                    if IsPedInAnyVehicle(ped, false) then
-                        seatedVehicle = GetVehiclePedIsIn(ped, false)
-                    end
+                    local serviceMode = nil
+                    local interaction = nil
 
                     if seatedVehicle ~= 0
                         and DoesEntityExist(seatedVehicle)
                         and isFuelManagedVehicle(seatedVehicle)
                         and GetPedInVehicleSeat(seatedVehicle, -1) == ped
                     then
-                        local seatedVehicleCoords = GetEntityCoords(seatedVehicle)
-                        local seatedDistance = #(seatedVehicleCoords - pumpInteraction.coords)
-                        if seatedDistance <= (tonumber(Config.PumpVehicleDistance) or tonumber(Config.VehicleSearchRadius) or 4.0) then
-                            vehicle = seatedVehicle
+                        serviceMode = getServiceModeForVehicle(seatedVehicle)
+                        interaction = serviceMode == 'charge' and evChargerInteraction or pumpInteraction
+
+                        if interaction then
+                            local seatedVehicleCoords = GetEntityCoords(seatedVehicle)
+                            local seatedDistance = #(seatedVehicleCoords - interaction.coords)
+                            local maxVehicleDistance = serviceMode == 'charge'
+                                and getEVChargerVehicleDistance(interaction)
+                                or (tonumber(Config.PumpVehicleDistance) or tonumber(Config.VehicleSearchRadius) or 4.0)
+
+                            if seatedDistance <= maxVehicleDistance then
+                                vehicle = seatedVehicle
+                            end
+                        elseif serviceMode == 'charge' and pumpInteraction then
+                            showHelpPrompt(('The %s must be charged at an EV charging station.'):format(getVehicleDisplayName(seatedVehicle)))
+                        elseif serviceMode == 'refuel' and evChargerInteraction then
+                            showHelpPrompt(('The %s cannot use EV charging stations.'):format(getVehicleDisplayName(seatedVehicle)))
                         end
                     end
 
                     if vehicle == 0 then
-                        vehicle = getClosestFuelVehicle(
-                            pumpInteraction.coords,
-                            tonumber(Config.PumpVehicleDistance) or tonumber(Config.VehicleSearchRadius) or 4.0
-                        )
+                        local bestCandidate = nil
+
+                        if pumpInteraction then
+                            local pumpVehicle = getClosestFuelVehicle(
+                                pumpInteraction.coords,
+                                tonumber(Config.PumpVehicleDistance) or tonumber(Config.VehicleSearchRadius) or 4.0,
+                                false
+                            )
+
+                            if pumpVehicle ~= 0 then
+                                bestCandidate = {
+                                    interaction = pumpInteraction,
+                                    vehicle = pumpVehicle,
+                                    distance = pumpInteraction.distance,
+                                    serviceMode = 'refuel'
+                                }
+                            end
+                        end
+
+                        if evChargerInteraction then
+                            local chargerVehicle = getClosestFuelVehicle(
+                                evChargerInteraction.coords,
+                                getEVChargerVehicleDistance(evChargerInteraction),
+                                true
+                            )
+
+                            if chargerVehicle ~= 0 and (bestCandidate == nil or evChargerInteraction.distance < bestCandidate.distance) then
+                                bestCandidate = {
+                                    interaction = evChargerInteraction,
+                                    vehicle = chargerVehicle,
+                                    distance = evChargerInteraction.distance,
+                                    serviceMode = 'charge'
+                                }
+                            end
+                        end
+
+                        if bestCandidate then
+                            interaction = bestCandidate.interaction
+                            vehicle = bestCandidate.vehicle
+                            serviceMode = bestCandidate.serviceMode
+                        end
+                    end
+
+                    if vehicle ~= 0 and serviceMode == nil then
+                        serviceMode = getServiceModeForVehicle(vehicle)
+                    end
+
+                    if vehicle ~= 0 and interaction == nil then
+                        interaction = serviceMode == 'charge' and evChargerInteraction or pumpInteraction
                     end
 
                     if vehicle == 0 or not DoesEntityExist(vehicle) then
-                        showHelpPrompt('Bring a vehicle next to the pump to refuel.')
+                        if evChargerInteraction and not pumpInteraction then
+                            showHelpPrompt('Bring an electric vehicle next to the charger to charge.')
+                        else
+                            showHelpPrompt('Bring a vehicle next to the pump to refuel.')
+                        end
                     else
                         local vehicleName = getVehicleDisplayName(vehicle)
                         local driver = GetPedInVehicleSeat(vehicle, -1)
                         local fuelNeeded = getFuelNeeded(vehicle)
                         local playerIsDriver = driver == ped
+                        local stationLabel = getRequiredStationLabel(serviceMode)
+                        local actionLabel = serviceMode == 'charge' and 'charge' or 'refuel'
 
                         if fuelNeeded <= (tonumber(Config.EmptyFuelThreshold) or 0.1) then
                             showHelpPrompt(('The %s tank is already full.'):format(vehicleName))
                         elseif driver ~= 0 and not playerIsDriver then
-                            showHelpPrompt(('The %s must be unoccupied to refuel.'):format(vehicleName))
+                            showHelpPrompt(('The %s must be unoccupied to %s.'):format(vehicleName, actionLabel))
                         elseif GetIsVehicleEngineRunning(vehicle) then
-                            showHelpPrompt(('Turn the %s engine off before refueling.'):format(vehicleName))
+                            showHelpPrompt(('Turn the %s engine off before %s.'):format(vehicleName, serviceMode == 'charge' and 'charging' or 'refueling'))
+                        elseif interaction == nil then
+                            showHelpPrompt(('Move the %s next to an %s to %s.'):format(vehicleName, stationLabel, actionLabel))
                         else
                             local totalCost = quoteRefuelCost(fuelNeeded)
-                            showHelpPrompt(('Press ~INPUT_CONTEXT~ to refuel %s for %s.'):format(vehicleName, formatCurrency(totalCost or 0)))
+                            showHelpPrompt(('Press ~INPUT_CONTEXT~ to %s %s for %s.'):format(actionLabel, vehicleName, formatCurrency(totalCost or 0)))
 
                             if IsControlJustPressed(0, tonumber(Config.RefuelControl) or 38) then
-                                requestRefuel(vehicle)
+                                requestRefuel(vehicle, serviceMode)
                             end
                         end
                     end
@@ -865,6 +1389,7 @@ AddEventHandler('onResourceStop', function(resourceName)
     stopRefuelAnimation(PlayerPedId())
     refuelInProgress = false
     modelTankCapacityCache = {}
+    electricVehicleModelCache = {}
     refuelProgressState = {
         visible = false,
         label = '',
@@ -873,6 +1398,97 @@ AddEventHandler('onResourceStop', function(resourceName)
         liters = 0.0
     }
 end)
+
+RegisterCommand('fueldebugcharger', function()
+    local lines = {}
+    local playerPed = PlayerPedId()
+    if playerPed == 0 or not DoesEntityExist(playerPed) then
+        notify('Player ped is unavailable for charger debug.')
+        return
+    end
+
+    local playerCoords = GetEntityCoords(playerPed)
+    local lookedAtTarget = getLookTargetDebug(30.0)
+    local configuredMatch = getNearestEVChargerInteraction(playerCoords)
+    local nearbyObjects = collectNearbyObjectDebug(20.0)
+
+    lines[#lines + 1] = ('Configured charger match: %s'):format(configuredMatch and 'yes' or 'no')
+    if configuredMatch then
+        lines[#lines + 1] = ('configured dist=%.2f hash=%s archetype=%s coords=(%.2f, %.2f, %.2f)'):format(
+            tonumber(configuredMatch.distance) or 0.0,
+            formatModelHash(configuredMatch.modelHash),
+            tostring(configuredMatch.archetypeName or 'unknown'),
+            tonumber(configuredMatch.coords and configuredMatch.coords.x) or 0.0,
+            tonumber(configuredMatch.coords and configuredMatch.coords.y) or 0.0,
+            tonumber(configuredMatch.coords and configuredMatch.coords.z) or 0.0
+        )
+    end
+
+    if lookedAtTarget then
+        lines[#lines + 1] = ('look type=%s hash=%s archetype=%s coords=(%.2f, %.2f, %.2f) hit=(%.2f, %.2f, %.2f)'):format(
+            tostring(lookedAtTarget.entityType or 'nil'),
+            formatModelHash(lookedAtTarget.modelHash),
+            tostring(lookedAtTarget.archetypeName or 'unknown'),
+            tonumber(lookedAtTarget.coords and lookedAtTarget.coords.x) or 0.0,
+            tonumber(lookedAtTarget.coords and lookedAtTarget.coords.y) or 0.0,
+            tonumber(lookedAtTarget.coords and lookedAtTarget.coords.z) or 0.0,
+            tonumber(lookedAtTarget.hitCoords and lookedAtTarget.hitCoords.x) or 0.0,
+            tonumber(lookedAtTarget.hitCoords and lookedAtTarget.hitCoords.y) or 0.0,
+            tonumber(lookedAtTarget.hitCoords and lookedAtTarget.hitCoords.z) or 0.0
+        )
+    else
+        lines[#lines + 1] = 'look target: none'
+    end
+
+    if #nearbyObjects == 0 then
+        lines[#lines + 1] = 'No nearby objects found within 20.0 units.'
+    else
+        local maxResults = math.min(15, #nearbyObjects)
+
+        for index = 1, maxResults do
+            local entry = nearbyObjects[index]
+            lines[#lines + 1] = ('[%d] dist=%.2f hash=%s archetype=%s coords=(%.2f, %.2f, %.2f)%s'):format(
+                index,
+                tonumber(entry.distance) or 0.0,
+                formatModelHash(entry.modelHash),
+                tostring(entry.archetypeName or 'unknown'),
+                tonumber(entry.coords and entry.coords.x) or 0.0,
+                tonumber(entry.coords and entry.coords.y) or 0.0,
+                tonumber(entry.coords and entry.coords.z) or 0.0,
+                ''
+            )
+        end
+    end
+
+    print('[lsrp_fuel] Nearby charger debug objects:\n' .. table.concat(lines, '\n'))
+    if lookedAtTarget then
+        notify(('Charger debug logged. Look target archetype: %s'):format(tostring(lookedAtTarget.archetypeName or formatModelHash(lookedAtTarget.modelHash))))
+    else
+        notify('Charger debug logged to F8/console with look target and nearby object details.')
+    end
+end, false)
+
+RegisterCommand('fueldebuglook', function()
+    local target = getLookTargetDebug(25.0)
+    if not target then
+        notify('No entity detected in front of the camera.')
+        return
+    end
+
+    print(('[lsrp_fuel] Look target debug: type=%s hash=%s archetype=%s coords=(%.2f, %.2f, %.2f) hit=(%.2f, %.2f, %.2f)')
+        :format(
+            tostring(target.entityType or 'nil'),
+            tostring(target.modelHash or 'nil'),
+            tostring(target.archetypeName or 'unknown'),
+            tonumber(target.coords and target.coords.x) or 0.0,
+            tonumber(target.coords and target.coords.y) or 0.0,
+            tonumber(target.coords and target.coords.z) or 0.0,
+            tonumber(target.hitCoords and target.hitCoords.x) or 0.0,
+            tonumber(target.hitCoords and target.hitCoords.y) or 0.0,
+            tonumber(target.hitCoords and target.hitCoords.z) or 0.0
+        ))
+    notify('Logged looked-at entity to F8/console for charger debug.')
+end, false)
 
 exports('getFuel', function(vehicle)
     return getVehicleFuelLevelSafe(vehicle)

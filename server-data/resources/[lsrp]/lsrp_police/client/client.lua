@@ -616,20 +616,33 @@ local function spawnPatrolVehicle(station)
 	notify('Patrol cruiser ready. Stay on duty while operating department vehicles.')
 end
 
-local function returnPatrolVehicle()
-	if not assignedPatrolVehicle or not DoesEntityExist(assignedPatrolVehicle) then
-		notify('No department patrol vehicle is currently assigned to you.')
+local function returnPatrolVehicle(station)
+	local zoneName = trimString(station and station.fleetParkingZone)
+	if not zoneName then
+		notify('Police fleet parking is not configured.')
 		return
 	end
 
-	local playerPed = PlayerPedId()
-	if GetVehiclePedIsIn(playerPed, false) ~= assignedPatrolVehicle then
-		notify('Sit in your patrol vehicle before returning it.')
+	TriggerEvent('lsrp_policevehicleparking:client:openParkingForZone', {
+		zoneName = zoneName
+	})
+end
+
+local function openFleetGarage(station)
+	local zoneName = trimString(station and station.fleetParkingZone)
+	if not zoneName then
+		notify('Police fleet parking is not configured.')
 		return
 	end
 
-	ensurePatrolVehicleDeleted()
-	notify('Patrol vehicle returned to the garage.')
+	if GetResourceState('lsrp_policevehicleparking') ~= 'started' then
+		notify('Police fleet parking is unavailable right now.')
+		return
+	end
+
+	TriggerEvent('lsrp_policevehicleparking:client:openParkingForZone', {
+		zoneName = zoneName
+	})
 end
 
 local function openPoliceDressingRoom(station)
@@ -747,11 +760,7 @@ CreateThread(function()
 					if isPoliceOnDuty() then
 						showHelpPrompt('Press ~INPUT_CONTEXT~ to clock out of police duty')
 						if isInteractionJustPressed() then
-							if assignedPatrolVehicle and DoesEntityExist(assignedPatrolVehicle) then
-								notify('Return your patrol vehicle before clocking out.')
-							else
 								TriggerServerEvent('lsrp_police:server:toggleDuty', false)
-							end
 							Wait(300)
 						end
 					else
@@ -788,9 +797,9 @@ CreateThread(function()
 
 				if isPoliceOnDuty() and spawnDistance <= interactionDistance then
 					interactionHandled = true
-					showHelpPrompt('Press ~INPUT_CONTEXT~ to collect a patrol cruiser')
+					showHelpPrompt('Press ~INPUT_CONTEXT~ to open the police fleet garage')
 					if isInteractionJustPressed() then
-						spawnPatrolVehicle(station)
+						openFleetGarage(station)
 						Wait(300)
 					end
 				elseif isPoliceEmployee() and spawnDistance <= interactionDistance then
@@ -803,9 +812,9 @@ CreateThread(function()
 
 				if returnDistance <= interactionDistance then
 					interactionHandled = true
-					showHelpPrompt('Press ~INPUT_CONTEXT~ to return your patrol vehicle')
+					showHelpPrompt('Press ~INPUT_CONTEXT~ to open police fleet parking')
 					if isInteractionJustPressed() then
-						returnPatrolVehicle()
+						returnPatrolVehicle(station)
 						Wait(300)
 					end
 				end

@@ -90,6 +90,7 @@ Config.Stations = {
 			coords = vector3(454.29, -1017.42, 28.42),
 			heading = 90.0
 		},
-		vehicleReturn = vector3(462.33, -1019.36, 28.1)
+		vehicleReturn = vector3(462.33, -1019.36, 28.1),
+		fleetParkingZone = 'Mission Row Police Garage'
 	}
 }

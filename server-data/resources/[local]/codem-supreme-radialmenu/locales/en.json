@@ -1,0 +1,132 @@
+{
+    "settings": {
+        "title": "SERVER NAME",
+        "subtitle": "Settings",
+        "categories": {
+            "general": "General",
+            "customization": "Customization"
+        },
+        "theme": {
+            "title": "Theme",
+            "light": "Light",
+            "dark": "Dark",
+            "dynamic": "Dynamic",
+            "description": "Choose your preferred theme for the radial menu"
+        },
+        "backgroundBlur": {
+            "title": "Background Blur",
+            "on": "On",
+            "off": "Off",
+            "description": "Enable or disable background blur effect"
+        },
+        "soundEffect": {
+            "title": "Sound Effect",
+            "on": "On",
+            "off": "Off",
+            "description": "Enable or disable sound effects"
+        },
+        "radialBehaviour": {
+            "title": "Radial Behaviour",
+            "hold": "Hold",
+            "press": "Press",
+            "description": "Choose how to interact with the radial menu"
+        },
+        "coloredMenu": {
+            "title": "Colored Menu",
+            "on": "On",
+            "off": "Off",
+            "description": "Enable or disable colored menu items"
+        },
+        "scale": {
+            "title": "Menu Size",
+            "description": "Adjust the size of the radial menu"
+        },
+        "revertToDefault": "Revert To Default"
+    },
+    "customization": {
+        "addNewCommand": "Add new command",
+        "livePreview": "Live Preview",
+        "modal": {
+            "addTitle": "Add New Command",
+            "editTitle": "Edit Command",
+            "name": "Name",
+            "namePlaceholder": "Name your option",
+            "command": "Command",
+            "commandPlaceholder": "Type the command",
+            "addButton": "Add Option",
+            "saveButton": "Save",
+            "cancelButton": "Cancel",
+            "clickToChangeIcon": "Click to change icon"
+        },
+        "iconPicker": {
+            "title": "Select Icon",
+            "searchPlaceholder": "Search icons...",
+            "noResults": "No icons found"
+        },
+        "deleteModal": {
+            "title": "Are you sure to delete this option?",
+            "cancelButton": "Cancel",
+            "deleteButton": "Delete"
+        },
+        "revertModal": {
+            "title": "Are you sure to revert options to default?",
+            "cancelButton": "Cancel",
+            "revertButton": "Revert"
+        }
+    },
+    "menu": {
+        "citizen": "Citizen",
+        "general": "General",
+        "commands": "Command",
+        "vehicle": "Vehicle",
+        "doors": "Doors",
+        "seats": "Seats",
+        "extras": "Extras",
+        "flipVehicle": "Flip Vehicle",
+        "next": "Next",
+        "back": "Back",
+        "settings": "Settings",
+        "phone": "Phone",
+        "job": "Job",
+        "inventory": "Inventory",
+        "wallet": "Wallet",
+        "emotes": "Emotes",
+        "clothes": "Clothes"
+    },
+    "notifications": {
+        "commandAdded": "Command added successfully",
+        "commandDeleted": "Command deleted successfully",
+        "settingsSaved": "Settings saved successfully"
+    },
+    "details": {
+        "empty": "Select an option to see details.",
+        "maxOptions": "Supports a maximum of 8 options.",
+        "theme": {
+            "title": "Theme",
+            "description": "Adjusts the theme of the radial menu."
+        },
+        "backgroundBlur": {
+            "title": "Background Blur",
+            "description": "Adjusts the background blur of the radial menu."
+        },
+        "soundEffect": {
+            "title": "Sound Effect",
+            "description": "Plays a sound when navigating the menu."
+        },
+        "coloredMenu": {
+            "title": "Colored Menu",
+            "description": "Adjust menu colors to your liking.",
+            "selectColor": "Select Color",
+            "presetColors": "Preset Colors"
+        },
+        "radialBehaviour": {
+            "title": "Radial Behaviour",
+            "holdDescription": "If set to Hold, press and hold the hotkey to open the menu.",
+            "pressDescription": "If set to Press, tap the hotkey to open it, and press ESC to close."
+        },
+        "scale": {
+            "title": "Menu Size",
+            "description": "Adjust the size of the radial menu."
+        }
+    }
+}

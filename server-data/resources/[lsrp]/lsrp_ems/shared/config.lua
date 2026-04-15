@@ -25,6 +25,11 @@ Config.Markers = {
 	checkIn = {
 		coords = vector3(308.17, -595.20, 43.26),
 		label = 'Patient Check-In'
+	},
+	garage = {
+		coords = vector3(294.36, -611.32, 43.35),
+		label = 'Ambulance Garage',
+		parkingZone = 'Pillbox Ambulance Garage'
 	}
 }
 

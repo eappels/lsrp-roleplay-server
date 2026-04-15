@@ -4,6 +4,7 @@ Config.Debug = false
 Config.Command = 'mdt'
 Config.CloseCommand = 'mdt_close'
 Config.PreviewCommand = 'mdt_preview'
+Config.AdminAce = 'lsrp.mdt.admin'
 
 Config.AccessJobs = {
 	police_officer = {
@@ -19,7 +20,7 @@ Config.AccessJobs = {
 Config.DefaultNotices = {
 	'Current pass includes online person lookup, exact plate lookup, and an on-duty unit roster.',
 	'BOLOs and incident reports are still placeholders until persistence is added.',
-	'Current access is limited to configured duty jobs.'
+	'Configured duty jobs and authorized admins can access the live MDT.'
 }
 
 Config.Shortcuts = {

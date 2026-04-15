@@ -1,0 +1,132 @@
+{
+    "settings": {
+        "title": "SUNUCU ADI",
+        "subtitle": "Ayarlar",
+        "categories": {
+            "general": "Genel",
+            "customization": "Özelleştirme"
+        },
+        "theme": {
+            "title": "Tema",
+            "light": "Açık",
+            "dark": "Koyu",
+            "dynamic": "Dinamik",
+            "description": "Radial menü için tercih ettiğiniz temayı seçin"
+        },
+        "backgroundBlur": {
+            "title": "Arka Plan Bulanıklığı",
+            "on": "Açık",
+            "off": "Kapalı",
+            "description": "Arka plan bulanıklık efektini etkinleştirin veya devre dışı bırakın"
+        },
+        "soundEffect": {
+            "title": "Ses Efekti",
+            "on": "Açık",
+            "off": "Kapalı",
+            "description": "Ses efektlerini etkinleştirin veya devre dışı bırakın"
+        },
+        "radialBehaviour": {
+            "title": "Radial Davranışı",
+            "hold": "Basılı Tut",
+            "press": "Tek Basış",
+            "description": "Radial menü ile nasıl etkileşim kuracağınızı seçin"
+        },
+        "coloredMenu": {
+            "title": "Renkli Menü",
+            "on": "Açık",
+            "off": "Kapalı",
+            "description": "Renkli menü öğelerini etkinleştirin veya devre dışı bırakın"
+        },
+        "scale": {
+            "title": "Menü Boyutu",
+            "description": "Radial menünün boyutunu ayarlayın"
+        },
+        "revertToDefault": "Varsayılana Döndür"
+    },
+    "customization": {
+        "addNewCommand": "Yeni komut ekle",
+        "livePreview": "Canlı Önizleme",
+        "modal": {
+            "addTitle": "Yeni Komut Ekle",
+            "editTitle": "Komutu Düzenle",
+            "name": "İsim",
+            "namePlaceholder": "Seçeneğinizi adlandırın",
+            "command": "Komut",
+            "commandPlaceholder": "Komutu yazın",
+            "addButton": "Seçenek Ekle",
+            "saveButton": "Kaydet",
+            "cancelButton": "İptal",
+            "clickToChangeIcon": "İkonu değiştirmek için tıklayın"
+        },
+        "iconPicker": {
+            "title": "İkon Seç",
+            "searchPlaceholder": "İkon ara...",
+            "noResults": "İkon bulunamadı"
+        },
+        "deleteModal": {
+            "title": "Bu seçeneği silmek istediğinizden emin misiniz?",
+            "cancelButton": "İptal",
+            "deleteButton": "Sil"
+        },
+        "revertModal": {
+            "title": "Seçenekleri varsayılana döndürmek istediğinizden emin misiniz?",
+            "cancelButton": "İptal",
+            "revertButton": "Döndür"
+        }
+    },
+    "menu": {
+        "citizen": "Vatandaş",
+        "general": "Genel",
+        "commands": "Komut",
+        "vehicle": "Araç",
+        "doors": "Kapılar",
+        "seats": "Koltuklar",
+        "extras": "Ekstralar",
+        "flipVehicle": "Aracı Çevir",
+        "next": "Sonraki",
+        "back": "Geri",
+        "settings": "Ayarlar",
+        "phone": "Telefon",
+        "job": "Meslek",
+        "inventory": "Envanter",
+        "wallet": "Cüzdan",
+        "emotes": "Emote'lar",
+        "clothes": "Kıyafetler"
+    },
+    "notifications": {
+        "commandAdded": "Komut başarıyla eklendi",
+        "commandDeleted": "Komut başarıyla silindi",
+        "settingsSaved": "Ayarlar başarıyla kaydedildi"
+    },
+    "details": {
+        "empty": "Detayları görmek için bir seçenek seçin.",
+        "maxOptions": "Maksimum 8 seçenek desteklenir.",
+        "theme": {
+            "title": "Tema",
+            "description": "Radial menünün temasını ayarlar."
+        },
+        "backgroundBlur": {
+            "title": "Arka Plan Bulanıklığı",
+            "description": "Radial menünün arka plan bulanıklığını ayarlar."
+        },
+        "soundEffect": {
+            "title": "Ses Efekti",
+            "description": "Menüde gezinirken ses çalar."
+        },
+        "coloredMenu": {
+            "title": "Renkli Menü",
+            "description": "Menü renklerini beğeninize göre ayarlayın.",
+            "selectColor": "Renk Seç",
+            "presetColors": "Hazır Renkler"
+        },
+        "radialBehaviour": {
+            "title": "Radial Davranışı",
+            "holdDescription": "Basılı Tut modunda, menüyü açmak için tuşa basılı tutun.",
+            "pressDescription": "Tek Basış modunda, menüyü açmak için tuşa bir kez basın, kapatmak için ESC'ye basın."
+        },
+        "scale": {
+            "title": "Menü Boyutu",
+            "description": "Radial menünün boyutunu ayarlayın."
+        }
+    }
+}

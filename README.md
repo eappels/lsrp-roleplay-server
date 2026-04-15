@@ -78,6 +78,10 @@ cd server-data
 
 Or use:
 
+## License
+
+This repository is licensed under the MIT License. See `LICENSE` at the repo root.
+
 ```bat
 server-data\StartServer.bat
 ```

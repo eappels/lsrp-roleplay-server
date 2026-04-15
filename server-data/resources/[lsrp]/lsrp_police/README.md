@@ -9,7 +9,7 @@ Private police job resource built on top of `lsrp_jobs`.
 - Mission Row PD police-only dressing room marker that opens the clothing editor.
 - Department patrol cruiser spawn and return points in the MRPD garage.
 - Payroll handled through `lsrp_jobs` while officers are on duty.
-- Owner-only `/policeme [grade]` self-assign command for private police testing.
+- Owner-only `/policeme [grade]` self-toggle command for private police testing.
 - On-duty officers can use `/impound` on a faced nearby vehicle.
 
 ## Controls

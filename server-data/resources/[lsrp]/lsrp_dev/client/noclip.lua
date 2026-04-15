@@ -30,10 +30,12 @@ local function toggleNoclip()
         SetEntityCollision(ped, false, false)
         SetEntityInvincible(ped, true)
         FreezeEntityPosition(ped, false)
+        SetEntityVisible(ped, false, false)
     else
         print('[lsrp_dev] noclip disabled')
         SetEntityCollision(ped, true, true)
         SetEntityInvincible(ped, false)
+        SetEntityVisible(ped, true, false)
     end
 end
 

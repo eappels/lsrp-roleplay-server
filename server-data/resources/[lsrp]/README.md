@@ -30,6 +30,7 @@ This index covers the custom `lsrp_*` resources. Every custom LSRP resource in t
 - [lsrp_mapedits](lsrp_mapedits/README.md): Client-side map edits, barrier removal, and prop hiding.
 - [lsrp_pededitor](lsrp_pededitor/README.md): Character appearance editor and outfit persistence.
 - [lsrp_police](lsrp_police/README.md): Private police job with Mission Row duty and patrol vehicle access.
+- [lsrp_policevehicleparking](lsrp_policevehicleparking/README.md): Separate police and EMS fleet parking with its own emergency vehicle table and garage zones.
 - [lsrp_phones](lsrp_phones/README.md): Phone UI, phonebook, and call flow.
 - [lsrp_radio](lsrp_radio/README.md): Handheld radio channels with inventory gating and pma-voice integration.
 - [lsrp_resource_template](lsrp_resource_template/README.md): Standard scaffold for new LSRP resources using `lsrp_framework`.
