@@ -565,7 +565,7 @@ CreateThread(function()
             -- Show help text
             BeginTextCommandDisplayHelp("STRING")
             AddTextComponentString("Press ~INPUT_CONTEXT~ to open parking menu")
-            EndTextCommandDisplayHelp(0, false, true, -1)
+            EndTextCommandDisplayHelp(0, false, false, -1)
             
             if IsControlJustReleased(0, Config.OpenKey) then
                 openParkingUI()
@@ -587,7 +587,7 @@ CreateThread(function()
 
                 BeginTextCommandDisplayHelp('STRING')
                 AddTextComponentString(('Press %s to open vehicle storage'):format(getVehicleStorageKeyLabel()))
-                EndTextCommandDisplayHelp(0, false, true, -1)
+                EndTextCommandDisplayHelp(0, false, false, -1)
             end
         end
 

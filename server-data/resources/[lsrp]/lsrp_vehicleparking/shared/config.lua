@@ -54,19 +54,19 @@ Config.ParkingZones = {
             label = "Downtown"
         }
     },
-    {
-        name = "Alta",
-        coords = vector3(282.96, -333.44, 44.92),
-        size = vector3(13.0, 20.0, 3.0),
-        rotation = 68.0,
-        maxSlots = 10,
-        blip = {
-            sprite = 357,
-            color = 3,
-            scale = 0.8,
-            label = "Alta"
-        }
-    },
+    -- {
+    --     name = "Alta",
+    --     coords = vector3(282.96, -333.44, 44.92),
+    --     size = vector3(13.0, 20.0, 3.0),
+    --     rotation = 68.0,
+    --     maxSlots = 10,
+    --     blip = {
+    --         sprite = 357,
+    --         color = 3,
+    --         scale = 0.8,
+    --         label = "Alta"
+    --     }
+    -- },
     {
         name = "PDM",
         coords = vector3(-50.33, -1116.51, 26.43),

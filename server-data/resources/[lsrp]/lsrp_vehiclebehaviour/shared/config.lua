@@ -21,6 +21,10 @@ Config.VehicleBehaviour = {
 		enabled = true,
 		commandName = 'emlights',
 		key = 'Q',
+		-- Emergency vehicle state flow:
+		-- Off -> Q = lights only, E = lights + sirens
+		-- Lights only -> Q = off, E = lights + sirens
+		-- Lights + sirens -> Q = lights only, E = off
 		driverSeatOnly = true,
 		notify = false
 	},

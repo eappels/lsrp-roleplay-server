@@ -1451,6 +1451,15 @@ local function setEmergencySirenMuted(vehicle, muted)
 	end
 end
 
+local function setEmergencySirenState(vehicle, enabled, muted)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	SetVehicleSiren(vehicle, enabled == true)
+	setEmergencySirenMuted(vehicle, muted == true)
+end
+
 local function clearEmergencyLightsOnlyState(vehicle)
 	if vehicle == 0 or not DoesEntityExist(vehicle) then
 		return
@@ -1460,13 +1469,46 @@ local function clearEmergencyLightsOnlyState(vehicle)
 	setEmergencySirenMuted(vehicle, false)
 end
 
-local function promoteEmergencyLightsOnlyToFullSiren(vehicle)
+local function getEmergencySirenMode(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return 'off'
+	end
+
+	if emergencyLightsOnlyVehicles[vehicle] == true then
+		return 'lights-only'
+	end
+
+	if isEmergencyLightsActive(vehicle) == true then
+		return 'lights-and-sirens'
+	end
+
+	return 'off'
+end
+
+local function setEmergencyFullSirenState(vehicle)
 	if vehicle == 0 or not DoesEntityExist(vehicle) then
 		return
 	end
 
 	clearEmergencyLightsOnlyState(vehicle)
-	SetVehicleSiren(vehicle, true)
+	setEmergencySirenState(vehicle, true, false)
+end
+
+local function setEmergencyOffState(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	clearEmergencyLightsOnlyState(vehicle)
+	setEmergencySirenState(vehicle, false, false)
+end
+
+local function promoteEmergencyLightsOnlyToFullSiren(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return
+	end
+
+	setEmergencyFullSirenState(vehicle)
 
 	CreateThread(function()
 		local expiresAt = GetGameTimer() + 200
@@ -1475,8 +1517,7 @@ local function promoteEmergencyLightsOnlyToFullSiren(vehicle)
 				return
 			end
 
-			SetVehicleSiren(vehicle, true)
-			setEmergencySirenMuted(vehicle, false)
+			setEmergencySirenState(vehicle, true, false)
 			Wait(0)
 		end
 	end)
@@ -1489,13 +1530,11 @@ local function setEmergencyLightsOnlyState(vehicle, enabled)
 
 	if enabled == true then
 		emergencyLightsOnlyVehicles[vehicle] = true
-		SetVehicleSiren(vehicle, true)
-		setEmergencySirenMuted(vehicle, true)
+		setEmergencySirenState(vehicle, true, true)
 		return
 	end
 
-	clearEmergencyLightsOnlyState(vehicle)
-	SetVehicleSiren(vehicle, false)
+	setEmergencyOffState(vehicle)
 end
 
 local function toggleEmergencySirenState()
@@ -1515,23 +1554,19 @@ local function toggleEmergencySirenState()
 		return
 	end
 
-	local lightsOnlyActive = emergencyLightsOnlyVehicles[vehicle] == true
-	local lightsActive = isEmergencyLightsActive(vehicle)
+	local emergencyMode = getEmergencySirenMode(vehicle)
 
-	if lightsOnlyActive == true then
+	if emergencyMode == 'lights-only' then
 		promoteEmergencyLightsOnlyToFullSiren(vehicle)
 		return
 	end
 
-	if lightsActive == true then
-		clearEmergencyLightsOnlyState(vehicle)
-		SetVehicleSiren(vehicle, false)
+	if emergencyMode == 'lights-and-sirens' then
+		setEmergencyOffState(vehicle)
 		return
 	end
 
-	clearEmergencyLightsOnlyState(vehicle)
-	SetVehicleSiren(vehicle, true)
-	setEmergencySirenMuted(vehicle, false)
+	setEmergencyFullSirenState(vehicle)
 end
 
 local function toggleEmergencyLights()
@@ -1551,11 +1586,9 @@ local function toggleEmergencyLights()
 		return
 	end
 
-	local lightsOnlyActive = emergencyLightsOnlyVehicles[vehicle] == true
-	local lightsActive = isEmergencyLightsActive(vehicle)
-	local sirenAudioActive = isEmergencySirenAudioActive(vehicle)
+	local emergencyMode = getEmergencySirenMode(vehicle)
 
-	if lightsOnlyActive == true then
+	if emergencyMode == 'lights-only' then
 		setEmergencyLightsOnlyState(vehicle, false)
 		if emergencyLightConfig.notify ~= false then
 			notify('Emergency lights off')
@@ -1563,7 +1596,7 @@ local function toggleEmergencyLights()
 		return
 	end
 
-	if lightsActive == true and sirenAudioActive == true then
+	if emergencyMode == 'lights-and-sirens' then
 		setEmergencyLightsOnlyState(vehicle, true)
 		if emergencyLightConfig.notify ~= false then
 			notify('Emergency lights only')

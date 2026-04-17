@@ -89,5 +89,18 @@ Config.Zones = {
             scale  = 0.8,
             label  = "Vehicle Mod Shop"
         }
+    },
+    {
+        name       = "Harmony Repairs",
+        prompt     = "Press ~INPUT_CONTEXT~ to open Harmony Repairs",
+        coords     = vector3(258.44, 2578.21, 44.72),
+        radius     = 4.0,
+        interaction = "lsrp_vehicleeditor:open",
+        blip = {
+            sprite = 446,  -- LS Customs wrench/star icon
+            color  = 3,    -- blue
+            scale  = 0.8,
+            label  = "Harmony Repairs"
+        }
     }
 }

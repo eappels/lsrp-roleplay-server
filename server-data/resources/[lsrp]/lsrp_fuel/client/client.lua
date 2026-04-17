@@ -1,6 +1,8 @@
 local refuelInProgress = false
 local modelTankCapacityCache = {}
 local electricVehicleModelCache = {}
+local activeChargeLockedVehicle = 0
+local EV_CHARGE_LOCK_STATE_BAG_KEY = 'lsrpChargeLocked'
 local refuelProgressState = {
     visible = false,
     label = '',
@@ -135,6 +137,65 @@ local function requestAnimDictLoaded(animDict)
     end
 
     return true
+end
+
+local function isVehicleChargeLocked(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    local entityState = Entity(vehicle).state
+    return entityState and entityState[EV_CHARGE_LOCK_STATE_BAG_KEY] == true or false
+end
+
+local function setVehicleChargeLockState(vehicle, locked, replicate)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return false
+    end
+
+    local entityState = Entity(vehicle).state
+    if not entityState then
+        return false
+    end
+
+    local normalizedLocked = locked == true
+    if entityState[EV_CHARGE_LOCK_STATE_BAG_KEY] ~= normalizedLocked then
+        entityState:set(EV_CHARGE_LOCK_STATE_BAG_KEY, normalizedLocked, replicate == true)
+    end
+
+    if normalizedLocked then
+        activeChargeLockedVehicle = vehicle
+    elseif activeChargeLockedVehicle == vehicle then
+        activeChargeLockedVehicle = 0
+    end
+
+    return true
+end
+
+local function applyVehicleChargeLock(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return
+    end
+
+    requestVehicleControl(vehicle, 100)
+    SetVehicleEngineOn(vehicle, false, true, true)
+    SetVehicleUndriveable(vehicle, true)
+    SetVehicleHandbrake(vehicle, true)
+    BringVehicleToHalt(vehicle, 0.1, 1, false)
+
+    if math.abs(GetEntitySpeed(vehicle)) > 0.05 then
+        SetVehicleForwardSpeed(vehicle, 0.0)
+    end
+end
+
+local function releaseVehicleChargeLock(vehicle)
+    if vehicle == 0 or not DoesEntityExist(vehicle) then
+        return
+    end
+
+    requestVehicleControl(vehicle, 100)
+    SetVehicleUndriveable(vehicle, false)
+    SetVehicleHandbrake(vehicle, false)
 end
 
 local function getRefuelAnimationConfig()
@@ -723,6 +784,14 @@ local function disableRefuelControls()
     DisableControlAction(0, 72, true)
 end
 
+local function disableChargeDriveControls()
+    DisableControlAction(0, 59, true)
+    DisableControlAction(0, 60, true)
+    DisableControlAction(0, 71, true)
+    DisableControlAction(0, 72, true)
+    DisableControlAction(0, 76, true)
+end
+
 local function ensurePedReadyForRefuel(ped, vehicle, serviceMode)
     if ped == 0 or not DoesEntityExist(ped) then
         return false
@@ -1037,6 +1106,12 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost, serviceMode)
             return
         end
 
+        local chargeLockApplied = false
+        if serviceMode == 'charge' then
+            chargeLockApplied = setVehicleChargeLockState(vehicle, true, true)
+            applyVehicleChargeLock(vehicle)
+        end
+
         SetVehicleEngineOn(vehicle, false, true, true)
         if serviceMode ~= 'charge' then
             startRefuelAnimation(ped, vehicle)
@@ -1044,6 +1119,10 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost, serviceMode)
             ClearPedTasks(ped)
 
             if GetPedInVehicleSeat(vehicle, -1) == ped and not leaveVehicleForCharging(ped, vehicle) then
+                if chargeLockApplied then
+                    setVehicleChargeLockState(vehicle, false, true)
+                    releaseVehicleChargeLock(vehicle)
+                end
                 refuelInProgress = false
                 notify('Exit the vehicle to keep charging.')
                 return
@@ -1059,6 +1138,8 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost, serviceMode)
 
             if serviceMode ~= 'charge' then
                 disableRefuelControls()
+            else
+                applyVehicleChargeLock(vehicle)
             end
 
             if serviceMode ~= 'charge'
@@ -1092,6 +1173,11 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost, serviceMode)
         end
         hideRefuelProgress()
 
+        if chargeLockApplied and DoesEntityExist(vehicle) then
+            setVehicleChargeLockState(vehicle, false, true)
+            releaseVehicleChargeLock(vehicle)
+        end
+
         if DoesEntityExist(vehicle) then
             setVehicleFuelLevelSafe(vehicle, targetFuel, true)
             notify(('%s %s for %s.'):format(serviceMode == 'charge' and 'Charged' or 'Refueled', vehicleName, formatCurrency(totalCost)))
@@ -1102,6 +1188,26 @@ local function beginRefuel(vehicle, purchasedFuelUnits, totalCost, serviceMode)
         refuelInProgress = false
     end)
 end
+
+CreateThread(function()
+    while true do
+        local waitMs = 500
+        local localPed = PlayerPedId()
+
+        for _, vehicle in ipairs(GetGamePool('CVehicle')) do
+            if vehicle ~= 0 and DoesEntityExist(vehicle) and isVehicleChargeLocked(vehicle) then
+                waitMs = 0
+                applyVehicleChargeLock(vehicle)
+
+                if localPed ~= 0 and DoesEntityExist(localPed) and GetPedInVehicleSeat(vehicle, -1) == localPed then
+                    disableChargeDriveControls()
+                end
+            end
+        end
+
+        Wait(waitMs)
+    end
+end)
 
 local function requestRefuel(vehicle, serviceMode)
     if refuelInProgress or vehicle == 0 or not DoesEntityExist(vehicle) then
@@ -1369,6 +1475,22 @@ CreateThread(function()
     end
 end)
 
+if type(AddStateBagChangeHandler) == 'function' and type(GetEntityFromStateBagName) == 'function' then
+    AddStateBagChangeHandler(EV_CHARGE_LOCK_STATE_BAG_KEY, nil, function(bagName, _, value)
+        local entity = GetEntityFromStateBagName(bagName)
+        if entity == 0 or not DoesEntityExist(entity) or GetEntityType(entity) ~= 2 then
+            return
+        end
+
+        if value == true then
+            applyVehicleChargeLock(entity)
+            return
+        end
+
+        releaseVehicleChargeLock(entity)
+    end)
+end
+
 CreateThread(function()
     while true do
         if refuelProgressState.visible == true and not IsPauseMenuActive() then
@@ -1387,7 +1509,12 @@ AddEventHandler('onResourceStop', function(resourceName)
 
     hideRefuelProgress()
     stopRefuelAnimation(PlayerPedId())
+    if activeChargeLockedVehicle ~= 0 and DoesEntityExist(activeChargeLockedVehicle) then
+        setVehicleChargeLockState(activeChargeLockedVehicle, false, true)
+        releaseVehicleChargeLock(activeChargeLockedVehicle)
+    end
     refuelInProgress = false
+    activeChargeLockedVehicle = 0
     modelTankCapacityCache = {}
     electricVehicleModelCache = {}
     refuelProgressState = {

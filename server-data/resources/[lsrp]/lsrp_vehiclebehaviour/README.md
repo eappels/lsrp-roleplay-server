@@ -22,12 +22,20 @@ This resource depends on `oxmysql`, uses `lsrp_framework` for identity and notif
 - Ignition: `Left Alt + Left Ctrl`
 - Lock or unlock vehicle: `X` (within 10 meters)
 - Give a key to another player: `/givekey [server id]`
+- Emergency lights only: `Q`
+- Emergency siren toggle: `E` in emergency vehicles
 
 Notes:
 
 - The ignition bind is implemented as a two-key combo in the client script.
 - If a player already has a saved FiveM keybind for ignition, their saved bind can override the default until they rebind it in settings.
 - Lock/unlock now plays a key-fob chirp sound by default.
+
+Emergency vehicle state flow:
+
+1. Off: `E` turns on lights and sirens, `Q` turns on lights only.
+2. Lights only: `Q` turns everything off, `E` promotes to lights and sirens.
+3. Lights and sirens: `Q` downgrades to lights only, `E` turns everything off.
 
 ## Implemented Key Rules
 
