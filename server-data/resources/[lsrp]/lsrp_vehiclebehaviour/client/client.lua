@@ -277,6 +277,93 @@ local function getVehicleDisplayName(vehicle)
 	return 'Vehicle'
 end
 
+local function getVehicleSeatRange(vehicle)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return -1, -1
+	end
+
+	local maxPassengers = tonumber(GetVehicleMaxNumberOfPassengers(vehicle)) or 0
+	return -1, math.max(maxPassengers - 1, -1)
+end
+
+local function getPedVehicleSeatIndex(ped, vehicle)
+	if ped == 0 or vehicle == 0 or not DoesEntityExist(ped) or not DoesEntityExist(vehicle) then
+		return nil
+	end
+
+	local firstSeat, lastSeat = getVehicleSeatRange(vehicle)
+	for seatIndex = firstSeat, lastSeat do
+		if GetPedInVehicleSeat(vehicle, seatIndex) == ped then
+			return seatIndex
+		end
+	end
+
+	return nil
+end
+
+local function findNextAvailableVehicleSeat(vehicle, currentSeatIndex)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		return nil
+	end
+
+	local firstSeat, lastSeat = getVehicleSeatRange(vehicle)
+	local seatCount = (lastSeat - firstSeat) + 1
+	if seatCount <= 1 then
+		return nil
+	end
+
+	for offset = 1, seatCount - 1 do
+		local seatIndex = firstSeat + (((currentSeatIndex - firstSeat) + offset) % seatCount)
+		if IsVehicleSeatFree(vehicle, seatIndex) then
+			return seatIndex
+		end
+	end
+
+	return nil
+end
+
+local function hopToNextAvailableSeat()
+	local playerPed = PlayerPedId()
+	if playerPed == 0 or not DoesEntityExist(playerPed) or IsPedFatallyInjured(playerPed) then
+		return
+	end
+
+	if not IsPedInAnyVehicle(playerPed, false) then
+		notify('You must be inside a vehicle to use /seathop')
+		return
+	end
+
+	local vehicle = GetVehiclePedIsIn(playerPed, false)
+	if vehicle == 0 or not DoesEntityExist(vehicle) then
+		notify('You must be inside a vehicle to use /seathop')
+		return
+	end
+
+	local currentSeatIndex = getPedVehicleSeatIndex(playerPed, vehicle)
+	if currentSeatIndex == nil then
+		notify('Could not determine your current seat')
+		return
+	end
+
+	local targetSeatIndex = findNextAvailableVehicleSeat(vehicle, currentSeatIndex)
+	if targetSeatIndex == nil then
+		notify('No other seat is available in this vehicle')
+		return
+	end
+
+	SetPedIntoVehicle(playerPed, vehicle, targetSeatIndex)
+	if GetPedInVehicleSeat(vehicle, targetSeatIndex) == playerPed then
+		return
+	end
+
+	TaskWarpPedIntoVehicle(playerPed, vehicle, targetSeatIndex)
+	if GetPedInVehicleSeat(vehicle, targetSeatIndex) == playerPed then
+		return
+	end
+
+	notify('Could not move to the next available seat')
+end
+
 local function collectVehicleOccupantServerIds(vehicle)
 	if vehicle == 0 or not DoesEntityExist(vehicle) then
 		return {}
@@ -1680,6 +1767,7 @@ local lockKeyMappingCommandName = lockCommandName .. '_key'
 local lockKeyMappingCommand = '+' .. lockKeyMappingCommandName
 local lockKeyMappingReleaseCommand = '-' .. lockKeyMappingCommandName
 local giveKeyCommandName = ((getKeysConfig() and getKeysConfig().giveCommandName) or 'givekey')
+local seatHopCommandName = 'seathop'
 
 local function attemptIgnitionToggleFromKeybind()
 	if ignitionModifierRequired ~= true then
@@ -1764,6 +1852,10 @@ RegisterKeyMapping(doorControlKeyMappingCommand, 'Toggle vehicle door controls',
 
 RegisterCommand(giveKeyCommandName, function(_, args)
 	giveVehicleKeyToPlayer(args and args[1])
+end, false)
+
+RegisterCommand(seatHopCommandName, function()
+	hopToNextAvailableSeat()
 end, false)
 
 if type(AddStateBagChangeHandler) == 'function' and type(GetEntityFromStateBagName) == 'function' then

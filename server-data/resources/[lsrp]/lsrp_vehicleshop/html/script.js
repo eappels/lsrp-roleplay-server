@@ -5,9 +5,11 @@ const resourceName = (typeof window.GetParentResourceName === 'function')
 // URL template for vehicle thumbnails. Use {model} as the placeholder.
 // Default: FiveM docs CDN (covers all GTA base vehicles by model name).
 const VEHICLE_IMAGE_URL = 'https://docs.fivem.net/vehicles/{model}.webp';
+const VEHICLES_PER_PAGE = 6;
 
 function getVehicleImageUrl(model) {
-    return VEHICLE_IMAGE_URL.replace('{model}', encodeURIComponent(model));
+    const normalizedModel = String(model || '').trim().toLowerCase();
+    return VEHICLE_IMAGE_URL.replace('{model}', encodeURIComponent(normalizedModel));
 }
 
 const state = {
@@ -17,6 +19,7 @@ const state = {
     vehicles: [],
     selectedCategory: 'compact',
     search: '',
+    currentPage: 1,
     balance: 0,
     formattedBalance: 'LS$0',
     canAdminCustomPurchase: false,
@@ -35,6 +38,10 @@ const categoryListElement = document.getElementById('category-list');
 const vehicleGridElement = document.getElementById('vehicle-grid');
 const inventoryMetaElement = document.getElementById('inventory-meta');
 const searchInputElement = document.getElementById('search-input');
+const paginationBarElement = document.getElementById('pagination-bar');
+const paginationMetaElement = document.getElementById('pagination-meta');
+const paginationPrevElement = document.getElementById('pagination-prev');
+const paginationNextElement = document.getElementById('pagination-next');
 const adminQuickBuyElement = document.getElementById('admin-quick-buy');
 const adminPurchaseFormElement = document.getElementById('admin-purchase-form');
 const adminModelInputElement = document.getElementById('admin-model-input');
@@ -218,6 +225,31 @@ function buildStatRow(name, value) {
     return row;
 }
 
+function getPaginationState(totalItems) {
+    const safeTotalItems = Math.max(0, Math.floor(Number(totalItems) || 0));
+    const totalPages = Math.max(1, Math.ceil(safeTotalItems / VEHICLES_PER_PAGE));
+    state.currentPage = Math.max(1, Math.min(totalPages, Math.floor(Number(state.currentPage) || 1)));
+
+    return {
+        totalItems: safeTotalItems,
+        totalPages,
+        currentPage: state.currentPage,
+        startIndex: (state.currentPage - 1) * VEHICLES_PER_PAGE,
+        endIndex: state.currentPage * VEHICLES_PER_PAGE
+    };
+}
+
+function renderPagination(pagination) {
+    const totalPages = pagination && pagination.totalPages ? pagination.totalPages : 1;
+    const currentPage = pagination && pagination.currentPage ? pagination.currentPage : 1;
+    const shouldShow = (pagination && pagination.totalItems > VEHICLES_PER_PAGE) === true;
+
+    paginationBarElement.classList.toggle('hidden', !shouldShow);
+    paginationMetaElement.textContent = `Page ${currentPage} of ${totalPages}`;
+    paginationPrevElement.disabled = currentPage <= 1;
+    paginationNextElement.disabled = currentPage >= totalPages;
+}
+
 function renderCategories() {
     categoryListElement.innerHTML = '';
 
@@ -233,6 +265,7 @@ function renderCategories() {
 
         button.addEventListener('click', () => {
             state.selectedCategory = category.id;
+            state.currentPage = 1;
             renderCategories();
             renderVehicles();
         });
@@ -243,9 +276,12 @@ function renderCategories() {
 
 function renderVehicles() {
     const filteredVehicles = getFilteredVehicles();
+    const pagination = getPaginationState(filteredVehicles.length);
+    const pagedVehicles = filteredVehicles.slice(pagination.startIndex, pagination.endIndex);
     vehicleGridElement.innerHTML = '';
 
     inventoryMetaElement.textContent = `${filteredVehicles.length} vehicle${filteredVehicles.length === 1 ? '' : 's'} listed`;
+    renderPagination(pagination);
 
     if (filteredVehicles.length === 0) {
         const emptyState = document.createElement('div');
@@ -255,7 +291,7 @@ function renderVehicles() {
         return;
     }
 
-    filteredVehicles.forEach((vehicle) => {
+    pagedVehicles.forEach((vehicle) => {
         const card = document.createElement('article');
         card.className = 'vehicle-card';
 
@@ -357,6 +393,7 @@ function openShop(payload) {
     }
 
     state.search = '';
+    state.currentPage = 1;
     searchInputElement.value = '';
     adminModelInputElement.value = '';
 
@@ -379,6 +416,7 @@ function closeShopInternal() {
     state.vehicles = [];
     state.selectedCategory = 'compact';
     state.search = '';
+    state.currentPage = 1;
     state.purchasePending = false;
     state.canAdminCustomPurchase = false;
     state.adminCustomUnlistedPrice = 0;
@@ -431,6 +469,21 @@ document.addEventListener('keydown', (event) => {
 
 searchInputElement.addEventListener('input', () => {
     state.search = searchInputElement.value || '';
+    state.currentPage = 1;
+    renderVehicles();
+});
+
+paginationPrevElement.addEventListener('click', () => {
+    if (state.currentPage <= 1) {
+        return;
+    }
+
+    state.currentPage -= 1;
+    renderVehicles();
+});
+
+paginationNextElement.addEventListener('click', () => {
+    state.currentPage += 1;
     renderVehicles();
 });
 
