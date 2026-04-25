@@ -2,10 +2,12 @@ const app = document.getElementById('app')
 const keypad = document.getElementById('keypad')
 const catalog = document.getElementById('catalog')
 const kiosk = document.getElementById('kiosk')
+const closet = document.getElementById('closet')
 const display = document.getElementById('display')
 const catalogList = document.getElementById('catalogList')
 const ownedList = document.getElementById('ownedList')
 const availableList = document.getElementById('availableList')
+const closetList = document.getElementById('closetList')
 const toast = document.getElementById('toast')
 
 let currentInput = ''
@@ -67,12 +69,48 @@ function setVisible(panel) {
   keypad.classList.add('hidden')
   catalog.classList.add('hidden')
   kiosk.classList.add('hidden')
+  closet.classList.add('hidden')
 
   if (panel) {
     showHousingShell(panel)
   } else {
     hideHousingShell()
   }
+}
+
+function renderClosetList(items) {
+  closetList.innerHTML = ''
+
+  if (!Array.isArray(items) || items.length === 0) {
+    renderEmptyState(closetList, 'You do not have any saved outfits yet.')
+    return
+  }
+
+  items.forEach((item) => {
+    const card = document.createElement('div')
+    card.className = 'card'
+
+    const top = document.createElement('div')
+    top.className = 'card-top'
+    top.innerHTML = `
+      <div class="card-title">${item.name || `Outfit ${item.slot || ''}`}</div>
+      <div>Slot ${item.slot || ''}</div>
+    `
+
+    const actions = document.createElement('div')
+    actions.className = 'card-actions'
+    const button = document.createElement('button')
+    button.className = 'accent-primary'
+    button.textContent = 'Change'
+    button.addEventListener('click', () => {
+      post('applyClosetOutfit', { slot: item.slot })
+    })
+    actions.appendChild(button)
+
+    card.appendChild(top)
+    card.appendChild(actions)
+    closetList.appendChild(card)
+  })
 }
 
 function setDisplay(value) {
@@ -189,6 +227,9 @@ window.addEventListener('message', (event) => {
     case 'openKiosk':
       setVisible(kiosk)
       break
+    case 'openCloset':
+      setVisible(closet)
+      break
     case 'closeAll':
       setVisible(null)
       setDisplay('')
@@ -202,6 +243,9 @@ window.addEventListener('message', (event) => {
       break
     case 'populateAvailable':
       renderApartmentList(availableList, data.items, 'Rent', 'rentApartment', false)
+      break
+    case 'populateCloset':
+      renderClosetList(data.items)
       break
     case 'toast':
       showToast(data.message, data.success === true)

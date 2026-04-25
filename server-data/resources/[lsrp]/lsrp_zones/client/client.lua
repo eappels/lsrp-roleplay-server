@@ -99,7 +99,7 @@ local function createZones()
         activeZones[#activeZones + 1] = zone
         print(('[lsrp_zones] Created zone: %s'):format(zoneCfg.name))
 
-        if zoneCfg.blip then
+        if zoneCfg.blip and zoneCfg.blip.enabled ~= false then
             local blip = AddBlipForCoord(zoneCfg.coords.x, zoneCfg.coords.y, zoneCfg.coords.z)
             SetBlipSprite(blip, zoneCfg.blip.sprite)
             SetBlipDisplay(blip, 4)

@@ -1,12 +1,18 @@
 Config = {}
 
 -- Parking zones configuration
+-- Optional per-zone retrieval spawn:
+-- preferredSpawn = {
+--     coords = vector3(x, y, z),
+--     heading = 0.0,
+--     clearRadius = 3.0
+-- }
 Config.ParkingZones = {
     {
         name = "Legion Square",
         coords = vector3(222, -796.5, 30.7),
         size = vector3(10.0, 20.0, 3.0),
-        rotation = 90.0,
+        rotation = 70.0,
         maxSlots = 10,
         blip = {
             sprite = 357,
@@ -54,6 +60,24 @@ Config.ParkingZones = {
             label = "Downtown"
         }
     },
+    {
+        name = "Eclipse Towers",
+        coords = vector3(-751.0, 373.60, 87.87),
+        size = vector3(6.0, 20.0, 3.0),
+        rotation = 180,
+        maxSlots = 15,
+        preferredSpawn = {
+            coords = vector3(-746.07, 373.51, 87.87),
+            heading = 4.99,
+            clearRadius = 3.0
+        },
+        blip = {
+            sprite = 357,
+            color = 3,
+            scale = 0.8,
+            label = "Eclipse Towers"
+        }
+    },
     -- {
     --     name = "Alta",
     --     coords = vector3(282.96, -333.44, 44.92),
@@ -70,10 +94,15 @@ Config.ParkingZones = {
     {
         name = "PDM",
         coords = vector3(-50.33, -1116.51, 26.43),
-        size = vector3(10.0, 20.0, 3.0),
-        rotation = 340.0,
+        size = vector3(6.0, 20.0, 3.0),
+        rotation = 0.0,
         maxSlots = 10,
         allowStore = false,
+        preferredSpawn = {
+            coords = vector3(-43.82, -1098.73, 26.42),
+            heading = 71.5,
+            clearRadius = 3.0
+        },
         blip = {
             sprite = 357,
             color = 7,
@@ -87,6 +116,11 @@ Config.ParkingZones = {
         size = vector3(6.0, 20.0, 3.0),
         rotation = 120.0,
         maxSlots = 10,
+        preferredSpawn = {
+            coords = vector3(-386.21, -131.60, 38.68),
+            heading = 116.84,
+            clearRadius = 3.0
+        },
         blip = {
             sprite = 357,
             color = 3,

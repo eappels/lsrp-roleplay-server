@@ -6,21 +6,29 @@ const unitNameEl = document.getElementById('unit-name');
 const unitMetaEl = document.getElementById('unit-meta');
 const unitDutyEl = document.getElementById('unit-duty');
 const unitStateEl = document.getElementById('unit-state');
-const shortcutListEl = document.getElementById('shortcut-list');
-const statusStripEl = document.getElementById('status-strip');
-const sectionListEl = document.getElementById('section-list');
 const noticeListEl = document.getElementById('notice-list');
-const lookupSummaryEl = document.getElementById('lookup-summary');
+const statusStripEl = document.getElementById('status-strip');
+const searchSummaryEl = document.getElementById('search-summary');
 const resultListEl = document.getElementById('result-list');
+const profileNameEl = document.getElementById('profile-name');
+const profileMetaEl = document.getElementById('profile-meta');
+const profileBadgesEl = document.getElementById('profile-badges');
+const tagListEl = document.getElementById('tag-list');
+const tagEditorEl = document.getElementById('tag-editor');
+const tagInputEl = document.getElementById('tag-input');
+const addTagButtonEl = document.getElementById('add-tag-button');
+const intelAccessCopyEl = document.getElementById('intel-access-copy');
+const intelEditorEl = document.getElementById('intel-editor');
+const intelInputEl = document.getElementById('intel-input');
+const addIntelButtonEl = document.getElementById('add-intel-button');
+const intelListEl = document.getElementById('intel-list');
 const rosterSummaryEl = document.getElementById('roster-summary');
 const rosterListEl = document.getElementById('roster-list');
 const footerTextEl = document.getElementById('footer-text');
 const closeButtonEl = document.getElementById('close-button');
 const refreshButtonEl = document.getElementById('refresh-button');
 const personQueryEl = document.getElementById('person-query');
-const vehicleQueryEl = document.getElementById('vehicle-query');
 const personSearchEl = document.getElementById('person-search');
-const vehicleSearchEl = document.getElementById('vehicle-search');
 
 const state = {
 	open: false,
@@ -50,114 +58,221 @@ function setStartupHidden() {
 function createStatusCard(item) {
 	const card = document.createElement('article');
 	card.className = 'status-card';
-	card.innerHTML = `
-		<span class="status-card__label">${item.label || 'Status'}</span>
-		<strong>${item.value || '-'}</strong>
-	`;
+
+	const label = document.createElement('span');
+	label.className = 'status-card__label';
+	label.textContent = item.label || 'Status';
+
+	const value = document.createElement('strong');
+	value.textContent = item.value || '-';
+
+	card.append(label, value);
 	return card;
 }
 
-function createShortcut(item) {
-	const card = document.createElement('button');
-	card.className = 'shortcut';
-	card.type = 'button';
-	card.innerHTML = `
-		<strong>${item.label || 'Shortcut'}</strong>
-		<p>${item.description || ''}</p>
-	`;
-	card.addEventListener('click', () => {
-		postNui('mdtAction', {
-			event: item.event || item.id || 'shortcut',
-			query: ''
+function createBadge(text, removable, onRemove) {
+	const badge = document.createElement('span');
+	badge.className = removable ? 'tag tag--interactive' : 'tag';
+	badge.textContent = text || '';
+
+	if (removable) {
+		const removeButton = document.createElement('button');
+		removeButton.type = 'button';
+		removeButton.className = 'tag__remove';
+		removeButton.textContent = 'x';
+		removeButton.addEventListener('click', (event) => {
+			event.stopPropagation();
+			onRemove();
 		});
-	});
+		badge.appendChild(removeButton);
+	}
+
+	return badge;
+}
+
+function createStackCard(entry, clickHandler) {
+	const card = document.createElement('button');
+	card.className = 'stack-card';
+	card.type = 'button';
+
+	const header = document.createElement('div');
+	header.className = 'stack-card__header';
+
+	const title = document.createElement('strong');
+	title.textContent = entry.title || 'Record';
+
+	const meta = document.createElement('span');
+	meta.textContent = entry.meta || '';
+
+	header.append(title, meta);
+	card.appendChild(header);
+
+	if (entry.subtitle) {
+		const subtitle = document.createElement('p');
+		subtitle.textContent = entry.subtitle;
+		card.appendChild(subtitle);
+	}
+
+	if (Array.isArray(entry.badges) && entry.badges.length > 0) {
+		const badgeRow = document.createElement('div');
+		badgeRow.className = 'badge-row';
+		entry.badges.filter(Boolean).forEach((badge) => badgeRow.appendChild(createBadge(badge, false, null)));
+		card.appendChild(badgeRow);
+	}
+
+	card.addEventListener('click', () => clickHandler(entry));
 	return card;
 }
 
-function createSectionCard(section) {
-	const card = document.createElement('article');
-	card.className = 'section-card';
-	card.innerHTML = `
-		<h3>${section.title || 'Section'}</h3>
-		<p>${section.body || ''}</p>
-	`;
-	return card;
-}
-
-function createDetailCard(entry) {
-	const card = document.createElement('article');
-	card.className = 'detail-card';
-
-	const badges = Array.isArray(entry.badges)
-		? entry.badges.filter(Boolean).map((badge) => `<span class="detail-badge">${badge}</span>`).join('')
-		: '';
-	const lines = Array.isArray(entry.lines)
-		? entry.lines.filter(Boolean).map((line) => `<li>${line}</li>`).join('')
-		: '';
-
-	card.innerHTML = `
-		<div class="detail-card__header">
-			<div>
-				<h3>${entry.title || 'Record'}</h3>
-				<p>${entry.meta || ''}</p>
-			</div>
-			<div class="detail-badge-row">${badges}</div>
-		</div>
-		<ul class="detail-line-list">${lines}</ul>
-	`;
-
-	return card;
-}
-
-function renderDetailCollection(container, collection, emptyMessage) {
+function renderEmptyState(container, message) {
 	container.innerHTML = '';
-	if (!collection || !Array.isArray(collection.entries) || collection.entries.length === 0) {
-		const empty = document.createElement('div');
-		empty.className = 'detail-empty';
-		empty.textContent = emptyMessage || 'No records found.';
-		container.appendChild(empty);
+	const empty = document.createElement('div');
+	empty.className = 'empty-state';
+	empty.textContent = message;
+	container.appendChild(empty);
+}
+
+function renderSearchResults() {
+	const search = state.payload.search || {};
+	searchSummaryEl.textContent = search.summary || 'Search by player name or exact state ID.';
+	personQueryEl.value = search.query || personQueryEl.value || '';
+
+	resultListEl.innerHTML = '';
+	if (!Array.isArray(search.results) || search.results.length === 0) {
+		renderEmptyState(resultListEl, search.emptyMessage || 'No results found.');
 		return;
 	}
 
-	collection.entries.forEach((entry) => container.appendChild(createDetailCard(entry)));
+	search.results.forEach((entry) => {
+		resultListEl.appendChild(createStackCard(entry, (selectedEntry) => {
+			postNui('mdtAction', {
+				event: 'selectProfile',
+				stateId: selectedEntry.stateId
+			});
+		}));
+	});
+}
+
+function renderProfile() {
+	const profile = state.payload.selectedProfile || {};
+	const permissions = state.payload.permissions || {};
+	const canEdit = permissions.canEditIntel === true && typeof profile.stateId === 'number';
+
+	profileNameEl.textContent = profile.fullName || 'No profile selected';
+	profileMetaEl.textContent = profile.meta || 'Select a search result to open a profile.';
+	profileBadgesEl.innerHTML = '';
+	(profile.badges || []).filter(Boolean).forEach((badge) => profileBadgesEl.appendChild(createBadge(badge, false, null)));
+
+	tagListEl.innerHTML = '';
+	if (Array.isArray(profile.tags) && profile.tags.length > 0) {
+		profile.tags.forEach((tag) => {
+			tagListEl.appendChild(createBadge(tag, canEdit, () => {
+				postNui('mdtAction', {
+					event: 'removeTag',
+					stateId: profile.stateId,
+					tag
+				});
+			}));
+		});
+	} else {
+		renderEmptyState(tagListEl, profile.stateId ? 'No tags on this profile.' : 'Select a profile to view tags.');
+	}
+
+	tagEditorEl.classList.toggle('hidden', !canEdit);
+	tagInputEl.disabled = !canEdit;
+	addTagButtonEl.disabled = !canEdit;
+
+	intelListEl.innerHTML = '';
+	if (Array.isArray(profile.notes) && profile.notes.length > 0) {
+		profile.notes.forEach((note) => {
+			const noteCard = document.createElement('article');
+			noteCard.className = 'timeline-item';
+
+			const header = document.createElement('div');
+			header.className = 'timeline-item__header';
+
+			const author = document.createElement('strong');
+			author.textContent = note.authorName || 'Unknown';
+
+			const stamp = document.createElement('span');
+			stamp.textContent = note.createdAt || '';
+
+			header.append(author, stamp);
+
+			const text = document.createElement('p');
+			text.textContent = note.text || '';
+
+			noteCard.append(header, text);
+			intelListEl.appendChild(noteCard);
+		});
+	} else {
+		renderEmptyState(intelListEl, profile.stateId ? 'No intel has been added to this profile yet.' : 'Select a profile to view intel.');
+	}
+
+	intelEditorEl.classList.toggle('hidden', !canEdit);
+	intelInputEl.disabled = !canEdit;
+	addIntelButtonEl.disabled = !canEdit;
+	intelAccessCopyEl.textContent = canEdit
+		? 'On-duty police can append intel and manage profile tags.'
+		: (profile.stateId ? 'This profile is read-only with your current access.' : 'Select a profile to review intel history.');
+}
+
+function renderRoster() {
+	const roster = state.payload.roster || {};
+	rosterSummaryEl.textContent = roster.summary || 'No active roster data loaded yet.';
+	rosterListEl.innerHTML = '';
+	if (!Array.isArray(roster.entries) || roster.entries.length === 0) {
+		renderEmptyState(rosterListEl, roster.emptyMessage || 'No active police units found.');
+		return;
+	}
+
+	roster.entries.forEach((entry) => {
+		rosterListEl.appendChild(createStackCard(entry, () => {
+			if (typeof entry.stateId !== 'number') {
+				return;
+			}
+			postNui('mdtAction', {
+				event: 'selectProfile',
+				stateId: entry.stateId
+			});
+		}));
+	});
+}
+
+function renderNotices() {
+	noticeListEl.innerHTML = '';
+	const notices = Array.isArray(state.payload.notices) ? state.payload.notices : [];
+	if (notices.length === 0) {
+		return;
+	}
+
+	notices.forEach((notice) => {
+		const row = document.createElement('li');
+		row.textContent = notice;
+		noticeListEl.appendChild(row);
+	});
 }
 
 function render() {
 	const payload = state.payload || {};
 	const unit = payload.unit || {};
-	const lookupResult = payload.lookupResult || {};
-	const unitRoster = payload.unitRoster || {};
 
 	eyebrowEl.textContent = payload.eyebrow || 'LSRP MDT';
-	titleEl.textContent = payload.title || 'Mobile Data Terminal';
-	subtitleEl.textContent = payload.subtitle || 'Starter terminal shell.';
+	titleEl.textContent = payload.title || 'Minimal MDT';
+	subtitleEl.textContent = payload.subtitle || 'Player lookup, intel, tags, and active police duty roster.';
 	unitNameEl.textContent = unit.name || 'Unit';
-	unitMetaEl.textContent = `${unit.jobLabel || 'Agency'} • ${unit.gradeLabel || 'Role'}`;
+	unitMetaEl.textContent = `${unit.jobLabel || 'Agency'} - ${unit.gradeLabel || 'Role'}`;
 	unitDutyEl.textContent = unit.dutyLabel || 'Duty Unknown';
 	unitStateEl.textContent = `State ID ${unit.stateId || 'Unknown'}`;
 	footerTextEl.textContent = payload.footer || 'Press Escape to close the terminal.';
 
-	shortcutListEl.innerHTML = '';
-	(payload.shortcuts || []).forEach((item) => shortcutListEl.appendChild(createShortcut(item)));
-
 	statusStripEl.innerHTML = '';
 	(payload.statusItems || []).forEach((item) => statusStripEl.appendChild(createStatusCard(item)));
 
-	sectionListEl.innerHTML = '';
-	(payload.sections || []).forEach((section) => sectionListEl.appendChild(createSectionCard(section)));
-
-	noticeListEl.innerHTML = '';
-	(payload.notices || []).forEach((notice) => {
-		const row = document.createElement('li');
-		row.textContent = notice || '';
-		noticeListEl.appendChild(row);
-	});
-
-	lookupSummaryEl.textContent = lookupResult.summary || 'Run a search to populate this panel.';
-	renderDetailCollection(resultListEl, lookupResult, lookupResult.emptyMessage || 'No lookup results yet.');
-
-	rosterSummaryEl.textContent = unitRoster.summary || 'No active roster data loaded yet.';
-	renderDetailCollection(rosterListEl, unitRoster, unitRoster.emptyMessage || 'No active units found.');
+	renderSearchResults();
+	renderProfile();
+	renderRoster();
+	renderNotices();
 }
 
 function openApp(payload) {
@@ -173,13 +288,14 @@ function openApp(payload) {
 	appEl.classList.remove('hidden');
 	appEl.setAttribute('aria-hidden', 'false');
 	render();
-	personQueryEl.value = '';
-	vehicleQueryEl.value = '';
 }
 
 function closeApp() {
 	state.open = false;
 	state.payload = {};
+	personQueryEl.value = '';
+	tagInputEl.value = '';
+	intelInputEl.value = '';
 	setStartupHidden();
 }
 
@@ -198,13 +314,6 @@ personSearchEl.addEventListener('click', () => {
 	});
 });
 
-vehicleSearchEl.addEventListener('click', () => {
-	postNui('mdtAction', {
-		event: 'vehicleLookup',
-		query: vehicleQueryEl.value || ''
-	});
-});
-
 personQueryEl.addEventListener('keydown', (event) => {
 	if (event.key !== 'Enter') {
 		return;
@@ -214,13 +323,32 @@ personQueryEl.addEventListener('keydown', (event) => {
 	personSearchEl.click();
 });
 
-vehicleQueryEl.addEventListener('keydown', (event) => {
-	if (event.key !== 'Enter') {
+addTagButtonEl.addEventListener('click', () => {
+	const selectedProfile = state.payload.selectedProfile || {};
+	if (typeof selectedProfile.stateId !== 'number') {
 		return;
 	}
 
-	event.preventDefault();
-	vehicleSearchEl.click();
+	postNui('mdtAction', {
+		event: 'addTag',
+		stateId: selectedProfile.stateId,
+		tag: tagInputEl.value || ''
+	});
+	tagInputEl.value = '';
+});
+
+addIntelButtonEl.addEventListener('click', () => {
+	const selectedProfile = state.payload.selectedProfile || {};
+	if (typeof selectedProfile.stateId !== 'number') {
+		return;
+	}
+
+	postNui('mdtAction', {
+		event: 'addIntel',
+		stateId: selectedProfile.stateId,
+		note: intelInputEl.value || ''
+	});
+	intelInputEl.value = '';
 });
 
 window.addEventListener('message', (event) => {

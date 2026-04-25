@@ -35,6 +35,79 @@ local function notifyPlayer(message)
     EndTextCommandThefeedPostTicker(false, false)
 end
 
+local function promptTextInput(title, defaultText, maxLength)
+    AddTextEntry('FMMC_KEY_TIP1', title)
+    DisplayOnscreenKeyboard(1, 'FMMC_KEY_TIP1', '', defaultText or '', '', '', '', maxLength or 128)
+
+    while UpdateOnscreenKeyboard() == 0 do
+        DisableAllControlActions(0)
+        Wait(0)
+    end
+
+    if GetOnscreenKeyboardResult() then
+        return GetOnscreenKeyboardResult()
+    end
+
+    return nil
+end
+
+local function parseCoordinateInput(rawValue)
+    if type(rawValue) ~= 'string' then
+        return nil, 'Enter coordinates in the format: x, y, z'
+    end
+
+    local normalized = rawValue:gsub('[%c\r\n\t]', ' '):gsub('^%s+', ''):gsub('%s+$', '')
+    if normalized == '' then
+        return nil, 'Enter coordinates in the format: x, y, z'
+    end
+
+    local values = {}
+    for value in normalized:gmatch('[^,]+') do
+        local trimmed = value:gsub('^%s+', ''):gsub('%s+$', '')
+        if trimmed ~= '' then
+            values[#values + 1] = trimmed
+        end
+    end
+
+    if #values ~= 3 then
+        return nil, 'Use exactly three values: x, y, z'
+    end
+
+    local x = tonumber(values[1])
+    local y = tonumber(values[2])
+    local z = tonumber(values[3])
+
+    if not x or not y or not z then
+        return nil, 'Coordinates must be valid numbers'
+    end
+
+    return {
+        x = x,
+        y = y,
+        z = z
+    }
+end
+
+local function requestCustomTeleport()
+    local rawCoords = promptTextInput('Enter coords: x, y, z', '', 128)
+    if not rawCoords then
+        return
+    end
+
+    local coords, errorMessage = parseCoordinateInput(rawCoords)
+    if not coords then
+        notifyPlayer(errorMessage)
+        return
+    end
+
+    TriggerServerEvent('lsrp_dev:server:requestPrivilegedAction', 'tp', {
+        action = 'tp',
+        x = coords.x,
+        y = coords.y,
+        z = coords.z
+    })
+end
+
 -- Player name based on framework
 local function getPlayerName()
     local data = Framework:GetPlayerData()
@@ -519,6 +592,11 @@ RegisterNetEvent('codem-supreme-radialmenu:client:RunLocalDevAction', function(d
 
     if action == 'identityaudit' then
         ExecuteCommand('identityaudit')
+        return
+    end
+
+    if action == 'tp_custom' then
+        requestCustomTeleport()
     end
 end)
 

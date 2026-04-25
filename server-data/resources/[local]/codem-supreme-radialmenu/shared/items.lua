@@ -55,6 +55,17 @@ MenuItems = {
                         shouldClose = true
                     },
                     {
+                        id = 'dev_tp_custom',
+                        label = 'TP Custom',
+                        icon = 'location-crosshairs',
+                        event = 'codem-supreme-radialmenu:client:RunLocalDevAction',
+                        type = 'client',
+                        args = {
+                            action = 'tp_custom'
+                        },
+                        shouldClose = true
+                    },
+                    {
                         id = 'dev_noclip',
                         label = 'Toggle Noclip',
                         icon = 'feather-pointed',
@@ -105,6 +116,17 @@ MenuItems = {
                         args = {
                             action = 'setplate',
                             plateText = 'DEV001'
+                        },
+                        shouldClose = true
+                    },
+                    {
+                        id = 'dev_vehicle_delete_closest',
+                        label = 'Delete Closest',
+                        icon = 'trash',
+                        event = 'codem-supreme-radialmenu:client:RequestDevAction',
+                        type = 'client',
+                        args = {
+                            action = 'delveh'
                         },
                         shouldClose = true
                     }

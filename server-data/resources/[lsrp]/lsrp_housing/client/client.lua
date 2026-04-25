@@ -4,6 +4,7 @@ local currentLocationFilter = nil
 local currentApartment = nil
 local cachedOwnedApartments = {}
 local cachedAvailableApartments = {}
+local cachedClosetOutfits = {}
 local pendingListAction = nil
 local housingBlips = {}
 local nuiReady = false
@@ -188,6 +189,52 @@ local function findAvailableApartmentsForLocation(locationIndex)
 	return filterApartmentsByLocation(cachedAvailableApartments, locationIndex)
 end
 
+local function getUiOwnedApartments()
+	return filterApartmentsByLocation(cachedOwnedApartments, currentLocationFilter)
+end
+
+local function getUiAvailableApartments()
+	return filterApartmentsByLocation(cachedAvailableApartments, currentLocationFilter)
+end
+
+local function fetchClosetOutfits()
+	if GetResourceState('lsrp_pededitor') ~= 'started' then
+		return false, 'pededitor_unavailable'
+	end
+
+	local ok, success, outfitsOrError = pcall(function()
+		return exports['lsrp_pededitor']:listOutfits(5000)
+	end)
+	if not ok then
+		return false, 'pededitor_failed'
+	end
+
+	if success ~= true then
+		return false, outfitsOrError or 'request_failed'
+	end
+
+	return true, type(outfitsOrError) == 'table' and outfitsOrError or {}
+end
+
+local function applyClosetOutfit(slot)
+	if GetResourceState('lsrp_pededitor') ~= 'started' then
+		return false, 'pededitor_unavailable'
+	end
+
+	local ok, success, errorCode = pcall(function()
+		return exports['lsrp_pededitor']:applyOutfitBySlot(slot, 5000)
+	end)
+	if not ok then
+		return false, 'pededitor_failed'
+	end
+
+	if success ~= true then
+		return false, errorCode or 'apply_failed'
+	end
+
+	return true, nil
+end
+
 local function getCommandName(key, fallback)
 	return (Config and Config.Commands and Config.Commands[key]) or fallback
 end
@@ -259,6 +306,11 @@ local function handleNonNuiPrompt(mode, locationIndex)
 		printManagementSummary(locationIndex)
 		TriggerServerEvent('lsrp_housing:requestOwned')
 		TriggerServerEvent('lsrp_housing:requestAvailable')
+		return
+	end
+
+	if mode == 'closet' then
+		notify('Apartment closets require housing NUI to be enabled.')
 		return
 	end
 end
@@ -339,24 +391,35 @@ local function sendUiDataForMode()
 		return
 	end
 
+	local ownedApartments = getUiOwnedApartments()
+	local availableApartments = getUiAvailableApartments()
+
 	if uiMode == 'catalog' and not (Config and Config.CombineCatalogAndKiosk == true) then
-		SendNUIMessage({ action = 'populateCatalog', items = cachedAvailableApartments })
+		SendNUIMessage({ action = 'populateCatalog', items = availableApartments })
+	elseif uiMode == 'closet' then
+		SendNUIMessage({ action = 'populateCloset', items = cachedClosetOutfits })
 	elseif uiMode == 'kiosk' or (uiMode == 'catalog' and Config and Config.CombineCatalogAndKiosk == true) then
-		SendNUIMessage({ action = 'populateOwned', items = cachedOwnedApartments })
-		SendNUIMessage({ action = 'populateAvailable', items = cachedAvailableApartments })
+		SendNUIMessage({ action = 'populateOwned', items = ownedApartments })
+		SendNUIMessage({ action = 'populateAvailable', items = availableApartments })
 	end
 end
 
 local function dispatchUiOpen(effectiveMode)
+	local ownedApartments = getUiOwnedApartments()
+	local availableApartments = getUiAvailableApartments()
+
 	if effectiveMode == 'keypad' then
 		SendNUIMessage({ action = 'openKeypad' })
 	elseif effectiveMode == 'catalog' then
 		SendNUIMessage({ action = 'openCatalog' })
-		SendNUIMessage({ action = 'populateCatalog', items = cachedAvailableApartments })
+		SendNUIMessage({ action = 'populateCatalog', items = availableApartments })
+	elseif effectiveMode == 'closet' then
+		SendNUIMessage({ action = 'openCloset' })
+		SendNUIMessage({ action = 'populateCloset', items = cachedClosetOutfits })
 	elseif effectiveMode == 'kiosk' then
 		SendNUIMessage({ action = 'openKiosk' })
-		SendNUIMessage({ action = 'populateOwned', items = cachedOwnedApartments })
-		SendNUIMessage({ action = 'populateAvailable', items = cachedAvailableApartments })
+		SendNUIMessage({ action = 'populateOwned', items = ownedApartments })
+		SendNUIMessage({ action = 'populateAvailable', items = availableApartments })
 	end
 end
 
@@ -429,6 +492,16 @@ local function openUi(mode, locationIndex)
 
 	if effectiveMode == 'catalog' then
 		TriggerServerEvent('lsrp_housing:requestAvailable')
+	elseif effectiveMode == 'closet' then
+		local ok, outfitsOrError = fetchClosetOutfits()
+		if ok then
+			cachedClosetOutfits = outfitsOrError
+			SendNUIMessage({ action = 'populateCloset', items = cachedClosetOutfits })
+		else
+			cachedClosetOutfits = {}
+			SendNUIMessage({ action = 'populateCloset', items = cachedClosetOutfits })
+			SendNUIMessage({ action = 'toast', success = false, message = 'Could not load saved outfits right now.' })
+		end
 	elseif effectiveMode == 'kiosk' then
 		TriggerServerEvent('lsrp_housing:requestOwned')
 		TriggerServerEvent('lsrp_housing:requestAvailable')
@@ -498,6 +571,18 @@ local function getInteriorStoragePoint(location)
 	return location.interiorStorage
 end
 
+local function getInteriorClosetPoint(location)
+	if type(location) ~= 'table' or type(location.interiorCloset) ~= 'table' then
+		return nil
+	end
+
+	return location.interiorCloset
+end
+
+local function openApartmentCloset()
+	openUi('closet', currentApartment and currentApartment.location_index or nil)
+end
+
 local function isPlayerInsideApartmentShell(playerCoords, location)
 	if type(location) ~= 'table' then
 		return false
@@ -518,6 +603,37 @@ local function isPlayerInsideApartmentShell(playerCoords, location)
 	end
 
 	return #(playerCoords - anchorPoint) <= fallbackRadius
+end
+
+local function isPlayerInsideApartmentInterior(playerCoords, location)
+	if not playerCoords or type(location) ~= 'table' then
+		return false
+	end
+
+	if isPlayerInsideApartmentShell(playerCoords, location) then
+		return true
+	end
+
+	local interiorCheckRadius = math.max(
+		tonumber(Config and Config.MarkerDistance) or 15.0,
+		tonumber(Config and Config.InteriorExitFallbackRadius) or 12.0,
+		25.0
+	)
+
+	local points = {
+		location.interiorSpawn,
+		location.interiorExit,
+		location.interiorStorage
+	}
+
+	for _, point in ipairs(points) do
+		local coords = toVector3(point)
+		if coords and #(playerCoords - coords) <= interiorCheckRadius then
+			return true
+		end
+	end
+
+	return false
 end
 
 local function findInteriorLocationByCoords(playerCoords)
@@ -604,7 +720,7 @@ RegisterNetEvent('lsrp_housing:ownedList', function(apartments)
 		pendingListAction = nil
 	end
 	if uiOpen and isHousingNuiEnabled() then
-		SendNUIMessage({ action = 'populateOwned', items = cachedOwnedApartments })
+		SendNUIMessage({ action = 'populateOwned', items = getUiOwnedApartments() })
 	end
 end)
 
@@ -626,9 +742,10 @@ RegisterNetEvent('lsrp_housing:availableList', function(apartments)
 		pendingListAction = nil
 	end
 	if uiOpen and isHousingNuiEnabled() then
-		SendNUIMessage({ action = 'populateAvailable', items = cachedAvailableApartments })
+		local availableApartments = getUiAvailableApartments()
+		SendNUIMessage({ action = 'populateAvailable', items = availableApartments })
 		if uiMode == 'catalog' then
-			SendNUIMessage({ action = 'populateCatalog', items = cachedAvailableApartments })
+			SendNUIMessage({ action = 'populateCatalog', items = availableApartments })
 		end
 	end
 end)
@@ -706,6 +823,11 @@ RegisterNUICallback('closeKiosk', function(_, cb)
 	cb({ ok = true })
 end)
 
+RegisterNUICallback('closeCloset', function(_, cb)
+	closeUi()
+	cb({ ok = true })
+end)
+
 RegisterNUICallback('enterApartment', function(data, cb)
 	local apartmentNumber = normalizeApartmentNumber(data and data.apartment)
 	if not apartmentNumber then
@@ -737,6 +859,32 @@ RegisterNUICallback('payRent', function(data, cb)
 	end
 
 	TriggerServerEvent('lsrp_housing:payRent', apartmentNumber)
+	cb({ ok = true })
+end)
+
+RegisterNUICallback('applyClosetOutfit', function(data, cb)
+	local slot = tonumber(data and data.slot)
+	if not slot or slot <= 0 or slot ~= math.floor(slot) then
+		cb({ ok = false, error = 'invalid_slot' })
+		return
+	end
+
+	local ok, errorCode = applyClosetOutfit(slot)
+	if not ok then
+		SendNUIMessage({
+			action = 'toast',
+			success = false,
+			message = 'Could not change into that outfit right now.'
+		})
+		cb({ ok = false, error = errorCode or 'apply_failed' })
+		return
+	end
+
+	SendNUIMessage({
+		action = 'toast',
+		success = true,
+		message = 'Outfit changed.'
+	})
 	cb({ ok = true })
 end)
 
@@ -932,12 +1080,20 @@ CreateThread(function()
 			nextSpawnApartmentRestoreAttemptAt = 0
 		end
 
+		if activeApartment and activeLocation and not isPlayerInsideApartmentInterior(playerCoords, activeLocation) then
+			currentApartment = nil
+			activeApartment = nil
+			activeLocation = nil
+		end
+
 		if activeApartment and activeLocation then
 			local promptDistance = tonumber(Config and Config.PromptDistance) or 1.6
 			local markerDistance = tonumber(Config and Config.MarkerDistance) or 15.0
 			local nearestExitDistance = nil
 			local storagePoint = getInteriorStoragePoint(activeLocation)
+			local closetPoint = getInteriorClosetPoint(activeLocation)
 			local storageDistance = nil
+			local closetDistance = nil
 			for _, exitPoint in ipairs(getInteriorExitPoints(activeLocation)) do
 				local exitCoords = toVector3(exitPoint)
 				if exitCoords then
@@ -964,7 +1120,24 @@ CreateThread(function()
 				end
 			end
 
-			if storageDistance and (not nearestExitDistance or storageDistance <= nearestExitDistance) then
+			local closetCoords = toVector3(closetPoint)
+			if closetCoords then
+				local distance = #(playerCoords - closetCoords)
+				if distance <= markerDistance then
+					waitMs = 0
+					drawInteractionMarker(closetPoint)
+				end
+				if distance <= promptDistance then
+					closetDistance = distance
+				end
+			end
+
+			if closetDistance and (not storageDistance or closetDistance <= storageDistance) and (not nearestExitDistance or closetDistance <= nearestExitDistance) then
+				showHelpText((Config and Config.Text and Config.Text.closetPrompt) or 'Press ~INPUT_CONTEXT~ to open the clothing closet')
+				if isInteractControlJustPressed() then
+					openApartmentCloset()
+				end
+			elseif storageDistance and (not nearestExitDistance or storageDistance <= nearestExitDistance) then
 				showHelpText((Config and Config.Text and Config.Text.storagePrompt) or 'Press ~INPUT_CONTEXT~ to open apartment storage')
 				if isInteractControlJustPressed() then
 					requestApartmentStorageAccess(activeApartment and activeApartment.location_index or nil)

@@ -40,22 +40,7 @@ local AllBlips = {
     },
     clothingshop = {
         openatthefirstlogin = false,
-        blips = {
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(72.254, -1399.102, 28.376), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(-703.776, -152.258, 36.415), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(-167.863, -298.969, 38.733), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(428.694, -800.106, 28.491), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(-829.413, -1073.710, 10.328), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(-1447.797, -242.461, 48.820), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(11.632, 6514.224, 30.877), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(123.646, -219.440, 53.557), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(1696.291, 4829.312, 41.063), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(618.093, 2759.629, 41.088), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(1190.550, 2713.441, 37.222), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(-1193.429, -772.262, 16.324), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(-3172.496, 1048.133, 19.863), },
-            { label = 'Clothing Shop', blipid = 73, blipcolor = 64, blipsize = 0.5, coords = vector3(-1108.441, 2708.923, 18.107), },
-        }
+        blips = {}
     },
     barbershop = {
         openatthefirstlogin = false,

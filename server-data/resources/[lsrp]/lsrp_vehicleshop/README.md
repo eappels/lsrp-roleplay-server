@@ -41,4 +41,4 @@ Preferred integration path:
 
 - Demo vehicle placement and stabilization are handled on the client side.
 - Purchased vehicles are not owned here directly; ownership is registered through `lsrp_vehicleparking`, then the owner key is granted through `lsrp_vehiclebehaviour`.
-- Admin quick-buy requires ACE `lsrp.vehicleshop.admin` by default, and also accepts `lsrp.economy.admin` as a compatibility fallback for existing admin setups. Unlisted direct-buy models use `Config.AdminCustomUnlistedPrice` when they are not present in the configured catalog.
+- Admin quick-buy is shown only to players who currently have `lsrp_dev` admin rights from `/devadmin add`. Unlisted direct-buy models use `Config.AdminCustomUnlistedPrice` when they are not present in the configured catalog.

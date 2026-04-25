@@ -1,11 +1,11 @@
 fx_version 'cerulean'
 game 'gta5'
 
-author 'LSRP'
-description 'LSRP Vehicle Shop'
-version '1.1.0'
-
 lua54 'yes'
+
+author 'LSRP Development'
+description 'LSRP vehicle carwash interaction with NUI'
+version '1.0.0'
 
 shared_scripts {
 	'shared/config.lua'
@@ -16,7 +16,6 @@ client_scripts {
 }
 
 server_scripts {
-	'@oxmysql/lib/MySQL.lua',
 	'server/server.lua'
 }
 
@@ -29,8 +28,5 @@ files {
 }
 
 dependencies {
-	'lsrp_dev',
-	'lsrp_framework',
-	'lsrp_vehicleparking',
-	'oxmysql'
+	'lsrp_framework'
 }

@@ -223,10 +223,6 @@ local function openShop(shop)
 	end
 
 	local vehicles = getVehiclesForShop(shop)
-	if #vehicles == 0 and not canAdminCustomPurchase then
-		notify('This dealership currently has no inventory.')
-		return
-	end
 
 	local categories = getCategoriesForShop(shop, vehicles)
 
@@ -563,6 +559,10 @@ RegisterNetEvent('lsrp_vehicleshop:client:setAccess', function(payload)
 		payload.adminCustomUnlistedPrice,
 		payload.formattedAdminCustomUnlistedPrice
 	)
+end)
+
+RegisterNetEvent('lsrp_vehicleshop:client:refreshAccess', function()
+	TriggerServerEvent('lsrp_vehicleshop:server:requestAccess')
 end)
 
 RegisterNetEvent('lsrp_vehicleshop:client:purchaseResult', function(payload)

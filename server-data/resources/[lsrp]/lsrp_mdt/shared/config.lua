@@ -18,14 +18,14 @@ Config.AccessJobs = {
 }
 
 Config.DefaultNotices = {
-	'Current pass includes online person lookup, exact plate lookup, and an on-duty unit roster.',
-	'BOLOs and incident reports are still placeholders until persistence is added.',
-	'Configured duty jobs and authorized admins can access the live MDT.'
+	'Name and state ID lookup now merges live players with stored MDT profiles.',
+	'Only on-duty police can add intel notes or manage tags on a profile.',
+	'Police and EMS can open the MDT, and the roster only shows police currently on duty.'
 }
 
 Config.Shortcuts = {
-	{ id = 'person_lookup', label = 'Person Lookup', description = 'Search online people by name or exact state ID', event = 'personLookup' },
-	{ id = 'vehicle_lookup', label = 'Vehicle Lookup', description = 'Search exact vehicle plate ownership and status', event = 'vehicleLookup' },
-	{ id = 'bolo_board', label = 'BOLO Board', description = 'Placeholder board until persistent alerts are added', event = 'boloBoard' },
-	{ id = 'incident_log', label = 'Incident Log', description = 'Placeholder log until reports are implemented', event = 'incidentLog' }
+	{ id = 'person_lookup', label = 'Profile Search', description = 'Search by player name or exact state ID', event = 'personLookup' },
+	{ id = 'profile_select', label = 'Profile View', description = 'Open a selected profile to review tags and intel', event = 'selectProfile' },
+	{ id = 'intel_note', label = 'Intel Notes', description = 'On-duty police can add intel entries to a profile', event = 'addIntel' },
+	{ id = 'police_roster', label = 'Police Roster', description = 'Review which police units are currently on duty', event = 'refreshRoster' }
 }

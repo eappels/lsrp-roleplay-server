@@ -9,6 +9,11 @@ local OWNED_VEHICLE_OWNER_STATE_KEY = 'lsrpVehicleOwner'
 local OWNED_VEHICLE_OWNER_STATE_ID_KEY = 'lsrpVehicleOwnerStateId'
 local LOCK_STATE_BAG_KEY = 'lsrpVehicleLocked'
 local VEHICLE_STORAGE_COMMAND_NAME = tostring((Config and Config.VehicleStorage and Config.VehicleStorage.commandName) or 'vehstorage')
+local getNearbyOwnedVehicleStorageTarget
+
+local function notifyPlayer(message, messageType)
+    TriggerEvent('lsrp_vehicleparking:client:notify', tostring(message or ''), messageType)
+end
 
 local function canStoreVehiclesInZone(zoneCfg)
     return type(zoneCfg) == 'table' and zoneCfg.allowStore ~= false
@@ -41,6 +46,32 @@ local function trimString(value)
     end
 
     return trimmed
+end
+
+local function buildSpawnPoint(spawnPoint, fallbackHeading, fallbackClearRadius)
+    if type(spawnPoint) ~= 'table' then
+        return nil
+    end
+
+    local rawCoords = spawnPoint.coords or spawnPoint
+    if type(rawCoords) ~= 'vector3' and type(rawCoords) ~= 'table' then
+        return nil
+    end
+
+    return {
+        coords = vector3(tonumber(rawCoords.x) or 0.0, tonumber(rawCoords.y) or 0.0, tonumber(rawCoords.z) or 0.0),
+        heading = tonumber(spawnPoint.heading) or tonumber(fallbackHeading) or 0.0,
+        clearRadius = math.max(1.5, tonumber(spawnPoint.clearRadius) or tonumber(fallbackClearRadius) or 3.0)
+    }
+end
+
+local function isSpawnPointClear(spawnPoint)
+    if type(spawnPoint) ~= 'table' or type(spawnPoint.coords) ~= 'vector3' then
+        return false
+    end
+
+    local coords = spawnPoint.coords
+    return not IsAnyVehicleNearPoint(coords.x, coords.y, coords.z, tonumber(spawnPoint.clearRadius) or 3.0)
 end
 
 local function getVehicleStorageConfig()
@@ -483,6 +514,17 @@ local function disableVehicleRadio(vehicle)
 end
 
 -- Create blips for parking zones
+local function destroyParkingBlips()
+    for index = 1, #parkingBlips do
+        local blip = parkingBlips[index]
+        if blip and DoesBlipExist(blip) then
+            RemoveBlip(blip)
+        end
+    end
+
+    parkingBlips = {}
+end
+
 local function destroyParkingZones()
     for i = 1, #parkingZones do
         local zone = parkingZones[i]
@@ -490,6 +532,8 @@ local function destroyParkingZones()
             zone:destroy()
         end
     end
+
+    destroyParkingBlips()
     parkingZones = {}
 end
 
@@ -542,6 +586,127 @@ local function createParkingZones()
             table.insert(parkingBlips, blip)
         end
     end
+end
+
+local function cloneParkingConfigFromPayload(configPayload)
+    if type(configPayload) ~= 'table' or type(configPayload.ParkingZones) ~= 'table' then
+        return nil
+    end
+
+    local clonedZones = {}
+    for index, zoneCfg in ipairs(configPayload.ParkingZones) do
+        if type(zoneCfg) == 'table' and type(zoneCfg.coords) == 'table' and type(zoneCfg.size) == 'table' then
+            local clonedZone = {
+                name = zoneCfg.name,
+                coords = vector3(tonumber(zoneCfg.coords.x) or 0.0, tonumber(zoneCfg.coords.y) or 0.0, tonumber(zoneCfg.coords.z) or 0.0),
+                size = vector3(tonumber(zoneCfg.size.x) or 0.0, tonumber(zoneCfg.size.y) or 0.0, tonumber(zoneCfg.size.z) or 0.0),
+                rotation = tonumber(zoneCfg.rotation) or 0.0,
+                maxSlots = tonumber(zoneCfg.maxSlots) or 0,
+                allowStore = zoneCfg.allowStore,
+                preferredSpawn = buildSpawnPoint(zoneCfg.preferredSpawn),
+                blip = type(zoneCfg.blip) == 'table' and {
+                    sprite = tonumber(zoneCfg.blip.sprite) or 357,
+                    color = tonumber(zoneCfg.blip.color) or 3,
+                    scale = tonumber(zoneCfg.blip.scale) or 0.8,
+                    label = zoneCfg.blip.label
+                } or nil
+            }
+
+            clonedZones[#clonedZones + 1] = clonedZone
+        end
+    end
+
+    return {
+        ParkingZones = clonedZones,
+        OpenKey = tonumber(configPayload.OpenKey) or Config.OpenKey,
+        showParkingZoneDebug = configPayload.showParkingZoneDebug == true,
+        VehicleStorage = type(configPayload.VehicleStorage) == 'table' and configPayload.VehicleStorage or ((Config and Config.VehicleStorage) or {})
+    }
+end
+
+local function loadParkingConfigFromDisk()
+    local resourceName = GetCurrentResourceName()
+    local configSource = LoadResourceFile(resourceName, 'shared/config.lua')
+    if type(configSource) ~= 'string' or configSource == '' then
+        return false, 'config_missing'
+    end
+
+    local environment = {
+        Config = {},
+        vector3 = vector3,
+        math = math,
+        string = string,
+        table = table,
+        tonumber = tonumber,
+        tostring = tostring,
+        ipairs = ipairs,
+        pairs = pairs,
+        type = type
+    }
+
+    setmetatable(environment, { __index = _G })
+
+    local chunk, loadError = load(configSource, ('@@%s/shared/config.lua'):format(resourceName), 't', environment)
+    if not chunk then
+        return false, loadError or 'config_load_failed'
+    end
+
+    local ok, runtimeError = pcall(chunk)
+    if not ok then
+        return false, runtimeError or 'config_runtime_failed'
+    end
+
+    if type(environment.Config) ~= 'table' or type(environment.Config.ParkingZones) ~= 'table' then
+        return false, 'config_invalid'
+    end
+
+    Config = environment.Config
+    return true, nil
+end
+
+local function reloadParkingZonesFromDisk(showNotification)
+    local ok, errorMessage = loadParkingConfigFromDisk()
+    if not ok then
+        print(('[lsrp_vehicleparking] Failed to reload parking config on client: %s'):format(tostring(errorMessage)))
+        if showNotification ~= false then
+            notifyPlayer('Vehicle parking reload failed.', 'error')
+        end
+        return false
+    end
+
+    inZone = false
+    currentZone = nil
+    closeParkingUI()
+    createParkingZones()
+
+    if showNotification ~= false then
+        notifyPlayer('Vehicle parking zones reloaded.', 'success')
+    end
+
+    return true
+end
+
+local function reloadParkingZonesFromConfigPayload(configPayload, showNotification)
+    local nextConfig = cloneParkingConfigFromPayload(configPayload)
+    if type(nextConfig) ~= 'table' then
+        print('[lsrp_vehicleparking] Failed to reload parking config on client: invalid_payload')
+        if showNotification ~= false then
+            notifyPlayer('Vehicle parking reload failed.', 'error')
+        end
+        return false
+    end
+
+    Config = nextConfig
+    inZone = false
+    currentZone = nil
+    closeParkingUI()
+    createParkingZones()
+
+    if showNotification ~= false then
+        notifyPlayer('Vehicle parking zones reloaded.', 'success')
+    end
+
+    return true
 end
 
 -- Initialize zones when resource starts
@@ -651,7 +816,7 @@ local function getVehicleStorageAccessPoint(vehicle)
     return GetOffsetFromEntityInWorldCoords(vehicle, 0.0, (minDim.y or 0.0) - getVehicleStorageRearOffsetPadding(), 0.0)
 end
 
-local function getNearbyOwnedVehicleStorageTarget()
+getNearbyOwnedVehicleStorageTarget = function()
     if not isVehicleStorageEnabled() then
         return nil, 'storage_disabled'
     end
@@ -1136,6 +1301,12 @@ RegisterNetEvent('lsrp_vehicleparking:client:spawnVehicle', function(vehicleData
     end
 
     local spawnHeading = zoneRotation
+    local spawnCandidates = {}
+    local preferredSpawn = buildSpawnPoint(zoneCfg.preferredSpawn, spawnHeading, 3.0)
+    if preferredSpawn then
+        spawnCandidates[#spawnCandidates + 1] = preferredSpawn
+    end
+
     local spawnOffsets = {
         vector3(5.0, 5.0, 0.0),
         vector3(-5.0, 5.0, 0.0),
@@ -1144,13 +1315,23 @@ RegisterNetEvent('lsrp_vehicleparking:client:spawnVehicle', function(vehicleData
         vector3(0.0, 8.0, 0.0)
     }
 
-    local vehicle = 0
     for _, offset in ipairs(spawnOffsets) do
-        local spawnCoords = zoneCoords + offset
-        local candidate = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnHeading, true, false)
-        if candidate ~= 0 and DoesEntityExist(candidate) then
-            vehicle = candidate
-            break
+        spawnCandidates[#spawnCandidates + 1] = {
+            coords = zoneCoords + offset,
+            heading = spawnHeading,
+            clearRadius = 3.0
+        }
+    end
+
+    local vehicle = 0
+    for _, spawnPoint in ipairs(spawnCandidates) do
+        local spawnCoords = spawnPoint.coords
+        if isSpawnPointClear(spawnPoint) then
+            local candidate = CreateVehicle(modelHash, spawnCoords.x, spawnCoords.y, spawnCoords.z, spawnPoint.heading, true, false)
+            if candidate ~= 0 and DoesEntityExist(candidate) then
+                vehicle = candidate
+                break
+            end
         end
     end
 
@@ -1212,6 +1393,15 @@ RegisterNetEvent('lsrp_vehicleparking:client:setWaypointToZone', function(zoneNa
 
     SetNewWaypoint(zoneCfg.coords.x + 0.0, zoneCfg.coords.y + 0.0)
     TriggerEvent('lsrp_vehicleparking:client:notify', ('GPS set to %s'):format(zoneCfg.name), 'success')
+end)
+
+RegisterNetEvent('lsrp_vehicleparking:client:reloadParkingZones', function(configPayload, showNotification)
+    if type(configPayload) == 'table' then
+        reloadParkingZonesFromConfigPayload(configPayload, showNotification ~= false)
+        return
+    end
+
+    reloadParkingZonesFromDisk(configPayload ~= false)
 end)
 
 RegisterCommand(VEHICLE_STORAGE_COMMAND_NAME, function()

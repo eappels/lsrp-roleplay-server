@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en" style="background: transparent !important; background-color: transparent !important;">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>LSRP Carwash</title>
+	<style>
+		html,
+		body {
+			background: transparent !important;
+			background-color: transparent !important;
+		}
+
+		body {
+			display: none;
+			visibility: hidden;
+			opacity: 0;
+		}
+	</style>
+	<link rel="stylesheet" href="style.css?v=3">
+</head>
+<body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
+	<main id="app" class="app hidden" aria-hidden="true">
+		<div class="atmo atmo--left" aria-hidden="true"></div>
+		<div class="atmo atmo--right" aria-hidden="true"></div>
+
+		<section class="shell" role="dialog" aria-modal="true" aria-labelledby="title">
+			<header class="shell__header">
+				<div>
+					<p class="shell__eyebrow">LSRP Carwash</p>
+					<h1 id="title">Vehicle Wash Bay</h1>
+					<p class="shell__subtitle">Clean your current vehicle before heading back onto the road.</p>
+				</div>
+				<button id="close-button" class="shell__close" type="button">Close</button>
+			</header>
+
+			<section class="status-strip">
+				<article class="status-card">
+					<span class="status-card__label">Location</span>
+					<strong id="location-label">Carwash</strong>
+				</article>
+				<article class="status-card">
+					<span class="status-card__label">Vehicle</span>
+					<strong id="vehicle-label">Current Vehicle</strong>
+				</article>
+				<article class="status-card">
+					<span class="status-card__label">Price</span>
+					<strong id="wash-price">LS$0</strong>
+				</article>
+				<article class="status-card">
+					<span class="status-card__label">Balance</span>
+					<strong id="balance-label">LS$0</strong>
+				</article>
+				<article class="status-card">
+					<span class="status-card__label">Wash Time</span>
+					<strong id="wash-time">3.5s</strong>
+				</article>
+			</section>
+
+			<section class="details">
+				<div class="details__copy">
+					<h2>Full Exterior Rinse</h2>
+					<p>Removes dirt and decal residue from the vehicle currently sitting in the wash bay.</p>
+				</div>
+				<div class="details__actions">
+					<button id="wash-button" class="button" type="button">Pay And Start Wash</button>
+					<p id="status-text" class="status-text">Ready for wash.</p>
+				</div>
+			</section>
+		</section>
+	</main>
+
+	<script src="script.js?v=3"></script>
+</body>
+</html>

@@ -17,7 +17,7 @@
 			opacity: 0;
 		}
 	</style>
-	<link rel="stylesheet" href="style.css?v=1">
+	<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body style="display: none; visibility: hidden; opacity: 0; background: transparent !important; background-color: transparent !important;">
 	<main id="app" class="app hidden" aria-hidden="true">
@@ -25,8 +25,8 @@
 		<section class="shell" role="dialog" aria-modal="true" aria-labelledby="mdt-title">
 			<aside class="rail">
 				<p id="eyebrow" class="eyebrow">LSRP MDT</p>
-				<h1 id="mdt-title">Mobile Data Terminal</h1>
-				<p id="subtitle" class="subtitle">Starter law and medical terminal interface.</p>
+				<h1 id="mdt-title">Minimal MDT</h1>
+				<p id="subtitle" class="subtitle">Player lookup, intel, tags, and active police duty roster.</p>
 
 				<div class="profile-card">
 					<span class="profile-card__label">Signed In</span>
@@ -38,7 +38,7 @@
 					</div>
 				</div>
 
-				<div id="shortcut-list" class="shortcut-list"></div>
+				<ul id="notice-list" class="notice-list"></ul>
 
 				<div class="rail-actions">
 					<button id="refresh-button" class="button button--primary" type="button">Refresh</button>
@@ -50,55 +50,64 @@
 				<section id="status-strip" class="status-strip"></section>
 
 				<section class="workspace-grid">
-					<article class="panel panel--lookup">
+					<article class="panel panel--search">
 						<div class="panel__header">
-							<h2>Quick Lookup</h2>
-							<p>Basic search shell for the first MDT pass.</p>
+							<h2>Profile Search</h2>
+							<p id="search-summary">Search by player name or exact state ID.</p>
 						</div>
-						<div class="lookup-grid">
+						<div class="lookup-form">
 							<label class="field">
-								<span>Person or State ID</span>
-								<input id="person-query" type="text" placeholder="Name or state ID">
+								<span>Player Name or State ID</span>
+								<input id="person-query" type="text" placeholder="Search player name or state ID">
 							</label>
-							<button id="person-search" class="button button--primary" type="button">Search Person</button>
-							<label class="field">
-								<span>Plate or VIN</span>
-								<input id="vehicle-query" type="text" placeholder="Plate or VIN">
-							</label>
-							<button id="vehicle-search" class="button button--primary" type="button">Search Vehicle</button>
+							<button id="person-search" class="button button--primary" type="button">Search</button>
+						</div>
+						<div id="result-list" class="stack-list"></div>
+					</article>
+
+					<article class="panel panel--profile">
+						<div class="panel__header panel__header--spread">
+							<div>
+								<h2 id="profile-name">No profile selected</h2>
+								<p id="profile-meta">Select a search result to open a profile.</p>
+							</div>
+							<div id="profile-badges" class="badge-row"></div>
+						</div>
+
+						<div class="profile-block">
+							<div class="profile-block__header">
+								<h3>Tags</h3>
+								<p>Quick intel markers on the selected profile.</p>
+							</div>
+							<div id="tag-list" class="tag-list"></div>
+							<div id="tag-editor" class="inline-editor hidden">
+								<input id="tag-input" type="text" placeholder="Add a tag">
+								<button id="add-tag-button" class="button button--primary" type="button">Add Tag</button>
+							</div>
+						</div>
+
+						<div class="profile-block">
+							<div class="profile-block__header">
+								<h3>Intel</h3>
+								<p id="intel-access-copy">Select a profile to review intel history.</p>
+							</div>
+							<div id="intel-editor" class="note-editor hidden">
+								<textarea id="intel-input" rows="4" maxlength="500" placeholder="Add intel to this profile"></textarea>
+								<div class="note-editor__footer">
+									<span>500 character limit</span>
+									<button id="add-intel-button" class="button button--primary" type="button">Add Intel</button>
+								</div>
+							</div>
+							<div id="intel-list" class="timeline-list"></div>
 						</div>
 					</article>
 
-					<article class="panel">
+					<article class="panel panel--roster">
 						<div class="panel__header">
-							<h2>Lookup Results</h2>
-							<p id="lookup-summary">Run a search to populate this panel.</p>
-						</div>
-						<div id="result-list" class="result-list"></div>
-					</article>
-
-					<article class="panel">
-						<div class="panel__header">
-							<h2>System Notices</h2>
-							<p>Starter announcements and implementation reminders.</p>
-						</div>
-						<ul id="notice-list" class="notice-list"></ul>
-					</article>
-
-					<article class="panel">
-						<div class="panel__header">
-							<h2>Active Units</h2>
+							<h2>Police On Duty</h2>
 							<p id="roster-summary">No active roster data loaded yet.</p>
 						</div>
-						<div id="roster-list" class="result-list"></div>
-					</article>
-
-					<article class="panel panel--wide">
-						<div class="panel__header">
-							<h2>Terminal Sections</h2>
-							<p>High-level cards for the next MDT milestones.</p>
-						</div>
-						<div id="section-list" class="section-list"></div>
+						<div id="roster-list" class="stack-list"></div>
 					</article>
 				</section>
 
@@ -109,6 +118,6 @@
 		</section>
 	</main>
 
-	<script src="script.js?v=1"></script>
+	<script src="script.js?v=2"></script>
 </body>
 </html>

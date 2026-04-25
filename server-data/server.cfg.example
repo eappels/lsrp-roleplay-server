@@ -56,6 +56,7 @@ ensure lsrp_vehicleeditor
 ensure lsrp_vehiclebehaviour
 ensure lsrp_vehicleparking
 ensure lsrp_vehicleshop
+ensure lsrp_carwash
 ensure lsrp_zones
 ensure lsrp_mapedits
 ensure lsrp_phones
@@ -108,6 +109,7 @@ add_ace group.admin lsrp.core.connect_when_closed allow
 add_ace group.admin lsrp.hunger.test allow
 add_ace group.admin lsrp.thirst.test allow
 add_ace group.admin lsrp.economy.admin allow
+add_ace group.admin lsrp.vehicleshop.admin allow
 
 # Optional: allow an in-game bootstrap of the first lsrp_dev admin when the
 # persisted dev admin list is empty.

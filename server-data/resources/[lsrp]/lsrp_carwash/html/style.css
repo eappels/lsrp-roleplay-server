@@ -1,0 +1,216 @@
+:root {
+	--ink-0: #f5f7f6;
+	--ink-1: #cad4d1;
+	--ink-2: #91a6a0;
+	--bg-0: rgba(10, 20, 22, 0.95);
+	--bg-1: rgba(16, 34, 38, 0.95);
+	--line: rgba(255, 255, 255, 0.08);
+	--accent: #6fe0b2;
+	--accent-strong: #3fb98a;
+	--shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+}
+
+* {
+	box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+}
+
+body {
+	background: transparent;
+	background-color: transparent;
+	color: var(--ink-0);
+	font-family: 'Bahnschrift', 'Trebuchet MS', sans-serif;
+	overflow: hidden;
+}
+
+button {
+	font: inherit;
+}
+
+.hidden {
+	display: none !important;
+}
+
+.app {
+	position: fixed;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding: 24px;
+}
+
+.atmo {
+	position: absolute;
+	width: 34vw;
+	height: 34vw;
+	border-radius: 999px;
+	filter: blur(30px);
+	opacity: 0.7;
+	pointer-events: none;
+}
+
+.atmo--left {
+	left: 10%;
+	top: 18%;
+	background: radial-gradient(circle, rgba(111, 224, 178, 0.22), transparent 70%);
+}
+
+.atmo--right {
+	right: 12%;
+	bottom: 18%;
+	background: radial-gradient(circle, rgba(113, 170, 255, 0.18), transparent 70%);
+}
+
+.shell {
+	position: relative;
+	width: min(760px, 100%);
+	display: grid;
+	gap: 22px;
+	padding: 28px;
+	border: 1px solid var(--line);
+	border-radius: 26px;
+	background: linear-gradient(160deg, var(--bg-1), var(--bg-0));
+	box-shadow: var(--shadow);
+	backdrop-filter: blur(10px);
+}
+
+.shell__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 16px;
+}
+
+.shell__eyebrow {
+	margin-bottom: 6px;
+	font-size: 12px;
+	letter-spacing: 0.22em;
+	text-transform: uppercase;
+	color: var(--accent);
+}
+
+.shell h1 {
+	font-size: clamp(28px, 4vw, 38px);
+	line-height: 1;
+	margin-bottom: 8px;
+}
+
+.shell__subtitle {
+	color: var(--ink-1);
+	max-width: 52ch;
+	line-height: 1.5;
+}
+
+.shell__close {
+	padding: 10px 14px;
+	border: 1px solid var(--line);
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.04);
+	color: var(--ink-0);
+	cursor: pointer;
+}
+
+.status-strip {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 12px;
+}
+
+.status-card,
+.details {
+	border: 1px solid var(--line);
+	border-radius: 18px;
+	background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+	padding: 18px;
+}
+
+.status-card {
+	display: grid;
+	gap: 8px;
+}
+
+.status-card__label {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.16em;
+	color: var(--ink-2);
+}
+
+.details {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 20px;
+	align-items: center;
+}
+
+.details__copy {
+	display: grid;
+	gap: 10px;
+}
+
+.details__copy h2 {
+	font-size: 20px;
+}
+
+.details__copy p,
+.status-text {
+	color: var(--ink-1);
+	line-height: 1.5;
+}
+
+.details__actions {
+	display: grid;
+	justify-items: end;
+	gap: 12px;
+}
+
+.button {
+	min-width: 180px;
+	padding: 14px 18px;
+	border: 0;
+	border-radius: 14px;
+	background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+	color: #072016;
+	font-weight: 700;
+	cursor: pointer;
+	transition: transform 140ms ease;
+}
+
+.button:hover,
+.shell__close:hover {
+	transform: translateY(-1px);
+}
+
+.button:disabled {
+	opacity: 0.55;
+	cursor: default;
+	transform: none;
+}
+
+@media (max-width: 720px) {
+	.app {
+		padding: 14px;
+	}
+
+	.shell {
+		padding: 22px;
+	}
+
+	.shell__header,
+	.details {
+		display: grid;
+	}
+
+	.status-strip {
+		grid-template-columns: 1fr;
+	}
+
+	.details__actions {
+		justify-items: stretch;
+	}
+
+	.button {
+		width: 100%;
+	}
+}

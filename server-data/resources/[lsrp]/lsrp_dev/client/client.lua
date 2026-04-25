@@ -555,6 +555,67 @@ local function runVehicleAction(payload)
     end
 end
 
+local function findClosestVehicle(maxDistance)
+    local ped = PlayerPedId()
+    if ped == 0 or not DoesEntityExist(ped) then
+        return 0, nil
+    end
+
+    local pedCoords = GetEntityCoords(ped)
+    local searchRadius = tonumber(maxDistance) or 8.0
+    local handle, vehicle = FindFirstVehicle()
+    local success = vehicle ~= nil and vehicle ~= 0
+    local closestVehicle = 0
+    local closestDistance = nil
+
+    repeat
+        if success and vehicle ~= 0 and DoesEntityExist(vehicle) then
+            local vehicleCoords = GetEntityCoords(vehicle)
+            local distance = #(vehicleCoords - pedCoords)
+            if distance <= searchRadius and (not closestDistance or distance < closestDistance) then
+                closestVehicle = vehicle
+                closestDistance = distance
+            end
+        end
+
+        success, vehicle = FindNextVehicle(handle)
+    until not success
+
+    EndFindVehicle(handle)
+    return closestVehicle, closestDistance
+end
+
+local function runDeleteClosestVehicleAction()
+    local vehicle, distance = findClosestVehicle(8.0)
+    if vehicle == 0 then
+        TriggerEvent('chat:addMessage', {
+            color = { 255, 200, 0 },
+            args = { 'LSRP Dev', 'No vehicle found nearby.' }
+        })
+        return
+    end
+
+    if GetPedInVehicleSeat(vehicle, -1) ~= 0 then
+        TriggerEvent('chat:addMessage', {
+            color = { 255, 200, 0 },
+            args = { 'LSRP Dev', 'Cannot delete a vehicle with a driver inside.' }
+        })
+        return
+    end
+
+    SetEntityAsMissionEntity(vehicle, true, true)
+    DeleteVehicle(vehicle)
+
+    if DoesEntityExist(vehicle) then
+        DeleteEntity(vehicle)
+    end
+
+    TriggerEvent('chat:addMessage', {
+        color = { 255, 200, 0 },
+        args = { 'LSRP Dev', ('Deleted closest vehicle (%.1fm).'):format(distance or 0.0) }
+    })
+end
+
 local function runSetPlateAction(payload)
     local plate = normalizePlateText(payload and payload.plateText)
     if not plate then
@@ -614,6 +675,11 @@ RegisterNetEvent('lsrp_dev:client:runPrivilegedAction', function(actionName, pay
 
     if actionName == 'veh' then
         runVehicleAction(type(payload) == 'table' and payload or {})
+        return
+    end
+
+    if actionName == 'delveh' then
+        runDeleteClosestVehicleAction()
         return
     end
 

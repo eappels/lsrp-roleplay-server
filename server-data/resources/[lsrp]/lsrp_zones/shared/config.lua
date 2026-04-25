@@ -51,10 +51,140 @@ Config.Zones = {
             label  = "Clothing Store"
         }
     },
-        {
+    {
         name       = "Clothing Store",
         prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
         coords     = vector3(617.65, 2760.04, 42.09),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(-703.78, -152.26, 37.42),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(-167.86, -298.97, 39.73),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(-829.41, -1073.71, 11.33),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(-1447.80, -242.46, 49.82),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(11.63, 6514.22, 31.88),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(1696.29, 4829.31, 42.06),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(1190.55, 2713.44, 38.22),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(-1193.43, -772.26, 17.32),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(-3172.50, 1048.13, 20.86),
+        radius     = 3.5,
+        interaction = "lsrp_pededitor:open",
+        blip = {
+            sprite = 73,
+            color  = 9,
+            scale  = 0.8,
+            label  = "Clothing Store"
+        }
+    },
+    {
+        name       = "Clothing Store",
+        prompt     = "Press ~INPUT_CONTEXT~ to open clothing editor",
+        coords     = vector3(-1108.44, 2708.92, 19.11),
         radius     = 3.5,
         interaction = "lsrp_pededitor:open",
         blip = {

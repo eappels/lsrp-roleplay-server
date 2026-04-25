@@ -64,6 +64,11 @@ Config.ParkingZones = {
         size = vector3(20.0, 20.0, 3.0),
         rotation = 340.0,
         maxSlots = 10,
+        preferredSpawn = {
+            coords = vector3(220.0, -804.0, 30.7),
+            heading = 160.0,
+            clearRadius = 3.0
+        },
         blip = {
             sprite = 357,
             color = 3,
@@ -82,6 +87,7 @@ Config.ParkingZones = {
 - **size**: Size of the zone box (`vector3(width, length, height)`)
 - **rotation**: Rotation of the zone in degrees
 - **maxSlots**: Maximum number of vehicles that can be parked (informational)
+- **preferredSpawn**: Optional retrieval spawn override with `coords`, optional `heading`, and optional `clearRadius`
 - **blip**: Map blip configuration (sprite, color, scale, label)
 
 ### Other Settings
@@ -166,6 +172,7 @@ The system stores **all** vehicle properties including:
 
 - Retrieval is transactional: the server marks the row as `out` before the spawn request, then restores `status = 'parked'` and refunds the retrieval fee if client spawn fails or times out.
 - The client uses the vehicle payload's saved `parkingZone` for spawning, so retrieval still works even if the player has stepped out of the current interaction zone.
+- If a zone defines `preferredSpawn`, retrieval tries that location first and falls back to the default zone offsets if the point is blocked.
 - Only one retrieval can be pending per player at a time.
 - Vehicle storage is currently a trunk-only MVP with fixed slot and weight limits.
 - Locked vehicles block trunk storage access until they are unlocked.

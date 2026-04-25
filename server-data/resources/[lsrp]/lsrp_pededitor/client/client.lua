@@ -547,6 +547,29 @@ local function awaitServerResponse(action, payload, timeoutMs)
 	return response
 end
 
+local function listSavedOutfits(timeoutMs)
+	local response = awaitServerResponse('listOutfits', {}, timeoutMs or 5000)
+	if not response or response.ok ~= true then
+		return false, response and response.error or 'no_response'
+	end
+
+	return true, type(response.data) == 'table' and response.data or {}
+end
+
+local function applyOutfitBySlot(slot, timeoutMs)
+	local response = awaitServerResponse('getOutfit', { slot = slot }, timeoutMs or 5000)
+	local outfit = response and response.ok and type(response.data) == 'table' and response.data.outfit or nil
+	if type(outfit) ~= 'table' then
+		return false, response and response.error or 'not_found'
+	end
+
+	if not applyOutfit(outfit) then
+		return false, 'apply_failed'
+	end
+
+	return true, nil
+end
+
 local function buildOutfitSavePayload(slot, name)
 	local appearance = captureAppearance()
 
@@ -793,6 +816,14 @@ end)
 
 RegisterNetEvent('lsrp_pededitor:toggle', function()
 	toggleEditor()
+end)
+
+exports('listOutfits', function(timeoutMs)
+	return listSavedOutfits(timeoutMs)
+end)
+
+exports('applyOutfitBySlot', function(slot, timeoutMs)
+	return applyOutfitBySlot(slot, timeoutMs)
 end)
 
 local function registerFrameworkInteractions()

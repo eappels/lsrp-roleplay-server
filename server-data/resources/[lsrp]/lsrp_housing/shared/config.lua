@@ -43,7 +43,8 @@ Config.Text = {
 	kioskPrompt = 'Press ~INPUT_CONTEXT~ to manage rent',
 	exitPrompt = 'Press ~INPUT_CONTEXT~ to leave your apartment',
 	exitFallbackPrompt = 'Press ~INPUT_CONTEXT~ to leave the apartment',
-	storagePrompt = 'Press ~INPUT_CONTEXT~ to open apartment storage'
+	storagePrompt = 'Press ~INPUT_CONTEXT~ to open apartment storage',
+	closetPrompt = 'Press ~INPUT_CONTEXT~ to open the clothing closet'
 }
 
 Config.DefaultApartments = {
@@ -56,7 +57,17 @@ Config.DefaultApartments = {
 	{ apartment_number = '1007', location_index = 1, price = 5000 },
 	{ apartment_number = '1008', location_index = 1, price = 5000 },
 	{ apartment_number = '1009', location_index = 1, price = 5000 },
-	{ apartment_number = '1010', location_index = 1, price = 5000 }
+	{ apartment_number = '1010', location_index = 1, price = 5000 },
+	{ apartment_number = '2001', location_index = 2, price = 20000 },
+	{ apartment_number = '2002', location_index = 2, price = 20000 },
+	{ apartment_number = '2003', location_index = 2, price = 20000 },
+	{ apartment_number = '2004', location_index = 2, price = 20000 },
+	{ apartment_number = '2005', location_index = 2, price = 20000 },
+	{ apartment_number = '2006', location_index = 2, price = 20000 },
+	{ apartment_number = '2007', location_index = 2, price = 20000 },
+	{ apartment_number = '2008', location_index = 2, price = 20000 },
+	{ apartment_number = '2009', location_index = 2, price = 20000 },
+	{ apartment_number = '2010', location_index = 2, price = 20000 }
 }
 
 Config.Locations = {
@@ -73,8 +84,37 @@ Config.Locations = {
 			z = -99.01,
 			w = 0.0,
 			label = 'Apartment Storage',
-			slots = 40,
+			slots = 10,
 			maxWeight = 75000
+		},
+		interiorCloset = {
+			x = 265.89,
+			y = -999.42,
+			z = -99.01,
+			w = 269.25
+		}
+	},
+	{
+		label = 'Eclips Towers',
+		entry = { x = -775.09, y = 312.67, z = 85.70, w = 178.0 },
+		catalog = { x = -767.37, y = 312.58, z = 85.70, w = 178.0 },
+		exteriorSpawn = { x = -777.83, y = 317.87, z = 85.66, w = 179.34 },
+		interiorSpawn = { x = -781.96, y = 326.92, z = 176.80, w = 180.0 },
+		interiorExit = { x = -781.96, y = 326.60, z = 176.80, w = 180.0 },
+		interiorStorage = {
+			x = -771.83,
+			y = 326.44,
+			z = 176.81,
+			w = 0.0,
+			label = 'Apartment Storage',
+			slots = 20,
+			maxWeight = 150000
+		},
+		interiorCloset = {
+			x = -760.06,
+			y = 325.28,
+			z = 170.61,
+			w = 356.27
 		}
 	}
 }

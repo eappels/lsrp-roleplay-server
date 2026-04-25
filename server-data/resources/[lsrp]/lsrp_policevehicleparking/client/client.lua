@@ -13,6 +13,7 @@ local LOCK_STATE_BAG_KEY = 'lsrpEmergencyVehicleLocked'
 local VEHICLE_STORAGE_COMMAND_NAME = tostring((Config and Config.VehicleStorage and Config.VehicleStorage.commandName) or 'vehstorage')
 local VEHICLE_STORAGE_KEYMAP_COMMAND = '+' .. RESOURCE_NAME .. ':openVehicleStorage'
 local VEHICLE_STORAGE_KEYMAP_RELEASE_COMMAND = '-' .. RESOURCE_NAME .. ':openVehicleStorage'
+local getNearbyOwnedVehicleStorageTarget
 
 local function canStoreVehiclesInZone(zoneCfg)
     return type(zoneCfg) == 'table' and zoneCfg.allowStore ~= false
@@ -671,7 +672,7 @@ local function getVehicleStorageAccessPoint(vehicle)
     return GetOffsetFromEntityInWorldCoords(vehicle, 0.0, (minDim.y or 0.0) - getVehicleStorageRearOffsetPadding(), 0.0)
 end
 
-local function getNearbyOwnedVehicleStorageTarget()
+getNearbyOwnedVehicleStorageTarget = function()
     if not isVehicleStorageEnabled() then
         return nil, 'storage_disabled'
     end

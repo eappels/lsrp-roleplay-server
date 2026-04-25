@@ -78,24 +78,19 @@ RegisterNUICallback('refreshMdt', function(_, cb)
 end)
 
 RegisterNUICallback('mdtAction', function(data, cb)
-	local action = type(data) == 'table' and tostring(data.event or data.action or 'action') or 'action'
-	local query = type(data) == 'table' and tostring(data.query or '') or ''
+	local payload = type(data) == 'table' and data or {}
+	local action = tostring(payload.event or payload.action or 'action')
 	if action == 'close' then
 		closeMdtUi()
-		cb({ ok = true, data = { action = action, query = query } })
+		cb({ ok = true, data = payload })
 		return
 	end
 
-	TriggerServerEvent(GetCurrentResourceName() .. ':server:runAction', {
-		action = action,
-		query = query
-	})
+	payload.action = action
+	TriggerServerEvent(GetCurrentResourceName() .. ':server:runAction', payload)
 	cb({
 		ok = true,
-		data = {
-			action = action,
-			query = query
-		}
+		data = payload
 	})
 end)
 

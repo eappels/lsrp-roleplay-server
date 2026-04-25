@@ -23,6 +23,7 @@ It is not intended as a production gameplay system.
 - `/wep [name]`: give a predefined test weapon (admin only).
 - `/veh [model]`: spawn a vehicle in front of the player (admin only).
 - `/devveh`: spawn your owned vehicle with plate `LSRP001` and saved props (admin only).
+- `/devsnacks`: add 3 burgers and 3 colas to your inventory (admin only).
 - `/ids`: toggle nearby overhead player IDs and names locally.
 - `/devadmin add [playerId]`: grant dev admin rights to an online player.
 - `/devadmin remove [playerId]`: revoke dev admin rights from an online player.
