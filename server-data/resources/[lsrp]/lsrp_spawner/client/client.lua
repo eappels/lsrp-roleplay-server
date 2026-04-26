@@ -506,12 +506,12 @@ spawnPlayerDirect = function(spawn)
 
 	shutdownLoadscreen()
 
-	if IsScreenFadedOut() then
+	if not IsScreenFadingIn() and not IsScreenFadedIn() then
 		DoScreenFadeIn(500)
+	end
 
-		while not IsScreenFadedIn() do
-			Wait(0)
-		end
+	while not IsScreenFadedIn() do
+		Wait(0)
 	end
 
 	freezeLocalPlayer(false)
