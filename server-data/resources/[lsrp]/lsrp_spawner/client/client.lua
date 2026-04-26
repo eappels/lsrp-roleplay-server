@@ -342,7 +342,7 @@ RegisterNUICallback('prejoinSpawnSelect', function(data, cb)
 	SetNuiFocus(false, false)
 	SetNuiFocusKeepInput(false)
 	cb({ success = true })
-	spawnPlayerDirect(spawn)
+	TriggerServerEvent('lsrp_spawner:requestSelectedSpawn', spawnIndex + 1)
 end)
 
 -- ---------------------------------------------------------------------------

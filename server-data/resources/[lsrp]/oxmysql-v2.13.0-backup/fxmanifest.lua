@@ -6,9 +6,9 @@ node_version '22'
 
 name 'oxmysql'
 author 'Overextended'
-version '2.14.0'
+version '2.13.0'
 license 'LGPL-3.0-or-later'
-repository 'git+https://github.com/overextended/oxmysql.git'
+repository 'https://github.com/overextended/oxmysql.git'
 description 'FXServer to MySQL communication via node-mysql2'
 
 dependencies {

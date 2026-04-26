@@ -4,3 +4,4 @@ cache/
 server-data/server.cfg
 server-data/server_internal.cfg
 server-data/resources/PLOKS_CARS/
+server-data/logs/

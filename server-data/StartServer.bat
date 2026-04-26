@@ -1,2 +1,5 @@
-cd C:\FXServer\server-data
-C:\FXServer\server\FXServer.exe +exec server.cfg
+@echo off
+setlocal
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0StartServer.ps1"
+exit /b %ERRORLEVEL%
